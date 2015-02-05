@@ -42,11 +42,11 @@ using namespace dealii;
 class Example02
 {
 public:
-  Example02 ();
+  Example02 (const std::string &mesh_file_name);
   void run ();
 
 private:
-  void make_grid ();
+  void make_grid (const std::string &mesh_file_name);
   void setup_system ();
   void assemble_system ();
   void solve ();
@@ -63,19 +63,21 @@ private:
   Vector<double> system_rhs;
 };
 
-Example02::Example02 ()
+Example02::Example02 (const std::string &mesh_file_name)
   :
   fe (1),
   dof_handler(triangulation)
-{}
+{
+  make_grid(mesh_file_name);
+}
 
 
 // Load in a gmsh grid.
-void Example02::make_grid()
+void Example02::make_grid(const std::string &mesh_file_name)
 {
   GridIn<2> gridin;
   gridin.attach_triangulation(triangulation);
-  std::ifstream f("circle.msh");
+  std::ifstream f(mesh_file_name);
   gridin.read_msh(f);
 }
 
@@ -183,7 +185,6 @@ void Example02::output_results () const
 
 void Example02::run ()
 {
-  make_grid();
   setup_system();
   assemble_system();
   solve();
@@ -193,8 +194,7 @@ void Example02::run ()
 
 int main (int argc, char **argv)
 {
-
-  Example02 laplace_problem;
+  Example02 laplace_problem(argv[1]);
   laplace_problem.run();
 
   return 0;
