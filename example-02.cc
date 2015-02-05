@@ -110,12 +110,7 @@ void Example02::assemble_system ()
 
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-  DoFHandler<2>::active_cell_iterator
-    cell = dof_handler.begin_active(),
-    endc = dof_handler.end();
-
-  //TODO find the C++11 way of dealing with this
-  for (; cell != endc; ++cell)
+  for (auto cell : dof_handler.active_cell_iterators())
   {
     fe_values.reinit(cell);
 
