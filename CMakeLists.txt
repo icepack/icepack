@@ -1,26 +1,6 @@
-##
-#  CMake script for the step-1 tutorial program:
-##
 
-# Set the name of the project and target:
-SET(TARGET "example-01")
-
-# Declare all source files the target consists of. Here, this is only
-# the one step-X.cc file, but as you expand your project you may wish
-# to add other source files as well. If your project becomes much larger,
-# you may want to either replace the following statement by something like
-#   FILE(GLOB_RECURSE TARGET_SRC  "source/*.cc")
-#   FILE(GLOB_RECURSE TARGET_INC  "include/*.h")
-#   SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
-# or switch altogether to the large project CMakeLists.txt file discussed
-# in the "CMake in user projects" page accessible from the "User info"
-# page of the documentation.
-SET(TARGET_SRC
-  ${TARGET}.cc
-  )
-
-# Usually, you will not need to modify anything beyond this point...
-
+# -------------
+# Do not modify
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
 FIND_PACKAGE(deal.II 8.2 QUIET
@@ -33,7 +13,16 @@ IF(NOT ${deal.II_FOUND})
     "or set an environment variable \"DEAL_II_DIR\" that contains this path."
     )
 ENDIF()
-
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
-PROJECT(${TARGET})
-DEAL_II_INVOKE_AUTOPILOT()
+# ---------------
+
+PROJECT(examples)
+
+ADD_EXECUTABLE(example-01 example-01.cc)
+DEAL_II_SETUP_TARGET(example-01)
+
+ADD_EXECUTABLE(example-02 example-02.cc)
+DEAL_II_SETUP_TARGET(example-02)
+
+ADD_EXECUTABLE(example-03 example-03.cc)
+DEAL_II_SETUP_TARGET(example-03)
