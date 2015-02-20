@@ -1,7 +1,7 @@
 
 import numpy as np
 
-N = 256
+N = 64
 Pi = 4.0 * np.arctan(1.0)
 cl = 1.0e22
 
@@ -26,7 +26,7 @@ for k in range(1, N):
     fid.write(", {0}".format(k + 1))
 fid.write("};\n\n")
 
-fid.write("Plane surface({0}) = {{{1}}};\n".format(N + 2, N + 1))
+fid.write("Plane Surface({0}) = {{{1}}};\n".format(N + 2, N + 1))
 
 fid.write("Mesh.Algorithm = 8;\n")
 fid.write("Recombine Surface{{{0}}};\n".format(N + 2))
