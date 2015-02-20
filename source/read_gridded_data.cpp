@@ -1,13 +1,14 @@
 
 #include "read_gridded_data.hpp"
 #include <fstream>
+#include <vector>
 
 using dealii::Table;
 
 GridData readQgis(const std::string& filename)
 {
   unsigned int nx, ny;
-  double x0, y0, dx, dy, missing, q;
+  double x0, y0, dx, dy, missing;
   std::string dummy;
 
   std::ifstream fid(filename);
@@ -22,14 +23,15 @@ GridData readQgis(const std::string& filename)
 
   std::array<unsigned int, 2> n_intervals = {nx - 1, ny - 1};
 
-  std::vector<double> data;
+  std::vector<double> data(nx * ny);
 
-  for (size_t i = 0; i < ny; ++i)
-    for (size_t j = 0; j < nx; ++j)
+  for (unsigned int i = 0; i < ny; ++i)
+    for (unsigned int j = 0; j < nx; ++j)
       {
-        fid >> q;
-        data.push_back (q);
+        fid >> data[ny * i + j];
       }
+
+  fid.close();
 
   Table<2, double> table (nx, ny, data.begin());
 
