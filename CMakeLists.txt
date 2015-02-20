@@ -18,11 +18,21 @@ DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 PROJECT(examples)
 
-ADD_EXECUTABLE(example-01 example-01.cc)
-DEAL_II_SETUP_TARGET(example-01)
+include_directories("${PROJECT_SOURCE_DIR}/include")
+set(LIBRARY_OUTPUT_PATH ${examples_BINARY_DIR}/lib)
 
-ADD_EXECUTABLE(example-02 example-02.cc)
-DEAL_II_SETUP_TARGET(example-02)
+ADD_LIBRARY(stuff source/read_gridded_data.cpp)
+DEAL_II_SETUP_TARGET(stuff)
 
-ADD_EXECUTABLE(example-03 example-03.cc)
-DEAL_II_SETUP_TARGET(example-03)
+ADD_EXECUTABLE(test_read_gridded_data tests/test_read_gridded_data.cpp)
+DEAL_II_SETUP_TARGET(test_read_gridded_data)
+TARGET_LINK_LIBRARIES(test_read_gridded_data stuff)
+
+#ADD_EXECUTABLE(example-01 example-01.cc)
+#DEAL_II_SETUP_TARGET(example-01)
+
+#ADD_EXECUTABLE(example-02 example-02.cc)
+#DEAL_II_SETUP_TARGET(example-02)
+
+#ADD_EXECUTABLE(example-03 example-03.cc)
+#DEAL_II_SETUP_TARGET(example-03)
