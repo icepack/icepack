@@ -18,18 +18,19 @@ GridData readQgis(const std::string& filename)
   dy = dx;
 
   std::array<std::pair<double, double>, 2> endpoints;
-  endpoints[0] = std::make_pair (x0, x0 + nx * dx);
-  endpoints[1] = std::make_pair (y0, y0 + ny * dy);
+  endpoints[0] = std::make_pair (x0, x0 + (nx - 1) * dx);
+  endpoints[1] = std::make_pair (y0, y0 + (ny - 1) * dy);
 
   std::array<unsigned int, 2> n_intervals = {nx - 1, ny - 1};
 
   std::vector<double> data(nx * ny);
 
-  for (unsigned int i = 0; i < ny; ++i)
+  for (unsigned int i = 0; i < ny; ++i) {
     for (unsigned int j = 0; j < nx; ++j)
       {
-        fid >> data[ny * i + j];
+        fid >> data[ny * j + i];
       }
+  }
 
   fid.close();
 

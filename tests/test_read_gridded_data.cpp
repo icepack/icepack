@@ -9,12 +9,16 @@
 #include <fstream>
 #include <iostream>
 
+
+size_t nx = 11, ny = 6;
+double dx = 0.2, dy = dx;
+
+
 using dealii::Point;
 
 void generateExampleQgisFile(const std::string& filename) {
 
-  size_t nx = 51, ny = 21;
-  double dx = 0.25, x0 = 1.0, y0 = 2.0, dy = dx;
+  double x0 = 0.0, y0 = 0.0;
   double missing = -9999.0;
 
   std::ofstream fid(filename);
@@ -31,13 +35,16 @@ void generateExampleQgisFile(const std::string& filename) {
     y = y0 + (i - 1) * dy;
     for (size_t j = 0; j < nx; ++j) {
       x = x0 + j * dx;
-      z = x * y;
+      z = 1 + x * y;
       fid << z << " ";
+      std::cout << z << " ";
     }
 
+    std::cout << std::endl;
     fid << std::endl;
   }
 
+  std::cout << std::endl;
   fid.close();
 }
 
@@ -49,8 +56,7 @@ int main () {
   generateExampleQgisFile(filename);
   GridData example_data = readQgis(filename);
 
-  size_t nx = 51, ny = 21;
-  double dx = 0.25, x0 = 1.0, y0 = 2.0, dy = dx;
+  double x0 = 0.0, y0 = 0.0;
 
   double x, y, z;
   Point<2> p;
@@ -58,15 +64,11 @@ int main () {
     y = y0 + i * dy;
     for (size_t j = 0; j < nx; ++j) {
       x = x0 + j * dx;
-      z = x * y;
+      z = 1 + x * y;
       p = {x, y};
-      if ( fabs(example_data.value(p) - z) > 1.0e-12 ) {
-        std::cout << "Uh-oh, wrong function value!" << std::endl;
-        std::cout << i << ", " << j << std::endl;
-        std::cout << example_data.value(p) << ", " << z  << std::endl;
-        return 1;
-      }
+      std::cout << example_data.value(p, 0) << " ";
     }
+    std::cout << std::endl;
   }
 
   return 0;

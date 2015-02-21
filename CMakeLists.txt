@@ -21,7 +21,7 @@ PROJECT(examples)
 include_directories("${PROJECT_SOURCE_DIR}/include")
 set(LIBRARY_OUTPUT_PATH ${examples_BINARY_DIR}/lib)
 
-ADD_LIBRARY(stuff source/read_gridded_data.cpp)
+ADD_LIBRARY(stuff src/read_gridded_data.cpp)
 DEAL_II_SETUP_TARGET(stuff)
 
 ADD_EXECUTABLE(test_read_gridded_data tests/test_read_gridded_data.cpp)
