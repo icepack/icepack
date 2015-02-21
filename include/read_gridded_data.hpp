@@ -5,7 +5,7 @@
 
 // using namespace dealii;
 
-typedef dealii::Functions::InterpolatedUniformGridData<2> GridData;
+typedef dealii::Functions::InterpolatedTensorProductGridData<2> GridData;
 
 GridData readQgis(const std::string& filename);
 //GridData readGeoDat(const std::string& filename):

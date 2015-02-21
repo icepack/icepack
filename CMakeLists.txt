@@ -16,17 +16,18 @@ ENDIF()
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 # ---------------
 
-PROJECT(examples)
+
+project(examples)
+
+enable_testing()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
+add_subdirectory("${CMAKE_SOURCE_DIR}/tests")
+
 set(LIBRARY_OUTPUT_PATH ${examples_BINARY_DIR}/lib)
 
-ADD_LIBRARY(stuff src/read_gridded_data.cpp)
+add_library(stuff src/read_gridded_data.cpp)
 DEAL_II_SETUP_TARGET(stuff)
-
-ADD_EXECUTABLE(read_qgis tests/read_qgis.cpp)
-DEAL_II_SETUP_TARGET(read_qgis)
-TARGET_LINK_LIBRARIES(read_qgis stuff)
 
 #ADD_EXECUTABLE(example-01 example-01.cc)
 #DEAL_II_SETUP_TARGET(example-01)

@@ -37,14 +37,11 @@ void generateExampleQgisFile(const std::string& filename) {
       x = x0 + j * dx;
       z = 1 + x * y;
       fid << z << " ";
-      std::cout << z << " ";
     }
 
-    std::cout << std::endl;
     fid << std::endl;
   }
 
-  std::cout << std::endl;
   fid.close();
 }
 
@@ -52,24 +49,37 @@ void generateExampleQgisFile(const std::string& filename) {
 
 int main () {
 
+  bool verbose = true;
+
   std::string filename = "example_qgis_file.txt";
   generateExampleQgisFile(filename);
   GridData example_data = readQgis(filename);
 
   double x0 = 0.0, y0 = 0.0;
 
-  double x, y, z;
+  double x, y;
+  double w, z;
   Point<2> p;
-  for (size_t i = 0; i < ny; ++i) {
-    y = y0 + i * dy;
+  for (size_t i = ny; i > 0; --i) {
+    y = y0 + (i - 1) * dy;
     for (size_t j = 0; j < nx; ++j) {
       x = x0 + j * dx;
-      z = 1 + x * y;
+
       p = {x, y};
-      std::cout << example_data.value(p, 0) << " ";
+
+      z = 1 + x * y;
+      w = example_data.value(p, 0);
+
+      if (fabs(w - z) > 1.0e-12) {
+        std::cout << "Reading QGIS data failed." << std::endl;
+        std::cout << "Correct value: " << z << std::endl;
+        std::cout << "Data read:     " << w << std::endl;
+        return 1;
+      }
     }
-    std::cout << std::endl;
   }
+
+  if (verbose) std::cout << "Reading QGIS data worked!" << std::endl;
 
   return 0;
 }
