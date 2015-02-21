@@ -24,9 +24,9 @@ set(LIBRARY_OUTPUT_PATH ${examples_BINARY_DIR}/lib)
 ADD_LIBRARY(stuff src/read_gridded_data.cpp)
 DEAL_II_SETUP_TARGET(stuff)
 
-ADD_EXECUTABLE(test_read_gridded_data tests/test_read_gridded_data.cpp)
-DEAL_II_SETUP_TARGET(test_read_gridded_data)
-TARGET_LINK_LIBRARIES(test_read_gridded_data stuff)
+ADD_EXECUTABLE(read_qgis tests/read_qgis.cpp)
+DEAL_II_SETUP_TARGET(read_qgis)
+TARGET_LINK_LIBRARIES(read_qgis stuff)
 
 #ADD_EXECUTABLE(example-01 example-01.cc)
 #DEAL_II_SETUP_TARGET(example-01)

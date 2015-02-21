@@ -52,7 +52,7 @@ void generateExampleQgisFile(const std::string& filename) {
 
 int main () {
 
-  std::string filename = "test_read_gridded_data_example.txt";
+  std::string filename = "example_qgis_file.txt";
   generateExampleQgisFile(filename);
   GridData example_data = readQgis(filename);
 
