@@ -8,7 +8,12 @@
 
 using dealii::Table;
 
-GridData readQgis(const std::string& filename)
+GridData readArcAsciiGrid(const std::string& filename)
+/**
+ * Read a gridded data set stored in the ESRI Arc/Info ASCII grid format. See
+ *   http://en.wikipedia.org/wiki/Esri_grid
+ * for format specification and more info.
+ */
 {
   unsigned int nx, ny;
   double x0, y0, dx, dy, missing;

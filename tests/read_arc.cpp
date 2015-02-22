@@ -16,7 +16,7 @@ double dx = 0.2, dy = dx;
 
 using dealii::Point;
 
-void generateExampleQgisFile(const std::string& filename) {
+void generateExampleArcAsciiGrid(const std::string& filename) {
 
   double x0 = 0.0, y0 = 0.0;
   double missing = -9999.0;
@@ -52,8 +52,8 @@ int main () {
   bool verbose = true;
 
   std::string filename = "example_qgis_file.txt";
-  generateExampleQgisFile(filename);
-  GridData example_data = readQgis(filename);
+  generateExampleArcAsciiGrid(filename);
+  GridData example_data = readArcAsciiGrid(filename);
 
   double x0 = 0.0, y0 = 0.0;
 
@@ -71,7 +71,7 @@ int main () {
       w = example_data.value(p, 0);
 
       if (fabs(w - z) > 1.0e-12) {
-        std::cout << "Reading QGIS data failed." << std::endl;
+        std::cout << "Reading Arc data failed." << std::endl;
         std::cout << "Correct value: " << z << std::endl;
         std::cout << "Data read:     " << w << std::endl;
         return 1;
@@ -79,7 +79,7 @@ int main () {
     }
   }
 
-  if (verbose) std::cout << "Reading QGIS data worked!" << std::endl;
+  if (verbose) std::cout << "Reading Arc grid data worked!" << std::endl;
 
   return 0;
 }

@@ -1,6 +1,6 @@
 
 set( test_list
-read_qgis.cpp
+read_arc.cpp
 )
 
 
