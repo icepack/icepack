@@ -1,4 +1,12 @@
 
+/**
+ * Procedures for converting variables from one endianness to another.
+ * Used for reading binary files.
+ */
+
+#ifndef ENDIANNESS_HPP
+#define ENDIANNESS_HPP
+
 #include <netinet/in.h>
 
 template<class Val> inline Val ntohx(const Val& in)
@@ -80,3 +88,5 @@ template<> inline float htonx<float>(const float& v)
     uint32_t ret = htonx(*cast);
     return *(reinterpret_cast<float*>(&ret));
 }
+
+#endif
