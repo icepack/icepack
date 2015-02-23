@@ -2,6 +2,7 @@
 set(test_list
   read_arc.cpp
   read_geodat.cpp
+  read_geotiff.cpp
 )
 
 

@@ -28,6 +28,7 @@ set(LIBRARY_OUTPUT_PATH ${examples_BINARY_DIR}/lib)
 
 add_library(stuff src/read_gridded_data.cpp)
 DEAL_II_SETUP_TARGET(stuff)
+target_link_libraries(stuff gdal)
 
 #ADD_EXECUTABLE(example-01 example-01.cc)
 #DEAL_II_SETUP_TARGET(example-01)

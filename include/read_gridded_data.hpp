@@ -17,5 +17,6 @@ typedef dealii::Functions::InterpolatedTensorProductGridData<2> GridData;
 
 GridData readArcAsciiGrid(const std::string& filename);
 GridData readGeoDat(const std::string& filename);
+GridData readGeoTiff(const std::string& filename);
 
 #endif

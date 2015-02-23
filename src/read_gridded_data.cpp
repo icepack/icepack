@@ -2,6 +2,8 @@
 #include "endianness.hpp"
 #include "read_gridded_data.hpp"
 
+#include <gdal/gdal_priv.h>
+
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -114,6 +116,31 @@ GridData readGeoDat(const std::string& filename)
   for (unsigned int i = 0; i < ny; ++i)
     for (unsigned int j = 0; j < nx; ++j)
       table[j][i] = vals[ny * j + i];
+
+  return GridData(coordinate_values, table);
+}
+
+
+GridData readGeoTiff(const std::string& filename)
+{
+  GDALAllRegister();
+  GDALDataset* data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
+  if (data == 0) {
+    // TODO error handling
+  }
+
+  unsigned int nx = data->GetRasterXSize(), ny = data->GetRasterYSize(),
+    count = data->GetRasterCount();
+
+  std::cout << nx << ", " << ny << ", " << count << std::endl;
+
+  delete data;
+
+  std::vector<double> x(nx);
+  std::vector<double> y(ny);
+  Table<2, double> table(nx, ny);
+
+  std::array<std::vector<double>, 2> coordinate_values = {{x, y}};
 
   return GridData(coordinate_values, table);
 }
