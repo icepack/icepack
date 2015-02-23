@@ -47,11 +47,12 @@ void generateExampleArcAsciiGrid(const std::string& filename) {
 
 
 
-int main () {
+int main (int argc, char **argv) {
 
-  bool verbose = true;
+  bool verbose = false;
+  if (strcmp(argv[argc-1], "-v") == 0) verbose = true;
 
-  std::string filename = "example_qgis_file.txt";
+  std::string filename = "example_arc_file.txt";
   generateExampleArcAsciiGrid(filename);
   GridData example_data = readArcAsciiGrid(filename);
 
@@ -80,6 +81,5 @@ int main () {
   }
 
   if (verbose) std::cout << "Reading Arc grid data worked!" << std::endl;
-
   return 0;
 }
