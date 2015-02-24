@@ -3,6 +3,7 @@
 #include "read_gridded_data.hpp"
 
 #include <gdal/gdal_priv.h>
+#include <gdal/cpl_conv.h>
 
 #include <fstream>
 #include <sstream>
@@ -124,21 +125,50 @@ GridData readGeoDat(const std::string& filename)
 GridData readGeoTiff(const std::string& filename)
 {
   GDALAllRegister();
-  GDALDataset* data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
+  GDALDataset *data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
   if (data == 0) {
     // TODO error handling
   }
 
-  unsigned int nx = data->GetRasterXSize(), ny = data->GetRasterYSize(),
-    count = data->GetRasterCount();
+  unsigned int nx = data->GetRasterXSize(),
+               ny = data->GetRasterYSize(),
+               count = data->GetRasterCount();
 
   std::cout << nx << ", " << ny << ", " << count << std::endl;
 
+  double geoTransform[6];
+  data->GetGeoTransform(geoTransform);
+  double dx = geoTransform[1];
+  double dy = geoTransform[5];
+  double xo = geoTransform[0];
+  double yo = geoTransform[3];
+
+  std::cout << "Top left x: " << xo << std::endl;
+  std::cout << "Top left y: " << yo << std::endl;
+  std::cout << "Grid spacing: " << dx << ", " << dy << std::endl;
+
+  GDALRasterBand *band = data->GetRasterBand(1);
+
+  // Bro, do you even know how to C++?
+  float *scanline = (float *) CPLMalloc(sizeof(float) * nx);
+
+  Table<2, double> table(nx, ny);
+
+  for (unsigned int i = ny - 1; i < ny; --i) {
+    band->RasterIO( GF_Read, 0, 0, nx, 1, scanline, nx, 1,
+                    GDT_Float32, 0, 0 );
+    for (unsigned int j = 0; j < nx; ++j)
+      table[j][ny - i - 1] = scanline[j];
+  }
+
+  CPLFree(scanline);
   delete data;
 
   std::vector<double> x(nx);
   std::vector<double> y(ny);
-  Table<2, double> table(nx, ny);
+
+  for (unsigned int i = ny - 1; i < ny; --i) y[i] = yo - i * dy;
+  for (unsigned int j = 0; j < nx; ++j) x[j] = xo + j * dx;
 
   std::array<std::vector<double>, 2> coordinate_values = {{x, y}};
 
