@@ -127,14 +127,12 @@ GridData readGeoTiff(const std::string& filename)
   GDALAllRegister();
   GDALDataset *data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
   if (data == 0) {
-    // TODO error handling
+    throw;
   }
 
   unsigned int nx = data->GetRasterXSize(),
                ny = data->GetRasterYSize(),
                count = data->GetRasterCount();
-
-  std::cout << nx << ", " << ny << ", " << count << std::endl;
 
   double geoTransform[6];
   data->GetGeoTransform(geoTransform);
@@ -142,10 +140,6 @@ GridData readGeoTiff(const std::string& filename)
   double dy = geoTransform[5];
   double xo = geoTransform[0];
   double yo = geoTransform[3];
-
-  std::cout << "Top left x: " << xo << std::endl;
-  std::cout << "Top left y: " << yo << std::endl;
-  std::cout << "Grid spacing: " << dx << ", " << dy << std::endl;
 
   GDALRasterBand *band = data->GetRasterBand(1);
 
