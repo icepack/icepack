@@ -86,9 +86,11 @@ int main (int argc, char **argv)
          ymin = example_data.ymin(),
          ymax = example_data.ymax();
 
-  if (xmin != x0 or xmax != x0 + nx * dx or
-      ymin != y0 or ymax != y0 + ny * dy) {
+  if (xmin != x0 or xmax != x0 + (nx - 1) * dx or
+      ymin != y0 or ymax != y0 + (ny - 1) * dy) {
     std::cout << "Did not correctly record spatial extent of data." << std::endl;
+    std::cout << xmin << ", " << xmax << std::endl;
+    std::cout << ymin << ", " << ymax << std::endl;
     return 1;
   }
 
