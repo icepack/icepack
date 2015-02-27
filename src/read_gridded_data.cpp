@@ -10,6 +10,21 @@
 #include <vector>
 
 using dealii::Table;
+using dealii::Functions::InterpolatedTensorProductGridData;
+
+
+GridData::GridData(const std::array<std::vector<double>, 2>& coordinate_values,
+                   const Table<2, double>& data_values)
+  :
+  InterpolatedTensorProductGridData<2>(coordinate_values, data_values)
+{
+  xrange[0] = coordinate_values[0][0];
+  yrange[0] = coordinate_values[1][0];
+
+  xrange[1] = coordinate_values[0].back();
+  yrange[1] = coordinate_values[1].back();
+}
+
 
 GridData readArcAsciiGrid(const std::string& filename)
 /**

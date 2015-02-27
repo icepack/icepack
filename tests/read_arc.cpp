@@ -16,8 +16,8 @@ double dx = 0.2, dy = dx;
 
 using dealii::Point;
 
-void generateExampleArcAsciiGrid(const std::string& filename) {
-
+void generateExampleArcAsciiGrid(const std::string& filename)
+{
   double x0 = 0.0, y0 = 0.0;
   double missing = -9999.0;
 
@@ -33,6 +33,7 @@ void generateExampleArcAsciiGrid(const std::string& filename) {
   double x, y, z;
   for (size_t i = ny; i > 0; --i) {
     y = y0 + (i - 1) * dy;
+
     for (size_t j = 0; j < nx; ++j) {
       x = x0 + j * dx;
       z = 1 + x * y;
@@ -47,8 +48,8 @@ void generateExampleArcAsciiGrid(const std::string& filename) {
 
 
 
-int main (int argc, char **argv) {
-
+int main (int argc, char **argv)
+{
   bool verbose = false;
   if (strcmp(argv[argc-1], "-v") == 0) verbose = true;
 
@@ -78,6 +79,17 @@ int main (int argc, char **argv) {
         return 1;
       }
     }
+  }
+
+  double xmin = example_data.xmin(),
+         xmax = example_data.xmax(),
+         ymin = example_data.ymin(),
+         ymax = example_data.ymax();
+
+  if (xmin != x0 or xmax != x0 + nx * dx or
+      ymin != y0 or ymax != y0 + ny * dy) {
+    std::cout << "Did not correctly record spatial extent of data." << std::endl;
+    return 1;
   }
 
   if (verbose) std::cout << "Reading Arc grid data worked!" << std::endl;
