@@ -146,8 +146,7 @@ GridData readGeoTiff(const std::string& filename)
   }
 
   unsigned int nx = data->GetRasterXSize(),
-               ny = data->GetRasterYSize(),
-               count = data->GetRasterCount();
+               ny = data->GetRasterYSize();
 
   double geoTransform[6];
   data->GetGeoTransform(geoTransform);
@@ -159,13 +158,13 @@ GridData readGeoTiff(const std::string& filename)
   GDALRasterBand *band = data->GetRasterBand(1);
 
   // Bro, do you even know how to C++?
-  float *scanline = (float *) CPLMalloc(sizeof(float) * nx);
+  double *scanline = (double *) CPLMalloc(sizeof(double) * nx);
 
   Table<2, double> table(nx, ny);
 
   for (unsigned int i = ny - 1; i < ny; --i) {
     band->RasterIO( GF_Read, 0, 0, nx, 1, scanline, nx, 1,
-                    GDT_Float32, 0, 0 );
+                    GDT_Float64, 0, 0 );
     for (unsigned int j = 0; j < nx; ++j)
       table[j][ny - i - 1] = scanline[j];
   }
