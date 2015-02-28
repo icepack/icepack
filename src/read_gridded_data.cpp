@@ -137,7 +137,7 @@ GridData readGeoDat(const std::string& filename)
 }
 
 
-GridData readGeoTiff(const std::string& filename)
+GridData readGeoTIFF(const std::string& filename)
 {
   GDALAllRegister();
   GDALDataset *data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
@@ -162,8 +162,8 @@ GridData readGeoTiff(const std::string& filename)
 
   Table<2, double> table(nx, ny);
 
-  for (unsigned int i = ny - 1; i < ny; --i) {
-    band->RasterIO( GF_Read, 0, 0, nx, 1, scanline, nx, 1,
+  for (unsigned int i = 0; i < ny; ++i) {
+    band->RasterIO( GF_Read, 0, i, nx, 1, scanline, nx, 1,
                     GDT_Float64, 0, 0 );
     for (unsigned int j = 0; j < nx; ++j)
       table[j][ny - i - 1] = scanline[j];
@@ -175,7 +175,7 @@ GridData readGeoTiff(const std::string& filename)
   std::vector<double> x(nx);
   std::vector<double> y(ny);
 
-  for (unsigned int i = ny - 1; i < ny; --i) y[i] = yo - i * dy;
+  for (unsigned int i = 0; i < ny; ++i) y[i] = yo + (ny - i - 1) * dy;
   for (unsigned int j = 0; j < nx; ++j) x[j] = xo + j * dx;
 
   std::array<std::vector<double>, 2> coordinate_values = {{x, y}};

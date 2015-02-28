@@ -1,5 +1,4 @@
 
-
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 #include <gdal/cpl_string.h>
@@ -10,12 +9,14 @@
 using dealii::Point;
 
 
+// Some global constants for the mesh size
+constexpr unsigned int nx = 11, ny = 6;
+constexpr double xo = 0.0, yo = 0.0;
+constexpr double dx = 1.0, dy = -1.0;
+
+
 bool generateExampleGeoTIFF(const std::string& filename)
 {
-  double x0 = 0.0, y0 = 0.0;
-  double dx = 2, dy = -2;
-  constexpr unsigned int nx = 301, ny = 201;
-
   const char format[] = "GTiff";
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName(format);
   if (not driver)
@@ -31,7 +32,8 @@ bool generateExampleGeoTIFF(const std::string& filename)
                                      1,
                                      GDT_Float64,
                                      options);
-  double geoTransform[6] = { x0, dx, 0, y0, 0, dy };
+
+  double geoTransform[6] = { xo, dx, 0, yo - (ny - 1) * dy, 0, dy };
 
   OGRSpatialReference oSRS;
   char *SRS_WKT = 0;
@@ -41,11 +43,11 @@ bool generateExampleGeoTIFF(const std::string& filename)
   double x, y;
   for (unsigned int i = 0; i < ny; ++i)
   {
-    y = y0 + i * dy;
+    y = yo - i * dy;
     for (unsigned int j = 0; j < nx; ++j)
     {
-      x = x0 + j * dx;
-      raster[nx * i + j] = 1 + x * y;
+      x = xo + j * dx;
+      raster[nx * (ny - i - 1) + j] = 1 + x * y;
     }
   }
 
@@ -74,13 +76,47 @@ int main(int argc, char **argv)
 
   bool successfully_wrote_example = generateExampleGeoTIFF(filename);
   if (not successfully_wrote_example) return 1;
-  GridData q = readGeoTiff(filename);
+  GridData example_data = readGeoTIFF(filename);
 
-  std::cout << q.xmin() << ", " << q.xmax() << std::endl;
-  std::cout << q.ymin() << ", " << q.ymax() << std::endl;
+  double xmin = example_data.xmin(),
+         xmax = example_data.xmax(),
+         ymin = example_data.ymin(),
+         ymax = example_data.ymax();
 
-  std::cout << q.value(Point<2> {444720, 3751320}) << std::endl;
-  std::cout << q.value(Point<2> {444750, 3751290}) << std::endl;
+  if (xmin != xo or xmax != xo + (nx - 1) * dx or
+      ymin != yo or ymax != yo + (ny - 1) * fabs(dy))
+  {
+    std::cout << "Failed to record spatial extent of data." << std::endl;
+    std::cout << xmin << ", " << xmax << std::endl;
+    std::cout << ymin << ", " << ymax << std::endl;
+    return 1;
+  }
 
+  double x, y;
+  double z, w;
+  Point<2> p;
+  for (unsigned int i = 0; i < ny; ++i)
+  {
+    y = yo + i * fabs(dy);
+    for (unsigned int j = 0; j < ny; ++j)
+    {
+      x = xo + j * dx;
+
+      p = {x, y};
+
+      z = 1 + x * y;
+      w = example_data.value(p, 0);
+
+      if (fabs(w - z) > 1.0e-12)
+      {
+        std::cout << "Reading GeoTIFF data failed." << std::endl;
+        std::cout << "Correct value: " << z << std::endl;
+        std::cout << "Data read:     " << w << std::endl;
+        return 1;
+      }
+    }
+  }
+
+  std::cout << "Reading GeoTIFF data worked!" << std::endl;
   return 0;
 }

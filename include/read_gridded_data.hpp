@@ -22,7 +22,7 @@ private:
 
 public:
   GridData(const std::array<std::vector<double>, 2>& coodinate_values,
-           const dealii::Table<2, double>& data_values);
+           const dealii::Table<2, double>&           data_values);
 
   double xmin() const { return xrange[0]; }
   double xmax() const { return xrange[1]; }
@@ -33,6 +33,6 @@ public:
 
 GridData readArcAsciiGrid(const std::string& filename);
 GridData readGeoDat(const std::string& filename);
-GridData readGeoTiff(const std::string& filename);
+GridData readGeoTIFF(const std::string& filename);
 
 #endif
