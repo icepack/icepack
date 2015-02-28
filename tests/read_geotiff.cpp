@@ -9,29 +9,45 @@
 
 using dealii::Point;
 
-int main(int argc, char **argv)
+
+bool generateExampleGeoTIFF(const std::string& filename)
 {
-  const char *filename = "example_geotiff_file.tiff";
-  constexpr int nx = 512, ny = 512;
+  double x0 = 0.0, y0 = 0.0;
+  double dx = 2, dy = -2;
+  constexpr unsigned int nx = 301, ny = 201;
 
-  GDALAllRegister();
-
-  const char *format = "GTiff";
+  const char format[] = "GTiff";
   GDALDriver *driver = GetGDALDriverManager()->GetDriverByName(format);
-  if (not driver) return 1;
+  if (not driver)
+  {
+    std::cout << "Unable to get geotif GDAL driver!" << std::endl;
+    return false;
+  }
 
-  char **options = NULL;
-  GDALDataset *data = driver->Create(filename, 512, 512, 1, GDT_Float64,
+  char **options = 0;
+  GDALDataset *data = driver->Create(filename.c_str(),
+                                     nx,
+                                     ny,
+                                     1,
+                                     GDT_Float64,
                                      options);
-  double geoTransform[6] = { 444720, 30, 0, 3751320, 0, -30 };
-  OGRSpatialReference oSRS;
-  char *SRS_WKT = NULL;
-  GDALRasterBand *band;
-  double raster[512 * 512];
+  double geoTransform[6] = { x0, dx, 0, y0, 0, dy };
 
-  for (int i = ny - 1; i >= 0; --i)
-    for (int j = 0; j < nx; ++j)
-      raster[ny * i + j] = 1.0 / (i + j + 1);
+  OGRSpatialReference oSRS;
+  char *SRS_WKT = 0;
+  GDALRasterBand *band;
+  double raster[nx * ny];
+
+  double x, y;
+  for (unsigned int i = 0; i < ny; ++i)
+  {
+    y = y0 + i * dy;
+    for (unsigned int j = 0; j < nx; ++j)
+    {
+      x = x0 + j * dx;
+      raster[nx * i + j] = 1 + x * y;
+    }
+  }
 
   data->SetGeoTransform(geoTransform);
 
@@ -42,13 +58,29 @@ int main(int argc, char **argv)
   CPLFree(SRS_WKT);
 
   band = data->GetRasterBand(1);
-  band->RasterIO(GF_Write, 0, 0, 512, 512, raster, 512, 512, GDT_Float64, 0, 0);
+  band->RasterIO(GF_Write, 0, 0, nx, ny, raster, nx, ny, GDT_Float64, 0, 0);
   GDALClose((GDALDatasetH) data);
 
-  GridData q = readGeoTiff("example_geotiff_file.tiff");
+  return true;
+}
+
+
+
+int main(int argc, char **argv)
+{
+  const std::string& filename = "example_geotiff_file.tiff";
+
+  GDALAllRegister();
+
+  bool successfully_wrote_example = generateExampleGeoTIFF(filename);
+  if (not successfully_wrote_example) return 1;
+  GridData q = readGeoTiff(filename);
+
+  std::cout << q.xmin() << ", " << q.xmax() << std::endl;
+  std::cout << q.ymin() << ", " << q.ymax() << std::endl;
 
   std::cout << q.value(Point<2> {444720, 3751320}) << std::endl;
-  std::cout << q.value(Point<2> {444750, 3751350}) << std::endl;
+  std::cout << q.value(Point<2> {444750, 3751290}) << std::endl;
 
   return 0;
 }
