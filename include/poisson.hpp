@@ -46,7 +46,7 @@ public:
                  const Function<dim>& _rhs);
 
   void run();
-  void output();
+  void output(const std::string& filename);
 
 private:
 
@@ -193,12 +193,12 @@ void PoissonProblem<dim>::run()
 
 
 template <int dim>
-void PoissonProblem<dim>::output()
+void PoissonProblem<dim>::output(const std::string& filename)
 {
   DataOut<dim> data_out;
 
   data_out.attach_dof_handler (dof_handler);
-  data_out.add_data_vector (solution, "solution");
+  data_out.add_data_vector (solution, filename);
 
   data_out.build_patches ();
   DataOutBase::EpsFlags eps_flags;
@@ -206,11 +206,8 @@ void PoissonProblem<dim>::output()
   eps_flags.azimut_angle = 40;
   eps_flags.turn_angle   = 10;
   data_out.set_flags (eps_flags);
-  std::ostringstream filename;
 
-  filename << "solution.eps";
-
-  std::ofstream output (filename.str().c_str());
+  std::ofstream output ((filename + ".eps").c_str());
 
   data_out.write_eps (output);
 }
