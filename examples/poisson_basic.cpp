@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 
   PoissonProblem<2> pp(tri, coeff, rhs);
   pp.run();
+  pp.output();
 
   return 1;
 }

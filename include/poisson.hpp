@@ -15,6 +15,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/tria_boundary_lib.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
@@ -45,6 +46,7 @@ public:
                  const Function<dim>& _rhs);
 
   void run();
+  void output();
 
 private:
 
@@ -189,6 +191,29 @@ void PoissonProblem<dim>::run()
   solve ();
 }
 
+
+template <int dim>
+void PoissonProblem<dim>::output()
+{
+  DataOut<dim> data_out;
+
+  data_out.attach_dof_handler (dof_handler);
+  data_out.add_data_vector (solution, "solution");
+
+  data_out.build_patches ();
+  DataOutBase::EpsFlags eps_flags;
+  eps_flags.z_scaling = 4;
+  eps_flags.azimut_angle = 40;
+  eps_flags.turn_angle   = 10;
+  data_out.set_flags (eps_flags);
+  std::ostringstream filename;
+
+  filename << "solution.eps";
+
+  std::ofstream output (filename.str().c_str());
+
+  data_out.write_eps (output);
+}
 
 
 #endif
