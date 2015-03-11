@@ -24,17 +24,23 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 
-
-/*using dealii::Triangulation;
+/* Using declarations, for whenever I decide to abandon the bad practice
+   of using the entire dealii namespace
+using dealii::Triangulation;
 using dealii::Function;
 using dealii::FE_Q;
+using dealii::FEValues;
 using dealii::DoFHandler;
+using dealii::DoFTools::make_sparsity_pattern;
+using dealii::UpdateFlags;
 using dealii::SparsityPattern;
 using dealii::CompressedSparsityPattern;
 using dealii::SparseMatrix;
 using dealii::Vector;
 using dealii::QGauss;
-using dealii::FullMatrix;*/
+using dealii::FullMatrix;
+using dealii::SolverCG;
+using dealii::PreconditionSSOR;*/
 using namespace dealii;
 
 template <int dim>

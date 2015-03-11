@@ -11,19 +11,6 @@ using dealii::Function;
 using dealii::Triangulation;
 
 
-template <int dim>
-class Coefficient : public Function<dim>
-{
-public:
-  Coefficient () : Function<dim>() {}
-
-  virtual double value(const Point<dim> &p,
-                       const unsigned int component = 0) const {
-    return 1.0 + exp(-p[0]*p[0] - p[1]*p[1]);
-  }
-};
-
-
 int main(int argc, char **argv)
 {
   ScalarFunctionFromFunctionObject<2> coeff (
