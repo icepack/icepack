@@ -40,8 +40,8 @@ class ShallowShelfProblem
 {
 public:
   ShallowShelfProblem (Triangulation<2>& _triangulation,
-                       const Function<2>& _surface,
                        const Function<2>& _bed,
+                       const Function<2>& _thickness,
                        const Function<2>& _beta);
   ~ShallowShelfProblem ();
   void run ();
@@ -52,9 +52,32 @@ private:
   void assemble_system ();
   void solve ();
 
-  Function<2> surface;
-  Function<2> bed;
-  Function<2> beta;
+  const Function<2>& bed;
+  const Function<2>& thickness;
+  const Function<2>& beta;
+
+  class IceSurface : public Function<2>
+  {
+  public:
+    double value(const Point<2>& x, const unsigned int component) const
+    {
+      return max(bed(x) + thickness(x),
+                 (1.0 - rho_ice/rho_water) * thickness(x));
+    }
+  };
+
+  const IceSurface& surface;
+
+  class DrivingStress : public Function<2>
+  {
+  public:
+    void vector_value(const Point<2>& x,
+                      Vector<double>& values) const
+    {
+      Tensor<1, 2> grad = surface.gradient(x, 0);
+      // Figure out how deal.ii tensors work...
+    }
+  }
 
   Triangulation<2>     triangulation;
   DoFHandler<2>        dof_handler;
