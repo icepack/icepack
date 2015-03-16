@@ -31,21 +31,26 @@
 #include <fstream>
 #include <iostream>
 
+// using dealii::Triangulation;
+// using dealii::Function;
+using namespace dealii;  // figure out exactly what you need
+
 
 class ShallowShelfProblem
 {
 public:
-  ShallowShelfProblem(Triangulation<2>& _triangulation,
-                      const Function<2>& _surface,
-                      const Function<2>& _bed,
-                      const Function<2>& _beta);
-  void run();
-  void output(const std::string& filename);
+  ShallowShelfProblem (Triangulation<2>& _triangulation,
+                       const Function<2>& _surface,
+                       const Function<2>& _bed,
+                       const Function<2>& _beta);
+  ~ShallowShelfProblem ();
+  void run ();
+  void output (const std::string& filename);
 
 private:
-  void setup_system();
-  void assemble_system();
-  void solve();
+  void setup_system ();
+  void assemble_system ();
+  void solve ();
 
   Function<2> surface;
   Function<2> bed;
