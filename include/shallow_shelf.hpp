@@ -57,23 +57,7 @@ private:
   const Function<2>& bed;
   const Function<2>& thickness;
   const Function<2>& beta;
-
-  class IceSurface : public Function<2>
-  {
-  public:
-    IceSurface(ShallowShelfProblem& _ssa) : ssa(_ssa) { }
-
-    double value(const Point<2>& x, const unsigned int component) const
-    {
-      return std::max(ssa.bed.value(x, 0) + ssa.thickness.value(x, 0),
-                      (1.0 - rho_ice/rho_water) * ssa.thickness.value(x, 0));
-    }
-
-  private:
-    ShallowShelfProblem& ssa;
-  };
-
-  const IceSurface& surface;
+  const Function<2>& surface;
 
   class DrivingStress : public Function<2>
   {

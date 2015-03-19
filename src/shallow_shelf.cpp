@@ -1,5 +1,6 @@
 
 #include "shallow_shelf.hpp"
+#include "ice_surface.hpp"
 #include "physical_constants.hpp"
 
 
@@ -16,7 +17,7 @@ ShallowShelfProblem::ShallowShelfProblem (Triangulation<2>& _triangulation,
   triangulation (_triangulation),
   bed (_bed),
   thickness (_thickness),
-  surface(*this),
+  surface( IceSurface(bed, thickness) ),
   driving_stress(*this),
   beta (_beta),
   dof_handler (triangulation),

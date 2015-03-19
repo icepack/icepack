@@ -26,6 +26,9 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/tests")
 
 set(LIBRARY_OUTPUT_PATH ${fe-experiments_BINARY_DIR}/lib)
 
-add_library(icepack src/read_gridded_data.cpp src/shallow_shelf.cpp)
+add_library(icepack
+  src/read_gridded_data.cpp
+  src/ice_surface.cpp
+  src/shallow_shelf.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
