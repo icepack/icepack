@@ -56,26 +56,9 @@ private:
 
   const Function<2>& bed;
   const Function<2>& thickness;
-  const Function<2>& beta;
   const Function<2>& surface;
-
-  class DrivingStress : public Function<2>
-  {
-  public:
-    DrivingStress(ShallowShelfProblem& _ssa) : ssa(_ssa) { }
-
-    void vector_value(const Point<2>& x,
-                      Vector<double>& values) const
-    {
-      Tensor<1, 2> grad = ssa.surface.gradient(x, 0);
-      // Figure out how deal.ii tensors work...
-    }
-
-  private:
-    ShallowShelfProblem& ssa;
-  };
-
-  const DrivingStress& driving_stress;
+  const Function<2>& beta;
+  const Function<2>& driving_stress;
 
   Triangulation<2>     triangulation;
   DoFHandler<2>        dof_handler;
