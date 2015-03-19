@@ -31,6 +31,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "physical_constants.hpp"
+
 // using dealii::Triangulation;
 // using dealii::Function;
 using namespace dealii;  // figure out exactly what you need
@@ -45,7 +47,7 @@ public:
                        const Function<2>& _beta);
   ~ShallowShelfProblem ();
   void run ();
-  void output (const std::string& filename);
+  //void output (const std::string& filename);
 
 private:
   void setup_system ();
@@ -59,11 +61,16 @@ private:
   class IceSurface : public Function<2>
   {
   public:
+    IceSurface(ShallowShelfProblem& _ssa) : ssa(_ssa) { }
+
     double value(const Point<2>& x, const unsigned int component) const
     {
-      return max(bed(x) + thickness(x),
-                 (1.0 - rho_ice/rho_water) * thickness(x));
+      return std::max(ssa.bed.value(x, 0) + ssa.thickness.value(x, 0),
+                      (1.0 - rho_ice/rho_water) * ssa.thickness.value(x, 0));
     }
+
+  private:
+    ShallowShelfProblem& ssa;
   };
 
   const IceSurface& surface;
@@ -71,13 +78,20 @@ private:
   class DrivingStress : public Function<2>
   {
   public:
+    DrivingStress(ShallowShelfProblem& _ssa) : ssa(_ssa) { }
+
     void vector_value(const Point<2>& x,
                       Vector<double>& values) const
     {
-      Tensor<1, 2> grad = surface.gradient(x, 0);
+      Tensor<1, 2> grad = ssa.surface.gradient(x, 0);
       // Figure out how deal.ii tensors work...
     }
-  }
+
+  private:
+    ShallowShelfProblem& ssa;
+  };
+
+  const DrivingStress& driving_stress;
 
   Triangulation<2>     triangulation;
   DoFHandler<2>        dof_handler;

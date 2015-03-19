@@ -4,21 +4,23 @@
 
 
 constexpr double strain_rate = 100.0;  // m / year
-constexpr double nu = 0.5 * pow(A0_cold * exp(-Q_cold / (R * Temp)), -1.0/3)
+constexpr double nu = 0.5 * pow(A0_cold * exp(-Q_cold / (idealgas * Temp)), -1.0/3)
                           * pow(strain_rate, -2.0/3);
 
 
 ShallowShelfProblem::ShallowShelfProblem (Triangulation<2>& _triangulation,
                                           const Function<2>& _bed,
-                                          const Funciton<2>& _thickness,
+                                          const Function<2>& _thickness,
                                           const Function<2>& _beta)
   :
   triangulation (_triangulation),
   bed (_bed),
   thickness (_thickness),
+  surface(*this),
+  driving_stress(*this),
   beta (_beta),
   dof_handler (triangulation),
-  fe (FE_Q<2>(1), dim)
+  fe (FE_Q<2>(1), 2)
 {}
 
 
@@ -79,14 +81,14 @@ void ShallowShelfProblem::assemble_system ()
 
       fe_values.reinit (cell);
 
-      nu_values = nu;  // Check that this actually works...
+      for (unsigned int i = 0; i < n_q_points; ++i) nu_values[i] = nu;
       thickness.value_list (fe_values.get_quadrature_points(), h_values);
       beta.value_list (fe_values.get_quadrature_points(), beta_values);
 
       //DrivingStress.vector_value_list (fe_values.get_quadrature_points(),
       //                                 rhs_values);
 
-      for (unsigned int i = 0; i < dofs_per_cell; ++i);
+      for (unsigned int i = 0; i < dofs_per_cell; ++i)
         {
           const unsigned int
           component_i = fe.system_to_component_index(i).first;
@@ -148,7 +150,7 @@ void ShallowShelfProblem::assemble_system ()
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (dof_handler,
                                             0,
-                                            ZeroFunction<dim>(dim), // Need right BVs
+                                            ZeroFunction<2>(2), // Need right BVs
                                             boundary_values);
   MatrixTools::apply_boundary_values (boundary_values,
                                       system_matrix,
