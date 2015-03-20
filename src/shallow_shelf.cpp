@@ -1,8 +1,29 @@
 
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+
+#include <deal.II/grid/grid_refinement.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/tria_boundary_lib.h>
+
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/error_estimator.h>
+
+
 #include "shallow_shelf.hpp"
 #include "ice_surface.hpp"
 #include "driving_stress.hpp"
 #include "physical_constants.hpp"
+
+
+using namespace dealii;
 
 
 constexpr double strain_rate = 100.0;  // m / year
@@ -15,14 +36,14 @@ ShallowShelfProblem::ShallowShelfProblem (Triangulation<2>& _triangulation,
                                           const Function<2>& _thickness,
                                           const Function<2>& _beta)
   :
-  triangulation (_triangulation),
-  dof_handler (triangulation),
-  fe (FE_Q<2>(1), 2),
   bed (_bed),
   thickness (_thickness),
   surface( IceSurface(bed, thickness) ),
   driving_stress( DrivingStress(thickness, surface) ),
-  beta (_beta)
+  beta (_beta),
+  triangulation (_triangulation),
+  dof_handler (triangulation),
+  fe (FE_Q<2>(1), 2)
 {}
 
 
