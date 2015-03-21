@@ -3,7 +3,8 @@ include $(DEAL_II_DIR)/common/Make.global_options
 
 INCLUDE += -I../include
 
-TARGETS = poisson_basic
+TARGETS = poisson_basic ssa
+LIBS += -L../build/lib/ -licepack
 
 all: $(TARGETS) circle.msh
 
