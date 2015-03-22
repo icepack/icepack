@@ -1,6 +1,6 @@
 
 #include "shallow_shelf.hpp"
-#include "ice_surface.hpp"
+#include "ice_thickness.hpp"
 #include "driving_stress.hpp"
 
 #include <deal.II/grid/tria_accessor.h>
@@ -43,10 +43,10 @@ int main(int argc, char **argv)
          });
 
   ScalarFunctionFromFunctionObject<2>
-    thickness ([](const Point<2>& x)
-               {
-                 return 500.0 - 0.04 * x(0);
-               });
+    surface ([](const Point<2>& x)
+             {
+               return 200.0 - 0.04 * x(0);
+             });
 
   ScalarFunctionFromFunctionObject<2>
     beta ([](const Point<2>& x)
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
           });
 
 
-  IceSurface surface (bed, thickness);
+  IceThickness thickness (bed, surface);
   DrivingStress driving_stress (thickness, surface);
 
 

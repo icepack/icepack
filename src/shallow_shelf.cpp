@@ -18,7 +18,7 @@
 
 
 #include "shallow_shelf.hpp"
-#include "ice_surface.hpp"
+#include "ice_thickness.hpp"
 #include "driving_stress.hpp"
 #include "physical_constants.hpp"
 
@@ -33,13 +33,13 @@ constexpr double nu = 0.5 * pow(A0_cold * exp(-Q_cold / (idealgas * Temp)), -1.0
 
 ShallowShelfProblem::ShallowShelfProblem (Triangulation<2>& _triangulation,
                                           const Function<2>& _bed,
-                                          const Function<2>& _thickness,
+                                          const Function<2>& _surface,
                                           const Function<2>& _beta)
   :
   bed (_bed),
-  thickness (_thickness),
-  surface( IceSurface(bed, thickness) ),
-  driving_stress( DrivingStress(thickness, surface) ),
+  surface (_surface),
+  thickness (IceThickness(bed, surface)),
+  driving_stress (DrivingStress(thickness, surface)),
   beta (_beta),
   triangulation (_triangulation),
   dof_handler (triangulation),

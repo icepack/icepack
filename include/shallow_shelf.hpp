@@ -34,7 +34,7 @@ class ShallowShelfProblem
 public:
   ShallowShelfProblem (Triangulation<2>& _triangulation,
                        const Function<2>& _bed,
-                       const Function<2>& _thickness,
+                       const Function<2>& _surface,
                        const Function<2>& _beta);
   ~ShallowShelfProblem ();
   void run ();
@@ -46,8 +46,8 @@ private:
   void solve ();
 
   const Function<2>& bed;
-  const Function<2>& thickness;
   const Function<2>& surface;
+  const Function<2>& thickness;
   const Function<2>& driving_stress;
   const Function<2>& beta;
 
