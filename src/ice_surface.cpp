@@ -12,7 +12,7 @@ IceSurface::IceSurface (const Function<2>& _bed,
 
 
 double IceSurface::value (const Point<2>& x,
-                          const unsigned int component = 0) const
+                          const unsigned int component) const
 {
   const double h = thickness.value(x);
   const double b = bed.value(x);

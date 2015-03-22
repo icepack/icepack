@@ -37,22 +37,22 @@ int main(int argc, char **argv)
   Triangulation<2> tri = make_domain ();
 
   ScalarFunctionFromFunctionObject<2>
-  bed( [](const Point<2>& x)
-       {
-         return -1000.0;
-       });
+    bed ([](const Point<2>& x)
+         {
+           return -1000.0;
+         });
 
   ScalarFunctionFromFunctionObject<2>
-  thickness ([](const Point<2>& x)
-             {
-               return 500.0 - 0.04 * x[1];
-             });
+    thickness ([](const Point<2>& x)
+               {
+                 return 500.0 - 0.04 * x(0);
+               });
 
   ScalarFunctionFromFunctionObject<2>
-  beta ([](const Point<2>& x)
-        {
-          return 0.0;
-        });
+    beta ([](const Point<2>& x)
+          {
+            return 0.0;
+          });
 
 
   IceSurface surface (bed, thickness);

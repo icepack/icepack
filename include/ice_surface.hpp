@@ -14,7 +14,7 @@ class IceSurface : public Function<2>
 {
 public:
   IceSurface(const Function<2>& _bed, const Function<2>& _thickness);
-  double value(const Point<2>& x, const unsigned int component) const;
+  double value(const Point<2>& x, const unsigned int component = 0) const;
 
 private:
   const Function<2>& bed;
