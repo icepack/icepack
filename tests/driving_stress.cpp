@@ -1,13 +1,12 @@
 
 #include "physical_constants.hpp"
 #include "ice_thickness.hpp"
+#include "driving_stress.hpp"
 
 using namespace dealii;
 
 int main (int argc, char **argv)
 {
-  bool verbose = false;
-  if (strcmp(argv[argc-1], "-v") == 0) verbose = true;
 
   ScalarFunctionFromFunctionObject<2>
     bed ([](const Point<2>& x)
@@ -21,31 +20,33 @@ int main (int argc, char **argv)
                return 200.0 - 0.04 * x(0);
              });
 
-  IceThickness thickness (bed, surface);
-
   double r = rho_water / (rho_water - rho_ice);
   double L = (200 * r - 600) / (0.04 * r - 0.06);
 
-  Point<2> x = {L - 100.0, 0.0};
+  IceThickness thickness(bed, surface);
+  DrivingStress driving_stress (thickness, surface);
 
-  if (std::abs(thickness.value(x) - (surface.value(x) - bed.value(x))) > 1e-5)
+  Point<2> x = {L - 100.0, 0.0};
+  Vector<double> tau_d(2);
+
+  driving_stress.vector_value(x, tau_d);
+  if (std::abs(tau_d[0] - 0.04 * thickness.value(x)) > 1e-5
+      or std::abs(tau_d[1]) > 1e-5)
   {
-    std::cout << "Wrong value for ice thickness "
+    std::cout << "Wrong value for driving stress "
               << "before grounding line!" << std::endl;
     return 1;
   }
 
   x(0) = L + 100.0;
 
-  if (std::abs(thickness.value(x) - r * surface.value(x)) > 1e-5)
+  if (std::abs(tau_d[0] - 0.04 * thickness.value(x)) > 1e-5
+      or std::abs(tau_d[1]) > 1e-5)
   {
-    std::cout << "Wrong value for ice thickness "
+    std::cout << "Wrong value for driving stress "
               << "after grounding line!" << std::endl;
     return 1;
   }
-
-
-  if (verbose) std::cout << "Done checking ice thickness!" << std::endl;
 
   return 0;
 }
