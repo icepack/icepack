@@ -47,7 +47,7 @@ namespace Step8
   class ElasticProblem
   {
   public:
-    ElasticProblem ();
+    ElasticProblem (const Function<dim>& _right_hand_side);
     ~ElasticProblem ();
     void run ();
 
@@ -57,6 +57,8 @@ namespace Step8
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
+
+    const Function<dim>& right_hand_side;
 
     Triangulation<dim>   triangulation;
     DoFHandler<dim>      dof_handler;
@@ -74,73 +76,11 @@ namespace Step8
 
 
 
-  template <int dim>
-  class RightHandSide :  public Function<dim>
-  {
-  public:
-    RightHandSide ();
-
-    virtual void vector_value (const Point<dim> &p,
-                               Vector<double>   &values) const;
-
-    virtual void vector_value_list (const std::vector<Point<dim> > &points,
-                                    std::vector<Vector<double> >   &value_list) const;
-  };
-
 
   template <int dim>
-  RightHandSide<dim>::RightHandSide ()
+  ElasticProblem<dim>::ElasticProblem (const Function<dim>& _right_hand_side)
     :
-    Function<dim> (dim)
-  {}
-
-
-  template <int dim>
-  inline
-  void RightHandSide<dim>::vector_value (const Point<dim> &p,
-                                         Vector<double>   &values) const
-  {
-    Assert (values.size() == dim,
-            ExcDimensionMismatch (values.size(), dim));
-    Assert (dim >= 2, ExcNotImplemented());
-
-    Point<dim> point_1, point_2;
-    point_1(0) = 0.5;
-    point_2(0) = -0.5;
-
-    if (((p-point_1).square() < 0.2*0.2) ||
-        ((p-point_2).square() < 0.2*0.2))
-      values(0) = 1;
-    else
-      values(0) = 0;
-
-    if (p.square() < 0.2*0.2)
-      values(1) = 1;
-    else
-      values(1) = 0;
-  }
-
-
-
-  template <int dim>
-  void RightHandSide<dim>::vector_value_list (const std::vector<Point<dim> > &points,
-                                              std::vector<Vector<double> >   &value_list) const
-  {
-    Assert (value_list.size() == points.size(),
-            ExcDimensionMismatch (value_list.size(), points.size()));
-
-    const unsigned int n_points = points.size();
-
-    for (unsigned int p=0; p<n_points; ++p)
-      RightHandSide<dim>::vector_value (points[p],
-                                        value_list[p]);
-  }
-
-
-
-  template <int dim>
-  ElasticProblem<dim>::ElasticProblem ()
-    :
+    right_hand_side(_right_hand_side),
     dof_handler (triangulation),
     fe (FE_Q<dim>(1), dim)
   {}
@@ -234,7 +174,6 @@ namespace Step8
     // <code>rhs_values</code> array is changed. We initialize it by
     // <code>n_q_points</code> elements, each of which is a
     // <code>Vector@<double@></code> with <code>dim</code> elements.
-    RightHandSide<dim>      right_hand_side;
     std::vector<Vector<double> > rhs_values (n_q_points,
                                              Vector<double>(dim));
 
