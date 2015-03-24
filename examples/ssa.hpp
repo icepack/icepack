@@ -138,9 +138,8 @@ namespace Step8
                                              Vector<double>(dim));
 
 
-    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
-                                                   endc = dof_handler.end();
-    for (; cell!=endc; ++cell)
+    // Loop over every cell of the mesh
+    for (auto cell: dof_handler.active_cell_iterators())
       {
         cell_matrix = 0;
         cell_rhs = 0;
