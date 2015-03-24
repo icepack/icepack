@@ -38,11 +38,10 @@ namespace Step8
 {
   using namespace dealii;
 
-  template <int dim>
   class ElasticProblem
   {
   public:
-    ElasticProblem (const Function<dim>& _right_hand_side);
+    ElasticProblem (const Function<2>& _right_hand_side);
     ~ElasticProblem ();
     void run ();
 
@@ -53,12 +52,12 @@ namespace Step8
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
 
-    const Function<dim>& right_hand_side;
+    const Function<2>& right_hand_side;
 
-    Triangulation<dim>   triangulation;
-    DoFHandler<dim>      dof_handler;
+    Triangulation<2>   triangulation;
+    DoFHandler<2>      dof_handler;
 
-    FESystem<dim>        fe;
+    FESystem<2>        fe;
 
     ConstraintMatrix     hanging_node_constraints;
 
@@ -72,26 +71,23 @@ namespace Step8
 
 
 
-  template <int dim>
-  ElasticProblem<dim>::ElasticProblem (const Function<dim>& _right_hand_side)
+  ElasticProblem::ElasticProblem (const Function<2>& _right_hand_side)
     :
     right_hand_side(_right_hand_side),
     dof_handler (triangulation),
-    fe (FE_Q<dim>(1), dim)
+    fe (FE_Q<2>(1), 2)
   {}
 
 
 
-  template <int dim>
-  ElasticProblem<dim>::~ElasticProblem ()
+  ElasticProblem::~ElasticProblem ()
   {
     dof_handler.clear ();
   }
 
 
 
-  template <int dim>
-  void ElasticProblem<dim>::setup_system ()
+  void ElasticProblem::setup_system ()
   {
     dof_handler.distribute_dofs (fe);
     hanging_node_constraints.clear ();
@@ -114,14 +110,13 @@ namespace Step8
   }
 
 
-  template <int dim>
-  void ElasticProblem<dim>::assemble_system ()
+  void ElasticProblem::assemble_system ()
   {
-    QGauss<dim>  quadrature_formula(2);
+    QGauss<2>  quadrature_formula(2);
 
-    FEValues<dim> fe_values (fe, quadrature_formula,
-                             update_values   | update_gradients |
-                             update_quadrature_points | update_JxW_values);
+    FEValues<2> fe_values (fe, quadrature_formula,
+                           update_values   | update_gradients |
+                           update_quadrature_points | update_JxW_values);
 
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
     const unsigned int   n_q_points    = quadrature_formula.size();
@@ -132,10 +127,10 @@ namespace Step8
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     std::vector<double>   nu_values (n_q_points);
-    ConstantFunction<dim> nu(1.);
+    ConstantFunction<2> nu(1.);
 
     std::vector<Vector<double> > rhs_values (n_q_points,
-                                             Vector<double>(dim));
+                                             Vector<double>(2));
 
 
     // Loop over every cell of the mesh
@@ -244,7 +239,7 @@ namespace Step8
     std::map<types::global_dof_index,double> boundary_values;
     VectorTools::interpolate_boundary_values (dof_handler,
                                               0,
-                                              ZeroFunction<dim>(dim),
+                                              ZeroFunction<2>(2),
                                               boundary_values);
     MatrixTools::apply_boundary_values (boundary_values,
                                         system_matrix,
@@ -260,8 +255,7 @@ namespace Step8
   // long as it stays positive definite and symmetric (which are the
   // requirements for the use of the CG solver), which the system indeed
   // is. Therefore, we need not change anything.
-  template <int dim>
-  void ElasticProblem<dim>::solve ()
+  void ElasticProblem::solve ()
   {
     SolverControl           solver_control (1000, 1e-12);
     SolverCG<>              cg (solver_control);
@@ -288,16 +282,15 @@ namespace Step8
   // consider the displacements in all other directions for the error
   // indicators. However, for the current problem, it seems appropriate to
   // consider all displacement components with equal weight.
-  template <int dim>
-  void ElasticProblem<dim>::refine_grid ()
+  void ElasticProblem::refine_grid ()
   {
     Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
 
-    KellyErrorEstimator<dim>::estimate (dof_handler,
-                                        QGauss<dim-1>(2),
-                                        typename FunctionMap<dim>::type(),
-                                        solution,
-                                        estimated_error_per_cell);
+    KellyErrorEstimator<2>::estimate (dof_handler,
+                                      QGauss<1>(2),
+                                      typename FunctionMap<2>::type(),
+                                      solution,
+                                      estimated_error_per_cell);
 
     GridRefinement::refine_and_coarsen_fixed_number (triangulation,
                                                      estimated_error_per_cell,
@@ -307,15 +300,8 @@ namespace Step8
   }
 
 
-  // @sect4{ElasticProblem::output_results}
 
-  // The output happens mostly as has been shown in previous examples
-  // already. The only difference is that the solution function is vector
-  // valued. The <code>DataOut</code> class takes care of this automatically,
-  // but we have to give each component of the solution vector a different
-  // name.
-  template <int dim>
-  void ElasticProblem<dim>::output_results (const unsigned int cycle) const
+  void ElasticProblem::output_results (const unsigned int cycle) const
   {
     std::string filename = "solution-";
     filename += ('0' + cycle);
@@ -324,7 +310,7 @@ namespace Step8
     filename += ".vtk";
     std::ofstream output (filename.c_str());
 
-    DataOut<dim> data_out;
+    DataOut<2> data_out;
     data_out.attach_dof_handler (dof_handler);
 
 
@@ -350,7 +336,7 @@ namespace Step8
     // condition <code>false</code> can never be satisfied, so the program
     // will always abort whenever it gets to the default statement:
     std::vector<std::string> solution_names;
-    switch (dim)
+    switch (2)
       {
       case 1:
         solution_names.push_back ("displacement");
@@ -383,49 +369,7 @@ namespace Step8
 
 
 
-  // @sect4{ElasticProblem::run}
-
-  // The <code>run</code> function does the same things as in step-6, for
-  // example. This time, we use the square [-1,1]^d as domain, and we refine
-  // it twice globally before starting the first iteration.
-  //
-  // The reason is the following: we use the <code>Gauss</code> quadrature
-  // formula with two points in each direction for integration of the right
-  // hand side; that means that there are four quadrature points on each cell
-  // (in 2D). If we only refine the initial grid once globally, then there
-  // will be only four quadrature points in each direction on the
-  // domain. However, the right hand side function was chosen to be rather
-  // localized and in that case all quadrature points lie outside the support
-  // of the right hand side function. The right hand side vector will then
-  // contain only zeroes and the solution of the system of equations is the
-  // zero vector, i.e. a finite element function that it zero everywhere. We
-  // should not be surprised about such things happening, since we have chosen
-  // an initial grid that is totally unsuitable for the problem at hand.
-  //
-  // The unfortunate thing is that if the discrete solution is constant, then
-  // the error indicators computed by the <code>KellyErrorEstimator</code>
-  // class are zero for each cell as well, and the call to
-  // <code>refine_and_coarsen_fixed_number</code> on the
-  // <code>triangulation</code> object will not flag any cells for refinement
-  // (why should it if the indicated error is zero for each cell?). The grid
-  // in the next iteration will therefore consist of four cells only as well,
-  // and the same problem occurs again.
-  //
-  // The conclusion needs to be: while of course we will not choose the
-  // initial grid to be well-suited for the accurate solution of the problem,
-  // we must at least choose it such that it has the chance to capture the
-  // most striking features of the solution. In this case, it needs to be able
-  // to see the right hand side. Thus, we refine twice globally. (Note that
-  // the <code>refine_global</code> function is not part of the
-  // <code>GridRefinement</code> class in which
-  // <code>refine_and_coarsen_fixed_number</code> is declared, for
-  // example. The reason is first that it is not an algorithm that computed
-  // refinement flags from indicators, but more importantly that it actually
-  // performs the refinement, in contrast to the functions in
-  // <code>GridRefinement</code> that only flag cells without actually
-  // refining the grid.)
-  template <int dim>
-  void ElasticProblem<dim>::run ()
+  void ElasticProblem::run ()
   {
     for (unsigned int cycle=0; cycle<8; ++cycle)
       {
@@ -454,7 +398,8 @@ namespace Step8
         output_results (cycle);
       }
   }
-}
+
+} // End of Step8 namespace
 
 
 #endif

@@ -10,7 +10,7 @@ int main ()
       dealii::deallog.depth_console (0);
 
       RightHandSide<2> rhs;
-      Step8::ElasticProblem<2> elastic_problem_2d(rhs);
+      Step8::ElasticProblem elastic_problem_2d(rhs);
       elastic_problem_2d.run ();
     }
   catch (std::exception &exc)
