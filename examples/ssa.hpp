@@ -1,3 +1,7 @@
+
+#ifndef SSA_HPP
+#define SSA_HPP
+
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
@@ -34,15 +38,6 @@ namespace Step8
 {
   using namespace dealii;
 
-  // The only change is the use of a different class for the <code>fe</code>
-  // variable: Instead of a concrete finite element class such as
-  // <code>FE_Q</code>, we now use a more generic one,
-  // <code>FESystem</code>. In fact, <code>FESystem</code> is not really a
-  // finite element itself in that it does not implement shape functions of
-  // its own.  Rather, it is a class that can be used to stack several other
-  // elements together to form one vector-valued finite element. In our case,
-  // we will compose the vector-valued element of <code>FE_Q(1)</code>
-  // objects, as shown below in the constructor of this class.
   template <int dim>
   class ElasticProblem
   {
@@ -119,23 +114,6 @@ namespace Step8
   }
 
 
-  // @sect4{ElasticProblem::assemble_system}
-
-  // The big changes in this program are in the creation of matrix and right
-  // hand side, since they are problem-dependent. We will go through that
-  // process step-by-step, since it is a bit more complicated than in previous
-  // examples.
-  //
-  // The first parts of this function are the same as before, however: setting
-  // up a suitable quadrature formula, initializing an <code>FEValues</code>
-  // object for the (vector-valued) finite element we use as well as the
-  // quadrature object, and declaring a number of auxiliary arrays. In
-  // addition, we declare the ever same two abbreviations:
-  // <code>n_q_points</code> and <code>dofs_per_cell</code>. The number of
-  // degrees of freedom per cell we now obviously ask from the composed finite
-  // element rather than from the underlying scalar Q1 element. Here, it is
-  // <code>dim</code> times the number of degrees of freedom per cell of the
-  // Q1 element, though this is not explicit knowledge we need to care about:
   template <int dim>
   void ElasticProblem<dim>::assemble_system ()
   {
@@ -153,32 +131,13 @@ namespace Step8
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    // As was shown in previous examples as well, we need a place where to
-    // store the values of the coefficients at all the quadrature points on a
-    // cell. In the present situation, we have two coefficients, lambda and
-    // mu.
-    std::vector<double>     lambda_values (n_q_points);
-    std::vector<double>     mu_values (n_q_points);
+    std::vector<double>   nu_values (n_q_points);
+    ConstantFunction<dim> nu(1.);
 
-    // Well, we could as well have omitted the above two arrays since we will
-    // use constant coefficients for both lambda and mu, which can be declared
-    // like this. They both represent functions always returning the constant
-    // value 1.0. Although we could omit the respective factors in the
-    // assemblage of the matrix, we use them here for purpose of
-    // demonstration.
-    ConstantFunction<dim> lambda(1.), mu(1.);
-
-    // Then again, we need to have the same for the right hand side. This is
-    // exactly as before in previous examples. However, we now have a
-    // vector-valued right hand side, which is why the data type of the
-    // <code>rhs_values</code> array is changed. We initialize it by
-    // <code>n_q_points</code> elements, each of which is a
-    // <code>Vector@<double@></code> with <code>dim</code> elements.
     std::vector<Vector<double> > rhs_values (n_q_points,
                                              Vector<double>(dim));
 
 
-    // Now we can begin with the loop over all cells:
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
                                                    endc = dof_handler.end();
     for (; cell!=endc; ++cell)
@@ -190,8 +149,7 @@ namespace Step8
 
         // Next we get the values of the coefficients at the quadrature
         // points. Likewise for the right hand side:
-        lambda.value_list (fe_values.get_quadrature_points(), lambda_values);
-        mu.value_list     (fe_values.get_quadrature_points(), mu_values);
+        nu.value_list     (fe_values.get_quadrature_points(), nu_values);
 
         right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
                                            rhs_values);
@@ -244,13 +202,14 @@ namespace Step8
                       // the comp(i)th coordinate is accessed by the appended
                       // brackets.
                       (
+                        2 *
                         (fe_values.shape_grad(i,q_point)[component_i] *
                          fe_values.shape_grad(j,q_point)[component_j] *
-                         lambda_values[q_point])
+                         nu_values[q_point])
                         +
                         (fe_values.shape_grad(i,q_point)[component_j] *
                          fe_values.shape_grad(j,q_point)[component_i] *
-                         mu_values[q_point])
+                         nu_values[q_point])
                         +
                         // The second term is (mu nabla u_i, nabla v_j).  We
                         // need not access a specific component of the
@@ -266,7 +225,7 @@ namespace Step8
                         ((component_i == component_j) ?
                          (fe_values.shape_grad(i,q_point) *
                           fe_values.shape_grad(j,q_point) *
-                          mu_values[q_point])  :
+                          nu_values[q_point])  :
                          0)
                       )
                       *
@@ -532,3 +491,6 @@ namespace Step8
       }
   }
 }
+
+
+#endif
