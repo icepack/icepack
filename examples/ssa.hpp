@@ -139,130 +139,95 @@ namespace Step8
 
 
     // Loop over every cell of the mesh
-    for (auto cell: dof_handler.active_cell_iterators())
-      {
-        cell_matrix = 0;
-        cell_rhs = 0;
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      cell_matrix = 0;
+      cell_rhs = 0;
 
-        fe_values.reinit (cell);
+      fe_values.reinit (cell);
 
-        // Next we get the values of the coefficients at the quadrature
-        // points. Likewise for the right hand side:
-        nu.value_list     (fe_values.get_quadrature_points(), nu_values);
+      // Getting values of coefficients / RHS at the quadrature points
+      nu.value_list (fe_values.get_quadrature_points(), nu_values);
 
-        right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
-                                           rhs_values);
+      right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
+                                         rhs_values);
 
-        // Then assemble the entries of the local stiffness matrix and right
-        // hand side vector. This follows almost one-to-one the pattern
-        // described in the introduction of this example.  One of the few
-        // comments in place is that we can compute the number
-        // <code>comp(i)</code>, i.e. the index of the only nonzero vector
-        // component of shape function <code>i</code> using the
-        // <code>fe.system_to_component_index(i).first</code> function call
-        // below.
-        //
-        // (By accessing the <code>first</code> variable of the return value
-        // of the <code>system_to_component_index</code> function, you might
-        // already have guessed that there is more in it. In fact, the
-        // function returns a <code>std::pair@<unsigned int, unsigned
-        // int@></code>, of which the first element is <code>comp(i)</code>
-        // and the second is the value <code>base(i)</code> also noted in the
-        // introduction, i.e.  the index of this shape function within all the
-        // shape functions that are nonzero in this component,
-        // i.e. <code>base(i)</code> in the diction of the introduction. This
-        // is not a number that we are usually interested in, however.)
-        //
-        // With this knowledge, we can assemble the local matrix
-        // contributions:
-        for (unsigned int i=0; i<dofs_per_cell; ++i)
-          {
-            const unsigned int
-            component_i = fe.system_to_component_index(i).first;
+      for (unsigned int i=0; i<dofs_per_cell; ++i) {
+        const unsigned int
+          component_i = fe.system_to_component_index(i).first;
 
-            for (unsigned int j=0; j<dofs_per_cell; ++j)
-              {
-                const unsigned int
-                component_j = fe.system_to_component_index(j).first;
+        for (unsigned int j=0; j<dofs_per_cell; ++j) {
+          const unsigned int
+            component_j = fe.system_to_component_index(j).first;
 
-                for (unsigned int q_point=0; q_point<n_q_points;
-                     ++q_point)
-                  {
-                    cell_matrix(i,j)
-                    +=
-                      // The first term is (lambda d_i u_i, d_j v_j) + (mu d_i
-                      // u_j, d_j v_i).  Note that
-                      // <code>shape_grad(i,q_point)</code> returns the
-                      // gradient of the only nonzero component of the i-th
-                      // shape function at quadrature point q_point. The
-                      // component <code>comp(i)</code> of the gradient, which
-                      // is the derivative of this only nonzero vector
-                      // component of the i-th shape function with respect to
-                      // the comp(i)th coordinate is accessed by the appended
-                      // brackets.
-                      (
-                        2 *
-                        (fe_values.shape_grad(i,q_point)[component_i] *
-                         fe_values.shape_grad(j,q_point)[component_j] *
-                         nu_values[q_point])
-                        +
-                        (fe_values.shape_grad(i,q_point)[component_j] *
-                         fe_values.shape_grad(j,q_point)[component_i] *
-                         nu_values[q_point])
-                        +
-                        // The second term is (mu nabla u_i, nabla v_j).  We
-                        // need not access a specific component of the
-                        // gradient, since we only have to compute the scalar
-                        // product of the two gradients, of which an
-                        // overloaded version of the operator* takes care, as
-                        // in previous examples.
-                        //
-                        // Note that by using the ?: operator, we only do this
-                        // if comp(i) equals comp(j), otherwise a zero is
-                        // added (which will be optimized away by the
-                        // compiler).
-                        ((component_i == component_j) ?
-                         (fe_values.shape_grad(i,q_point) *
-                          fe_values.shape_grad(j,q_point) *
-                          nu_values[q_point])  :
-                         0)
-                      )
-                      *
-                      fe_values.JxW(q_point);
-                  }
-              }
+          for (unsigned int q_point=0; q_point<n_q_points; ++q_point) {
+            cell_matrix(i,j)
+              +=
+              // First term is 2 * nu * d_i u_i, d_j v_j)
+              //                + (nu * d_i u_j, d_j u_i).
+              // <code>shape_grad(i,q_point)</code> returns the
+              // gradient of the only nonzero component of the i-th
+              // shape function at quadrature point q_point. The
+              // component <code>comp(i)</code> of the gradient, which
+              // is the derivative of this only nonzero vector
+              // component of the i-th shape function with respect to
+              // the comp(i)th coordinate is accessed by the appended
+              // brackets.
+              (
+                2 *
+                (fe_values.shape_grad(i,q_point)[component_i] *
+                 fe_values.shape_grad(j,q_point)[component_j] *
+                 nu_values[q_point])
+                +
+                (fe_values.shape_grad(i,q_point)[component_j] *
+                 fe_values.shape_grad(j,q_point)[component_i] *
+                 nu_values[q_point])
+                +
+                // The second term is (nu * nabla u_i, nabla v_j).  We
+                // need not access a specific component of the
+                // gradient, since we only have to compute the scalar
+                // product of the two gradients, of which an
+                // overloaded version of the operator* takes care, as
+                // in previous examples.
+                //
+                // Note that by using the ?: operator, we only do this
+                // if comp(i) equals comp(j), otherwise a zero is
+                // added (which will be optimized away by the
+                // compiler).
+                ((component_i == component_j) ?
+                 (fe_values.shape_grad(i,q_point) *
+                  fe_values.shape_grad(j,q_point) *
+                  nu_values[q_point])  :
+                 0)
+                )
+              *
+              fe_values.JxW(q_point);
           }
-
-        // Assembling the right hand side is also just as discussed in the
-        // introduction:
-        for (unsigned int i=0; i<dofs_per_cell; ++i)
-          {
-            const unsigned int
-            component_i = fe.system_to_component_index(i).first;
-
-            for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
-              cell_rhs(i) += fe_values.shape_value(i,q_point) *
-                             rhs_values[q_point](component_i) *
-                             fe_values.JxW(q_point);
-          }
-
-        // The transfer from local degrees of freedom into the global matrix
-        // and right hand side vector does not depend on the equation under
-        // consideration, and is thus the same as in all previous
-        // examples. The same holds for the elimination of hanging nodes from
-        // the matrix and right hand side, once we are done with assembling
-        // the entire linear system:
-        cell->get_dof_indices (local_dof_indices);
-        for (unsigned int i=0; i<dofs_per_cell; ++i)
-          {
-            for (unsigned int j=0; j<dofs_per_cell; ++j)
-              system_matrix.add (local_dof_indices[i],
-                                 local_dof_indices[j],
-                                 cell_matrix(i,j));
-
-            system_rhs(local_dof_indices[i]) += cell_rhs(i);
-          }
+        }
       }
+
+
+      for (unsigned int i=0; i<dofs_per_cell; ++i) {
+        const unsigned int
+          component_i = fe.system_to_component_index(i).first;
+
+        for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+          cell_rhs(i) += fe_values.shape_value(i,q_point) *
+            rhs_values[q_point](component_i) *
+            fe_values.JxW(q_point);
+      }
+
+
+      cell->get_dof_indices (local_dof_indices);
+      for (unsigned int i=0; i<dofs_per_cell; ++i) {
+        for (unsigned int j=0; j<dofs_per_cell; ++j)
+          system_matrix.add (local_dof_indices[i],
+                             local_dof_indices[j],
+                             cell_matrix(i,j));
+
+        system_rhs(local_dof_indices[i]) += cell_rhs(i);
+      }
+
+    } // End of loop over `cell`
 
     hanging_node_constraints.condense (system_matrix);
     hanging_node_constraints.condense (system_rhs);
