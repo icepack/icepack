@@ -18,4 +18,4 @@ all: $(TARGETS) circle.msh
 	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS) $(INCLUDE)
 
 clean:
-	rm -rf $(TARGETS) *.o *.eps
+	rm -rf $(TARGETS) *.o *.eps *.vtk
