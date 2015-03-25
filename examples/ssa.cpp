@@ -2,6 +2,7 @@
 #include "ssa.hpp"
 #include "rhs.hpp"
 
+using namespace dealii;
 
 int main ()
 {
@@ -9,8 +10,10 @@ int main ()
     {
       dealii::deallog.depth_console (0);
 
+      Triangulation<2> tri;
+      GridGenerator::hyper_cube(tri, -1, 1);
       RightHandSide<2> rhs;
-      Step8::ElasticProblem elastic_problem_2d(rhs);
+      Step8::ElasticProblem elastic_problem_2d(tri, rhs);
       elastic_problem_2d.run ();
     }
   catch (std::exception &exc)

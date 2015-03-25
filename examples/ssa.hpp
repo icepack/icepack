@@ -41,7 +41,8 @@ namespace Step8
   class ElasticProblem
   {
   public:
-    ElasticProblem (const Function<2>& _right_hand_side);
+    ElasticProblem (Triangulation<2>& _triangulation,
+                    const Function<2>& _right_hand_side);
     ~ElasticProblem ();
     void run ();
 
@@ -54,7 +55,7 @@ namespace Step8
 
     const Function<2>& right_hand_side;
 
-    Triangulation<2>   triangulation;
+    Triangulation<2>&  triangulation;
     DoFHandler<2>      dof_handler;
 
     FESystem<2>        fe;
@@ -71,11 +72,13 @@ namespace Step8
 
 
 
-  ElasticProblem::ElasticProblem (const Function<2>& _right_hand_side)
+  ElasticProblem::ElasticProblem (Triangulation<2>& _triangulation,
+                                  const Function<2>& _right_hand_side)
     :
     right_hand_side(_right_hand_side),
-    dof_handler (triangulation),
-    fe (FE_Q<2>(1), 2)
+    triangulation(_triangulation),
+    dof_handler(triangulation),
+    fe(FE_Q<2>(1), 2)
   {}
 
 
@@ -377,7 +380,6 @@ namespace Step8
 
         if (cycle == 0)
           {
-            GridGenerator::hyper_cube (triangulation, -1, 1);
             triangulation.refine_global (2);
           }
         else
