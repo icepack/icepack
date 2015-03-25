@@ -42,7 +42,7 @@ namespace Step8
   {
   public:
     ElasticProblem (Triangulation<2>& _triangulation,
-                    const Function<2>& _right_hand_side);
+                    const Function<2>& _surface);
     ~ElasticProblem ();
     void run ();
 
@@ -53,7 +53,7 @@ namespace Step8
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
 
-    const Function<2>& right_hand_side;
+    const Function<2>& surface;
 
     Triangulation<2>&  triangulation;
     DoFHandler<2>      dof_handler;
@@ -73,9 +73,9 @@ namespace Step8
 
 
   ElasticProblem::ElasticProblem (Triangulation<2>& _triangulation,
-                                  const Function<2>& _right_hand_side)
+                                  const Function<2>& _surface)
     :
-    right_hand_side(_right_hand_side),
+    surface(_surface),
     triangulation(_triangulation),
     dof_handler(triangulation),
     fe(FE_Q<2>(1), 2)
@@ -129,11 +129,11 @@ namespace Step8
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    std::vector<double>   nu_values (n_q_points);
+    std::vector<double> nu_values(n_q_points);
     ConstantFunction<2> nu(1.);
 
-    std::vector<Vector<double> > rhs_values (n_q_points,
-                                             Vector<double>(2));
+    std::vector< Tensor<1, 2> > rhs_values(n_q_points,
+                                           Tensor<1, 2>());
 
 
     // Loop over every cell of the mesh
@@ -146,8 +146,8 @@ namespace Step8
       // Getting values of coefficients / RHS at the quadrature points
       nu.value_list (fe_values.get_quadrature_points(), nu_values);
 
-      right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
-                                         rhs_values);
+      surface.gradient_list (fe_values.get_quadrature_points(),
+                             rhs_values);
 
       for (unsigned int i=0; i<dofs_per_cell; ++i) {
         const unsigned int
@@ -210,7 +210,7 @@ namespace Step8
 
         for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
           cell_rhs(i) += fe_values.shape_value(i,q_point) *
-            rhs_values[q_point](component_i) *
+            rhs_values[q_point][component_i] *
             fe_values.JxW(q_point);
       }
 
