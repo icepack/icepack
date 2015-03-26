@@ -3,11 +3,13 @@
 #define RHS_HPP
 
 #include <deal.II/base/function.h>
+#include <deal.II/base/tensor.h>
 #include <deal.II/lac/vector.h>
 
 using dealii::Function;
 using dealii::Point;
 using dealii::Vector;
+using dealii::Tensor;
 
 template <int dim>
 class RightHandSide :  public Function<dim>
@@ -15,11 +17,13 @@ class RightHandSide :  public Function<dim>
 public:
   RightHandSide ();
 
-  virtual void vector_value (const Point<dim> &p,
-                             Vector<double>   &values) const;
-
-  virtual void vector_value_list (const std::vector<Point<dim> > &points,
-                                  std::vector<Vector<double> >   &value_list) const;
+  virtual double value(const Point<dim>& x,
+                       const unsigned int component = 0) const;
+  virtual Tensor<1, dim> gradient(const Point<dim>& x,
+                                  const unsigned int component = 0) const;
+  virtual void gradient_list(const std::vector< Point<dim> >& points,
+                             std::vector< Tensor<1, dim> >& gradients,
+                             const unsigned int component = 0) const;
 };
 
 
@@ -32,43 +36,41 @@ RightHandSide<dim>::RightHandSide ()
 
 template <int dim>
 inline
-void RightHandSide<dim>::vector_value (const Point<dim> &p,
-                                       Vector<double>   &values) const
+double RightHandSide<dim>::value(const Point<dim>& x,
+                                 const unsigned int component) const
 {
-  Assert (values.size() == dim,
-          ExcDimensionMismatch (values.size(), dim));
-  Assert (dim >= 2, ExcNotImplemented());
+  Assert(dim >= 2, ExcNotImplemented());
+  Assert(component = 0, ExcNotImplemented());
 
-  Point<dim> point_1, point_2;
-  point_1(0) = 0.5;
-  point_2(0) = -0.5;
-
-  if (((p-point_1).square() < 0.2*0.2) ||
-      ((p-point_2).square() < 0.2*0.2))
-    values(0) = 1;
-  else
-    values(0) = 0;
-
-  if (p.square() < 0.2*0.2)
-    values(1) = 1;
-  else
-    values(1) = 0;
+  return exp(-x.square());
 }
-
 
 
 template <int dim>
-void RightHandSide<dim>::vector_value_list (const std::vector<Point<dim> > &points,
-                                            std::vector<Vector<double> >   &value_list) const
+inline
+Tensor<1, dim> RightHandSide<dim>::gradient(const Point<dim>& x,
+                                            const unsigned int component) const
 {
-  Assert (value_list.size() == points.size(),
-          ExcDimensionMismatch (value_list.size(), points.size()));
+  Tensor<1, dim> v;
+  for (unsigned int i = 0; i < dim; ++i) {
+    v[i] = -2 * x[i] * exp(-x.square());
+  }
+  return v;
+}
+
+
+template <int dim>
+void RightHandSide<dim>::gradient_list(const std::vector< Point<dim> >& points,
+                                       std::vector< Tensor<1, dim> >& gradients,
+                                       const unsigned int component) const
+{
+  Assert(value_list.size() == points.size(),
+         ExcDimensionMismatch(value_list.size(), points.size()));
 
   const unsigned int n_points = points.size();
-
-  for (unsigned int p=0; p<n_points; ++p)
-    RightHandSide<dim>::vector_value (points[p],
-                                      value_list[p]);
+  for (unsigned int p = 0; p < n_points; ++p)
+    gradients[p] = RightHandSide<dim>::gradient(points[p]);
 }
+
 
 #endif
