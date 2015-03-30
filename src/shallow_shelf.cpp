@@ -33,9 +33,11 @@ namespace ShallowShelfApproximation
 
 
   ShallowShelf::ShallowShelf (Triangulation<2>& _triangulation,
-                              const Function<2>& _surface)
+                              const Function<2>& _surface,
+                              const Function<2>& _bed)
     :
     surface (_surface),
+    bed (_bed),
     triangulation (_triangulation),
     dof_handler (triangulation),
     fe (FE_Q<2>(1), 2)

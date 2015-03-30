@@ -35,8 +35,9 @@ namespace ShallowShelfApproximation
   class ShallowShelf
   {
   public:
-    ShallowShelf (Triangulation<2>& _triangulation,
-                  const Function<2>& _surface);
+    ShallowShelf (Triangulation<2>&  _triangulation,
+                  const Function<2>& _surface,
+                  const Function<2>& _bed);
     ~ShallowShelf ();
     void run ();
     //void output (const std::string& filename);
@@ -49,6 +50,7 @@ namespace ShallowShelfApproximation
     void output_results (const unsigned int cycle) const;
 
     const Function<2>& surface;
+    const Function<2>& bed;
 
     Triangulation<2>&  triangulation;
     DoFHandler<2>      dof_handler;
