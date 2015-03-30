@@ -19,7 +19,6 @@
 
 #include "shallow_shelf.hpp"
 #include "ice_thickness.hpp"
-#include "driving_stress.hpp"
 #include "physical_constants.hpp"
 
 

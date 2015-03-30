@@ -29,7 +29,6 @@ set(LIBRARY_OUTPUT_PATH ${fe-experiments_BINARY_DIR}/lib)
 add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
-  src/driving_stress.cpp
   src/shallow_shelf.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
