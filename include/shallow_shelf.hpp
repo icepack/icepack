@@ -19,46 +19,52 @@
 #include "physical_constants.hpp"
 
 
-using dealii::Triangulation;
-using dealii::Function;
-using dealii::DoFHandler;
-using dealii::FESystem;
-using dealii::ConstraintMatrix;
-using dealii::SparsityPattern;
-using dealii::SparseMatrix;
-using dealii::Vector;
-
-
-class ShallowShelfProblem
+namespace ShallowShelfApproximation
 {
-public:
-  ShallowShelfProblem (Triangulation<2>& _triangulation,
-                       const Function<2>& _bed,
-                       const Function<2>& _surface,
-                       const Function<2>& _beta);
-  ~ShallowShelfProblem ();
-  void run ();
-  //void output (const std::string& filename);
 
-private:
-  void setup_system ();
-  void assemble_system ();
-  void solve ();
+  using dealii::Triangulation;
+  using dealii::Function;
+  using dealii::DoFHandler;
+  using dealii::FESystem;
+  using dealii::ConstraintMatrix;
+  using dealii::SparsityPattern;
+  using dealii::SparseMatrix;
+  using dealii::Vector;
 
-  const Function<2>& bed;
-  const Function<2>& surface;
-  const Function<2>& thickness;
-  const Function<2>& driving_stress;
-  const Function<2>& beta;
 
-  Triangulation<2>     triangulation;
-  DoFHandler<2>        dof_handler;
-  FESystem<2>          fe;
-  ConstraintMatrix     hanging_node_constraints;
-  SparsityPattern      sparsity_pattern;
-  SparseMatrix<double> system_matrix;
-  Vector<double>       solution;
-  Vector<double>       system_rhs;
-};
+  class ShallowShelf
+  {
+  public:
+    ShallowShelf (Triangulation<2>& _triangulation,
+                  const Function<2>& _surface);
+    ~ShallowShelf ();
+    void run ();
+    //void output (const std::string& filename);
+
+  private:
+    void setup_system ();
+    void assemble_system ();
+    void solve ();
+    void refine_grid ();
+    void output_results (const unsigned int cycle) const;
+
+    const Function<2>& surface;
+
+    Triangulation<2>&  triangulation;
+    DoFHandler<2>      dof_handler;
+
+    FESystem<2>        fe;
+
+    ConstraintMatrix     hanging_node_constraints;
+
+    SparsityPattern      sparsity_pattern;
+    SparseMatrix<double> system_matrix;
+
+    Vector<double>       solution;
+    Vector<double>       system_rhs;
+  };
+
+
+} // End of ShallowShelf namespace
 
 #endif

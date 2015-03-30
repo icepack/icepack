@@ -1,5 +1,7 @@
 
-#include "ssa.hpp"
+#include <deal.II/grid/grid_generator.h>
+
+#include "shallow_shelf.hpp"
 #include "rhs.hpp"
 
 using namespace dealii;
@@ -13,8 +15,8 @@ int main ()
       Triangulation<2> tri;
       GridGenerator::hyper_cube(tri, -1, 1);
       RightHandSide<2> rhs;
-      Step8::ElasticProblem elastic_problem_2d(tri, rhs);
-      elastic_problem_2d.run ();
+      ShallowShelfApproximation::ShallowShelf ssa(tri, rhs);
+      ssa.run ();
     }
   catch (std::exception &exc)
     {
