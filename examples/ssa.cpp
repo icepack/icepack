@@ -14,8 +14,10 @@ int main ()
 
       Triangulation<2> tri;
       GridGenerator::hyper_cube(tri, -1, 1);
-      RightHandSide<2> rhs;
-      ShallowShelfApproximation::ShallowShelf ssa(tri, rhs);
+
+      SurfaceElevation surface;
+
+      ShallowShelfApproximation::ShallowShelf ssa(tri, surface);
       ssa.run ();
     }
   catch (std::exception &exc)

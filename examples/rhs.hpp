@@ -11,65 +11,58 @@ using dealii::Point;
 using dealii::Vector;
 using dealii::Tensor;
 
-template <int dim>
-class RightHandSide :  public Function<dim>
+class SurfaceElevation : public Function<2>
 {
 public:
-  RightHandSide ();
+  SurfaceElevation ();
 
-  virtual double value(const Point<dim>& x,
+  virtual double value(const Point<2>& x,
                        const unsigned int component = 0) const;
-  virtual Tensor<1, dim> gradient(const Point<dim>& x,
-                                  const unsigned int component = 0) const;
-  virtual void gradient_list(const std::vector< Point<dim> >& points,
-                             std::vector< Tensor<1, dim> >& gradients,
+  virtual Tensor<1, 2> gradient(const Point<2>& x,
+                                const unsigned int component = 0) const;
+  virtual void gradient_list(const std::vector< Point<2> >& points,
+                             std::vector< Tensor<1, 2> >& gradients,
                              const unsigned int component = 0) const;
 };
 
 
-template <int dim>
-RightHandSide<dim>::RightHandSide ()
+SurfaceElevation::SurfaceElevation ()
   :
-  Function<dim> (dim)
+  Function<2> (2)
 {}
 
 
-template <int dim>
 inline
-double RightHandSide<dim>::value(const Point<dim>& x,
-                                 const unsigned int component) const
+double SurfaceElevation::value(const Point<2>& x,
+                               const unsigned int component) const
 {
-  Assert(dim >= 2, ExcNotImplemented());
   Assert(component = 0, ExcNotImplemented());
 
   return exp(-x.square());
 }
 
 
-template <int dim>
 inline
-Tensor<1, dim> RightHandSide<dim>::gradient(const Point<dim>& x,
-                                            const unsigned int component) const
+Tensor<1, 2> SurfaceElevation::gradient(const Point<2>& x,
+                                        const unsigned int component) const
 {
-  Tensor<1, dim> v;
-  for (unsigned int i = 0; i < dim; ++i) {
-    v[i] = -2 * x[i] * exp(-x.square());
-  }
+  Tensor<1, 2> v;
+  v[0] = -2 * x[0] * exp(-x.square());
+  v[1] = -2 * x[1] * exp(-x.square());
   return v;
 }
 
 
-template <int dim>
-void RightHandSide<dim>::gradient_list(const std::vector< Point<dim> >& points,
-                                       std::vector< Tensor<1, dim> >& gradients,
-                                       const unsigned int component) const
+void SurfaceElevation::gradient_list(const std::vector< Point<2> >& points,
+                                     std::vector< Tensor<1, 2> >& gradients,
+                                     const unsigned int component) const
 {
   Assert(value_list.size() == points.size(),
          ExcDimensionMismatch(value_list.size(), points.size()));
 
   const unsigned int n_points = points.size();
   for (unsigned int p = 0; p < n_points; ++p)
-    gradients[p] = RightHandSide<dim>::gradient(points[p]);
+    gradients[p] = SurfaceElevation::gradient(points[p]);
 }
 
 
