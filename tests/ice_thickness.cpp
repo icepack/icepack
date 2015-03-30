@@ -21,7 +21,7 @@ int main (int argc, char **argv)
                return 200.0 - 0.04 * x(0);
              });
 
-  IceThickness thickness (bed, surface);
+  IceThickness thickness (surface, bed);
 
   double r = rho_water / (rho_water - rho_ice);
   double L = (200 * r - 600) / (0.04 * r - 0.06);

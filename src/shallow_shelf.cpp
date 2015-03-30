@@ -38,6 +38,7 @@ namespace ShallowShelfApproximation
     :
     surface (_surface),
     bed (_bed),
+    thickness (IceThickness(surface, bed)),
     triangulation (_triangulation),
     dof_handler (triangulation),
     fe (FE_Q<2>(1), 2)

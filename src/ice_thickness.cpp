@@ -3,11 +3,11 @@
 #include "physical_constants.hpp"
 
 
-IceThickness::IceThickness (const Function<2>& _bed,
-                            const Function<2>& _surface)
+IceThickness::IceThickness (const Function<2>& _surface,
+                            const Function<2>& _bed)
   :
-  bed (_bed),
-  surface (_surface)
+  surface (_surface),
+  bed (_bed)
 {}
 
 

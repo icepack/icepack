@@ -13,12 +13,12 @@ using dealii::Point;
 class IceThickness : public Function<2>
 {
 public:
-  IceThickness(const Function<2>& _bed, const Function<2>& _surface);
+  IceThickness(const Function<2>& _surface, const Function<2>& _bed);
   double value(const Point<2>& x, const unsigned int component = 0) const;
 
 private:
-  const Function<2>& bed;
   const Function<2>& surface;
+  const Function<2>& bed;
 };
 
 #endif
