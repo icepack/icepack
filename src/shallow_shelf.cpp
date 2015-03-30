@@ -89,11 +89,11 @@ namespace ShallowShelfApproximation
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    std::vector<double> nu_values(n_q_points);
     ConstantFunction<2> nu(1.);
 
-    std::vector< Tensor<1, 2> > rhs_values(n_q_points,
-                                           Tensor<1, 2>());
+    std::vector<double> nu_values(n_q_points);
+    std::vector< Tensor<1, 2> > surface_gradient_values(n_q_points,
+                                                        Tensor<1, 2>());
 
 
     // Loop over every cell in the triangulation
@@ -108,7 +108,7 @@ namespace ShallowShelfApproximation
         nu.value_list (fe_values.get_quadrature_points(), nu_values);
 
         surface.gradient_list (fe_values.get_quadrature_points(),
-                               rhs_values);
+                               surface_gradient_values);
 
         // Build the cell stiffness matrix
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
@@ -177,9 +177,9 @@ namespace ShallowShelfApproximation
               component_i = fe.system_to_component_index(i).first;
 
             for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              cell_rhs(i) += fe_values.shape_value(i,q_point) *
-                rhs_values[q_point][component_i] *
-                fe_values.JxW(q_point);
+              cell_rhs(i) -= fe_values.shape_value(i,q_point) *
+                             surface_gradient_values[q_point][component_i] *
+                             fe_values.JxW(q_point);
           }
 
 
