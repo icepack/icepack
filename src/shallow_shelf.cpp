@@ -91,10 +91,10 @@ namespace ShallowShelfApproximation
 
     ConstantFunction<2> nu(1.);
 
-    std::vector<double> nu_values(n_q_points);
-    std::vector< Tensor<1, 2> > surface_gradient_values(n_q_points,
-                                                        Tensor<1, 2>());
-
+    std::vector<double> nu_values (n_q_points);
+    std::vector<double> thickness_values (n_q_points);
+    std::vector< Tensor<1, 2> > surface_gradient_values (n_q_points,
+                                                         Tensor<1, 2>());
 
     // Loop over every cell in the triangulation
     for (auto cell: dof_handler.active_cell_iterators())
@@ -105,8 +105,10 @@ namespace ShallowShelfApproximation
         fe_values.reinit (cell);
 
         // Getting values of coefficients / RHS at the quadrature points
-        nu.value_list (fe_values.get_quadrature_points(), nu_values);
-
+        nu.value_list         (fe_values.get_quadrature_points(),
+                               nu_values);
+        thickness.value_list  (fe_values.get_quadrature_points(),
+                               thickness_values);
         surface.gradient_list (fe_values.get_quadrature_points(),
                                surface_gradient_values);
 

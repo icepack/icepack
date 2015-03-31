@@ -17,6 +17,7 @@
 #include <iostream>
 
 #include "physical_constants.hpp"
+#include "ice_thickness.hpp"
 
 
 namespace ShallowShelfApproximation
@@ -51,7 +52,7 @@ namespace ShallowShelfApproximation
 
     const Function<2>& surface;
     const Function<2>& bed;
-    const Function<2>& thickness;
+    const IceThickness thickness;
 
     Triangulation<2>&  triangulation;
     DoFHandler<2>      dof_handler;
