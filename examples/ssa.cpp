@@ -17,8 +17,9 @@ int main ()
 
       SurfaceElevation surface;
       BedElevation bed;
+      BoundaryVelocity vb;
 
-      ShallowShelfApproximation::ShallowShelf ssa(tri, surface, bed);
+      ShallowShelfApproximation::ShallowShelf ssa(tri, surface, bed, vb);
       ssa.run ();
     }
   catch (std::exception &exc)

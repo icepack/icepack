@@ -32,13 +32,15 @@ namespace ShallowShelfApproximation
   * pow(strain_rate, -2.0/3);*/
 
 
-  ShallowShelf::ShallowShelf (Triangulation<2>& _triangulation,
+  ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
                               const Function<2>& _surface,
-                              const Function<2>& _bed)
+                              const Function<2>& _bed,
+                              const TensorFunction<1, 2>& _boundary_velocity)
     :
     surface (_surface),
     bed (_bed),
     thickness (IceThickness(surface, bed)),
+    boundary_velocity (_boundary_velocity),
     triangulation (_triangulation),
     dof_handler (triangulation),
     fe (FE_Q<2>(1), 2)

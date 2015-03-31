@@ -4,6 +4,7 @@
 
 
 #include <deal.II/base/function.h>
+#include <deal.II/base/tensor_function.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/constraint_matrix.h>
@@ -25,6 +26,7 @@ namespace ShallowShelfApproximation
 
   using dealii::Triangulation;
   using dealii::Function;
+  using dealii::TensorFunction;
   using dealii::DoFHandler;
   using dealii::FESystem;
   using dealii::ConstraintMatrix;
@@ -38,7 +40,8 @@ namespace ShallowShelfApproximation
   public:
     ShallowShelf (Triangulation<2>&  _triangulation,
                   const Function<2>& _surface,
-                  const Function<2>& _bed);
+                  const Function<2>& _bed,
+                  const TensorFunction<1, 2>& _boundary_velocity);
     ~ShallowShelf ();
     void run ();
     //void output (const std::string& filename);
@@ -53,6 +56,7 @@ namespace ShallowShelfApproximation
     const Function<2>& surface;
     const Function<2>& bed;
     const IceThickness thickness;
+    const TensorFunction<1, 2>& boundary_velocity;
 
     Triangulation<2>&  triangulation;
     DoFHandler<2>      dof_handler;
