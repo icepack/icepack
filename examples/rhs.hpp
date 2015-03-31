@@ -10,6 +10,8 @@ using dealii::Function;
 using dealii::Point;
 using dealii::Vector;
 using dealii::Tensor;
+using dealii::StandardExceptions::ExcNotImplemented;
+using dealii::StandardExceptions::ExcDimensionMismatch;
 
 class SurfaceElevation : public Function<2>
 {
@@ -36,7 +38,7 @@ inline
 double SurfaceElevation::value(const Point<2>& x,
                                const unsigned int component) const
 {
-  Assert(component = 0, ExcNotImplemented());
+  Assert(component == 0, ExcNotImplemented());
 
   return exp(-x.square());
 }
@@ -57,8 +59,8 @@ void SurfaceElevation::gradient_list(const std::vector< Point<2> >& points,
                                      std::vector< Tensor<1, 2> >& gradients,
                                      const unsigned int component) const
 {
-  Assert(value_list.size() == points.size(),
-         ExcDimensionMismatch(value_list.size(), points.size()));
+  Assert(gradients.size() == points.size(),
+         ExcDimensionMismatch(gradients.size(), points.size()));
 
   const unsigned int n_points = points.size();
   for (unsigned int p = 0; p < n_points; ++p)
@@ -94,9 +96,7 @@ void BedElevation::value_list (const std::vector<Point<2> >& points,
   const unsigned int n_points = points.size();
 
   for (unsigned int i = 0; i < n_points; ++i)
-    {
-      values[i] = -1.0 - exp(-points[i].square());
-    }
+    values[i] = -1.0 - exp(-points[i].square());
 }
 
 
