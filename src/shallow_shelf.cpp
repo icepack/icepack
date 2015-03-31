@@ -141,12 +141,10 @@ namespace ShallowShelfApproximation
                       (
                        2 *
                        (fe_values.shape_grad(i,q_point)[component_i] *
-                        fe_values.shape_grad(j,q_point)[component_j] *
-                        nu_values[q_point])
+                        fe_values.shape_grad(j,q_point)[component_j])
                        +
                        (fe_values.shape_grad(i,q_point)[component_j] *
-                        fe_values.shape_grad(j,q_point)[component_i] *
-                        nu_values[q_point])
+                        fe_values.shape_grad(j,q_point)[component_i])
                        +
                        // The second term is (nu * nabla u_i, nabla v_j).  We
                        // need not access a specific component of the
@@ -161,11 +159,11 @@ namespace ShallowShelfApproximation
                        // compiler).
                        ((component_i == component_j) ?
                         (fe_values.shape_grad(i,q_point) *
-                         fe_values.shape_grad(j,q_point) *
-                         nu_values[q_point])  :
-                        0)
+                         fe_values.shape_grad(j,q_point))
+                        : 0)
                        )
                       *
+                      nu_values[q_point] *
                       fe_values.JxW(q_point);
                   }
               }
