@@ -13,8 +13,11 @@ using dealii::Point;
 class IceThickness : public Function<2>
 {
 public:
-  IceThickness(const Function<2>& _surface, const Function<2>& _bed);
-  double value(const Point<2>& x, const unsigned int component = 0) const;
+  IceThickness (const Function<2>& _surface, const Function<2>& _bed);
+  virtual double value (const Point<2>& x, const unsigned int component = 0) const;
+  virtual void value_list (const std::vector<Point<2> >& points,
+                           std::vector<double>&          values,
+                           const unsigned int            component = 0) const;
 
 private:
   const Function<2>& surface;
