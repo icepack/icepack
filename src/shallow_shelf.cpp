@@ -164,6 +164,7 @@ namespace ShallowShelfApproximation
                        )
                       *
                       nu_values[q_point] *
+                      thickness_values[q_point] *
                       fe_values.JxW(q_point);
                   }
               }
@@ -178,6 +179,7 @@ namespace ShallowShelfApproximation
 
             for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
               cell_rhs(i) -= fe_values.shape_value(i,q_point) *
+                             thickness_values[q_point] *
                              surface_gradient_values[q_point][component_i] *
                              fe_values.JxW(q_point);
           }
