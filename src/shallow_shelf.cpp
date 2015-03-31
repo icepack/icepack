@@ -26,7 +26,6 @@ namespace ShallowShelfApproximation
 {
   using namespace dealii;
 
-
   /*constexpr double strain_rate = 100.0;  // m / year
   constexpr double nu = 0.5 * pow(A0_cold * exp(-Q_cold / (idealgas * Temp)), -1.0/3)
   * pow(strain_rate, -2.0/3);*/
@@ -206,10 +205,11 @@ namespace ShallowShelfApproximation
     hanging_node_constraints.condense (system_rhs);
 
     std::map<types::global_dof_index,double> boundary_values;
-    VectorTools::interpolate_boundary_values (dof_handler,
-                                              0,
-                                              ZeroFunction<2>(2), // Need right BVs
-                                              boundary_values);
+    VectorTools::interpolate_boundary_values
+      (dof_handler,
+       0,
+       VectorFunctionFromTensorFunction<2> (boundary_velocity),
+       boundary_values);
     MatrixTools::apply_boundary_values (boundary_values,
                                         system_matrix,
                                         solution,
