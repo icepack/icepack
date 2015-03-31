@@ -16,10 +16,7 @@ int main ()
       GridGenerator::hyper_cube(tri, -1, 1);
 
       SurfaceElevation surface;
-      ScalarFunctionFromFunctionObject<2> bed([](const Point<2>& x)
-                                              {
-                                                return -1.0 - exp(-x.square());
-                                              });
+      BedElevation bed;
 
       ShallowShelfApproximation::ShallowShelf ssa(tri, surface, bed);
       ssa.run ();
