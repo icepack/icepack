@@ -78,12 +78,19 @@ namespace ShallowShelfApproximation
   void ShallowShelf::assemble_system ()
   {
     QGauss<2> quadrature_formula(2);
+    QGauss<1> face_quadrature_formula(2);
+
     FEValues<2> fe_values (fe, quadrature_formula,
                            update_values            | update_gradients |
                            update_quadrature_points | update_JxW_values);
 
+    FEFaceValues<2> fe_face_values (fe, face_quadrature_formula,
+                                    update_values | update_quadrature_points |
+                                    update_normal_vectors | update_JxW_values);
+
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
     const unsigned int   n_q_points    = quadrature_formula.size();
+    const unsigned int   n_face_q_points = face_quadrature_formula.size();
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
     Vector<double>       cell_rhs (dofs_per_cell);
@@ -153,11 +160,6 @@ namespace ShallowShelfApproximation
                        // product of the two gradients, of which an
                        // overloaded version of the operator* takes care, as
                        // in previous examples.
-                       //
-                       // Note that by using the ?: operator, we only do this
-                       // if comp(i) equals comp(j), otherwise a zero is
-                       // added (which will be optimized away by the
-                       // compiler).
                        ((component_i == component_j) ?
                         (fe_values.shape_grad(i,q_point) *
                          fe_values.shape_grad(j,q_point))
@@ -171,19 +173,54 @@ namespace ShallowShelfApproximation
               }
           }
 
-
         // Build the cell right-hand side
+        // First, add up contributions from the ice driving stress...
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           {
             const unsigned int
               component_i = fe.system_to_component_index(i).first;
 
             for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              cell_rhs(i) -= fe_values.shape_value(i,q_point) *
+              cell_rhs(i) -= fe_values.shape_value(i, q_point) *
                              thickness_values[q_point] *
                              surface_gradient_values[q_point][component_i] *
                              fe_values.JxW(q_point);
           }
+
+        // ... then add up contributions from the boundary condition at the
+        // ice calving front.
+        // Note that we only need to add in the back-pressure from sea-water;
+        // the driving stress contribution above implicitly includes the
+        // pressure from the ice on its own calving front.
+        // Note to self: make sure that's actually true.
+        for (unsigned int face_number = 0;
+             face_number < GeometryInfo<2>::faces_per_cell;
+             ++face_number)
+          if (cell->face(face_number)->at_boundary()
+              and
+              cell->face(face_number)->boundary_indicator() == 1)
+            {
+              fe_face_values.reinit (cell, face_number);
+              for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
+                {
+                  const Point<2> x = fe_face_values.quadrature_point(q_point);
+                  // Depth `b` of the ice base; note that this could be either
+                  // equal to or greater than the bed elevation depending on if
+                  // the ice is grounded or not.
+                  const double b = surface.value(x) - thickness.value(x);
+                  const Tensor<1, 2> neumann_value
+                    = 0.8 * // This should be (rho_ice / rho_water)**2
+                      b * b * fe_face_values.normal_vector(q_point) / 2;
+                  for (unsigned int i = 0; i < dofs_per_cell; ++i)
+                    {
+                      const unsigned int
+                        component_i = fe.system_to_component_index(i).first;
+                      cell_rhs(i) += neumann_value[component_i] *
+                                     fe_face_values.shape_value(i, q_point) *
+                                     fe_face_values.JxW(q_point);
+                    }
+                }
+            }
 
 
         // Add cell RHS/stiffness matrix to their global counterparts
@@ -210,6 +247,7 @@ namespace ShallowShelfApproximation
        0,
        VectorFunctionFromTensorFunction<2> (boundary_velocity),
        boundary_values);
+
     MatrixTools::apply_boundary_values (boundary_values,
                                         system_matrix,
                                         solution,
