@@ -114,7 +114,7 @@ public:
 Tensor<1, 2> BoundaryVelocity::value(const Point<2>& x) const
 {
   Tensor<1, 2> v;
-  v[0] = 0.05 * (1.0 - x[1]) * (1.0 + x[1]);
+  v[0] = 0.25 * (1.0 - x[1]) * (1.0 + x[1]);
   v[1] = 0.0;
   return v;
 }
