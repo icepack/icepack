@@ -26,9 +26,10 @@ namespace ShallowShelfApproximation
 {
   using namespace dealii;
 
-  /*constexpr double strain_rate = 100.0;  // m / year
-  constexpr double nu = 0.5 * pow(A0_cold * exp(-Q_cold / (idealgas * Temp)), -1.0/3)
-  * pow(strain_rate, -2.0/3);*/
+  constexpr double strain_rate = 100.0;  // m / year
+  constexpr double nu_guess = 0.5 * pow(A0_cold *
+                                        exp(-Q_cold / (idealgas * Temp)) *
+                                        strain_rate * strain_rate, -1.0/3);
 
 
   ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
@@ -97,7 +98,8 @@ namespace ShallowShelfApproximation
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    ConstantFunction<2> nu(1.);
+    // Assuming constant viscosity for now, ignoring nonlinearity.
+    ConstantFunction<2> nu(nu_guess);
 
     std::vector<double> nu_values (n_q_points);
     std::vector<double> thickness_values (n_q_points);
@@ -181,7 +183,8 @@ namespace ShallowShelfApproximation
               component_i = fe.system_to_component_index(i).first;
 
             for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              cell_rhs(i) -= fe_values.shape_value(i, q_point) *
+              cell_rhs(i) -= rho_ice * gravity *
+                             fe_values.shape_value(i, q_point) *
                              thickness_values[q_point] *
                              surface_gradient_values[q_point][component_i] *
                              fe_values.JxW(q_point);
@@ -209,8 +212,8 @@ namespace ShallowShelfApproximation
                   // the ice is grounded or not.
                   const double b = surface.value(x) - thickness.value(x);
                   const Tensor<1, 2> neumann_value
-                    = 0.8 * // This should be (rho_ice / rho_water)**2
-                      b * b * fe_face_values.normal_vector(q_point) / 2;
+                    = rho_water * gravity * b * b *
+                      fe_face_values.normal_vector(q_point) / 2;
                   for (unsigned int i = 0; i < dofs_per_cell; ++i)
                     {
                       const unsigned int

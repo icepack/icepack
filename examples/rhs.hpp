@@ -16,6 +16,12 @@ using dealii::StandardExceptions::ExcNotImplemented;
 using dealii::StandardExceptions::ExcDimensionMismatch;
 
 
+constexpr double radius = 5e3;
+constexpr double slope = 0.01;
+constexpr double s_max = 100;
+constexpr double s_min = 10;
+
+
 class SurfaceElevation : public Function<2>
 {
 public:
@@ -43,7 +49,8 @@ double SurfaceElevation::value(const Point<2>& x,
 {
   Assert(component == 0, ExcNotImplemented());
 
-  return exp(-x.square());
+  const double r = sqrt(x.square());
+  return s_min + (s_max - s_min) * (exp(r / radius) - 1) / (exp(1) - 1);
 }
 
 
@@ -52,8 +59,10 @@ Tensor<1, 2> SurfaceElevation::gradient(const Point<2>& x,
                                         const unsigned int component) const
 {
   Tensor<1, 2> v;
-  v[0] = -2 * x[0] * exp(-x.square());
-  v[1] = -2 * x[1] * exp(-x.square());
+  const double r = sqrt(x.square());
+  const double grad = (s_max - s_min) / (exp(1) - 1) * exp(r / radius) / radius;
+  v[0] = grad;
+  v[1] = grad;
   return v;
 }
 
@@ -86,7 +95,7 @@ public:
 double BedElevation::value (const Point<2>& x,
                             const unsigned int) const
 {
-  return -1.0 - exp(-x.square());
+  return -2000.0;
 }
 
 
@@ -99,7 +108,7 @@ void BedElevation::value_list (const std::vector<Point<2> >& points,
   const unsigned int n_points = points.size();
 
   for (unsigned int i = 0; i < n_points; ++i)
-    values[i] = -1.0 - exp(-points[i].square());
+    values[i] = -2000.0;
 }
 
 
@@ -114,7 +123,7 @@ public:
 Tensor<1, 2> BoundaryVelocity::value(const Point<2>& x) const
 {
   Tensor<1, 2> v;
-  v[0] = 0.25 * (1.0 - x[1]) * (1.0 + x[1]);
+  v[0] = -100.0;
   v[1] = 0.0;
   return v;
 }

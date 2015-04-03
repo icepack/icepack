@@ -13,17 +13,14 @@ int main ()
       dealii::deallog.depth_console (0);
 
       Triangulation<2> tri;
-      GridGenerator::hyper_cube(tri, -1, 1);
+      GridGenerator::half_hyper_ball(tri, Point<2>(), radius);
 
-      for (auto cell: tri.active_cell_iterators())
+      /*for (auto cell: tri.active_cell_iterators())
         for (unsigned int face_number = 0;
              face_number < GeometryInfo<2>::faces_per_cell;
              ++face_number)
           if (cell->face(face_number)->center()(0) > 0.95)
-            {
-              // std::cout << "Yurp, got one!" << std::endl;
-              cell->face(face_number)->set_boundary_indicator (1);
-            }
+          cell->face(face_number)->set_boundary_indicator (1);*/
 
       SurfaceElevation surface;
       BedElevation bed;
