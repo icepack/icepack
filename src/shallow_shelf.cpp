@@ -26,7 +26,7 @@ namespace ShallowShelfApproximation
 {
   using namespace dealii;
 
-  constexpr double strain_rate = 100.0;  // m / year
+  constexpr double strain_rate = 10.0;  // m / year
   constexpr double nu_guess = 0.5 * pow(A0_cold *
                                         exp(-Q_cold / (idealgas * Temp)) *
                                         strain_rate * strain_rate, -1.0/3);
@@ -138,16 +138,8 @@ namespace ShallowShelfApproximation
                   {
                     cell_matrix(i,j)
                       +=
-                      // First term is 2 * nu * d_i u_i, d_j v_j)
-                      //                + (nu * d_i u_j, d_j u_i).
-                      // <code>shape_grad(i,q_point)</code> returns the
-                      // gradient of the only nonzero component of the i-th
-                      // shape function at quadrature point q_point. The
-                      // component <code>comp(i)</code> of the gradient, which
-                      // is the derivative of this only nonzero vector
-                      // component of the i-th shape function with respect to
-                      // the comp(i)th coordinate is accessed by the appended
-                      // brackets.
+                      // First term: 2 * (nu * d_i u_i, d_j v_j)
+                      //               + (nu * d_i u_j, d_j v_i).
                       (
                        2 *
                        (fe_values.shape_grad(i,q_point)[component_i] *
@@ -156,12 +148,7 @@ namespace ShallowShelfApproximation
                        (fe_values.shape_grad(i,q_point)[component_j] *
                         fe_values.shape_grad(j,q_point)[component_i])
                        +
-                       // The second term is (nu * nabla u_i, nabla v_j).  We
-                       // need not access a specific component of the
-                       // gradient, since we only have to compute the scalar
-                       // product of the two gradients, of which an
-                       // overloaded version of the operator* takes care, as
-                       // in previous examples.
+                       // Second term: (nu * nabla u_i, nabla v_j)
                        ((component_i == component_j) ?
                         (fe_values.shape_grad(i,q_point) *
                          fe_values.shape_grad(j,q_point))
