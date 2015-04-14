@@ -3,6 +3,7 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
+#include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
 
@@ -251,8 +252,8 @@ namespace ShallowShelfApproximation
     SolverControl solver_control (1000, 1.0e-12);
     SolverCG<>    cg (solver_control);
 
-    PreconditionSSOR<> preconditioner;
-    preconditioner.initialize(system_matrix, 1.2);
+    SparseILU<double> preconditioner;
+    preconditioner.initialize(system_matrix);
 
     cg.solve (system_matrix, solution, system_rhs,
               preconditioner);
