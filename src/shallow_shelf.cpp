@@ -27,7 +27,7 @@ namespace ShallowShelfApproximation
 {
   using namespace dealii;
 
-  constexpr double strain_rate = 10.0;  // m / year
+  constexpr double strain_rate = 0.2;  // 1 / year
   constexpr double nu_guess = 0.5 * pow(A0_cold *
                                         exp(-Q_cold / (idealgas * Temp)) *
                                         strain_rate * strain_rate, -1.0/3);
@@ -304,7 +304,7 @@ namespace ShallowShelfApproximation
 
   void ShallowShelf::run ()
   {
-    for (unsigned int cycle = 0; cycle < 8; ++cycle)
+    for (unsigned int cycle = 0; cycle < 3; ++cycle)
       {
         std::cout << "Cycle " << cycle << ':' << std::endl;
 
