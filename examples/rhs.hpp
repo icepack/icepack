@@ -49,8 +49,9 @@ double SurfaceElevation::value(const Point<2>& x,
 {
   Assert(component == 0, ExcNotImplemented());
 
-  const double r = sqrt(x.square());
-  return s_min + (s_max - s_min) * (exp(r / radius) - 1) / (exp(1) - 1);
+  double yp = x[1] - radius, xp = x[0];
+  return 20.0 + 2.0 * x[1] / radius
+    + 5.0 * exp(-(xp*xp/1.0e4 + yp*yp/4.0e4));
 }
 
 
@@ -58,12 +59,13 @@ inline
 Tensor<1, 2> SurfaceElevation::gradient(const Point<2>& x,
                                         const unsigned int component) const
 {
+  double yp = x[1] - radius, xp = x[0], q = exp(-(xp*xp/1.0e4 + yp*yp/4.0e4));
+
   Tensor<1, 2> v;
-  const double r = sqrt(x.square());
-  const double grad = (s_max - s_min) / (exp(1) - 1) * exp(r / radius) / radius;
-  v[0] = grad;
-  v[1] = grad;
+  v[0] = -10.0 * xp/1.0e4 * q;
+  v[1] = 2.0/radius - 10.0 * yp/4.0e4 * q;
   return v;
+
 }
 
 
@@ -123,8 +125,8 @@ public:
 Tensor<1, 2> BoundaryVelocity::value(const Point<2>& x) const
 {
   Tensor<1, 2> v;
-  v[0] = -100.0;
-  v[1] = 0.0;
+  v[0] = 0.0;
+  v[1] = -125.0 * exp(-x[0]*x[0] / 1.0e4); //-100.0;
   return v;
 }
 
