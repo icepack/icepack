@@ -180,10 +180,6 @@ namespace ShallowShelfApproximation
 
         // ... then add up contributions from the boundary condition at the
         // ice calving front.
-        // Note that we only need to add in the back-pressure from sea-water;
-        // the driving stress contribution above implicitly includes the
-        // pressure from the ice on its own calving front.
-        // Note to self: make sure that's actually true.
         for (unsigned int face_number = 0;
              face_number < GeometryInfo<2>::faces_per_cell;
              ++face_number)
@@ -198,10 +194,11 @@ namespace ShallowShelfApproximation
                   // Depth `b` of the ice base; note that this could be either
                   // equal to or greater than the bed elevation depending on if
                   // the ice is grounded or not.
+                  const double h = thickness.value(x);
                   const double b = surface.value(x) - thickness.value(x);
                   const Tensor<1, 2> neumann_value
-                    = rho_water * gravity * b * b *
-                      fe_face_values.normal_vector(q_point) / 2;
+                    = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
+                      fe_face_values.normal_vector(q_point);
                   for (unsigned int i = 0; i < dofs_per_cell; ++i)
                     {
                       const unsigned int
