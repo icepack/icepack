@@ -3,6 +3,7 @@
 
 #include "shallow_shelf.hpp"
 #include "rhs.hpp"
+#include "read_mesh.hpp"
 
 using namespace dealii;
 
@@ -12,15 +13,14 @@ int main ()
     {
       dealii::deallog.depth_console (0);
 
-      Triangulation<2> tri;
-      GridGenerator::half_hyper_ball(tri, Point<2>(), radius);
-
-      /*for (auto cell: tri.active_cell_iterators())
+      Triangulation<2> tri = read_gmsh_grid<2>("half_circle.msh");
+      for (auto cell: tri.active_cell_iterators()) {
         for (unsigned int face_number = 0;
              face_number < GeometryInfo<2>::faces_per_cell;
              ++face_number)
-          if (cell->face(face_number)->center()(0) > 0.95)
-          cell->face(face_number)->set_boundary_indicator (1);*/
+          if (cell->face(face_number)->center()(1) < 1)
+            cell->face(face_number)->set_boundary_indicator (1);
+      }
 
       SurfaceElevation surface;
       BedElevation bed;

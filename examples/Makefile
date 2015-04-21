@@ -3,16 +3,16 @@ include $(DEAL_II_DIR)/common/Make.global_options
 
 INCLUDE += -I../include
 
-TARGETS = poisson_basic ssa
+TARGETS = ssa
 LIBS += -L../build/lib/ -licepack
 
-all: $(TARGETS) circle.msh
+all: $(TARGETS) half_circle.msh
 
 %.msh: %.geo
 	gmsh -2 $<
 
 %.geo:
-	python make_circle.py
+	python make_half_circle.py
 
 %: %.cpp
 	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS) $(INCLUDE)
