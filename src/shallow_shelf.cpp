@@ -57,8 +57,6 @@ namespace ShallowShelfApproximation
 
   void ShallowShelf::setup_system (const bool initial_step)
   {
-    // We will probably need some logic here to see if we're going to
-    // re-initialize the solution or not, see lines 194-203 of Step-15
     if (initial_step)
       {
         dof_handler.distribute_dofs (fe);
@@ -87,6 +85,9 @@ namespace ShallowShelfApproximation
 
   void ShallowShelf::assemble_system ()
   {
+    system_matrix = 0.0;
+    system_rhs    = 0.0;
+
     QGauss<2> quadrature_formula(2);
     QGauss<1> face_quadrature_formula(2);
 
@@ -258,12 +259,18 @@ namespace ShallowShelfApproximation
     SolverCG<>    cg (solver_control);
 
     SparseILU<double> preconditioner;
-    preconditioner.initialize(system_matrix);
 
-    cg.solve (system_matrix, solution, system_rhs,
-              preconditioner);
+    for (unsigned int iteration = 0; iteration < 5; ++iteration)
+      {
+        assemble_system ();
 
-    hanging_node_constraints.distribute (solution);
+        preconditioner.initialize(system_matrix);
+
+        cg.solve (system_matrix, solution, system_rhs,
+                  preconditioner);
+
+        hanging_node_constraints.distribute (solution);
+      }
   }
 
 
@@ -362,7 +369,6 @@ namespace ShallowShelfApproximation
                   << dof_handler.n_dofs()
                   << std::endl;
 
-        assemble_system ();
         solve ();
         output_results (cycle);
       }
