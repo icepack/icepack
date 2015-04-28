@@ -16,6 +16,7 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/error_estimator.h>
+#include <deal.II/numerics/solution_transfer.h>
 
 
 #include "shallow_shelf.hpp"
@@ -54,13 +55,22 @@ namespace ShallowShelfApproximation
   }
 
 
-  void ShallowShelf::setup_system ()
+  void ShallowShelf::setup_system (const bool initial_step)
   {
-    dof_handler.distribute_dofs (fe);
-    hanging_node_constraints.clear ();
-    DoFTools::make_hanging_node_constraints (dof_handler,
-                                             hanging_node_constraints);
-    hanging_node_constraints.close ();
+    // We will probably need some logic here to see if we're going to
+    // re-initialize the solution or not, see lines 194-203 of Step-15
+    if (initial_step)
+      {
+        dof_handler.distribute_dofs (fe);
+
+        hanging_node_constraints.clear ();
+        DoFTools::make_hanging_node_constraints (dof_handler,
+                                                 hanging_node_constraints);
+        hanging_node_constraints.close ();
+
+        solution.reinit (dof_handler.n_dofs());
+      }
+
     sparsity_pattern.reinit (dof_handler.n_dofs(),
                              dof_handler.n_dofs(),
                              dof_handler.max_couplings_between_dofs());
@@ -68,11 +78,9 @@ namespace ShallowShelfApproximation
 
     hanging_node_constraints.condense (sparsity_pattern);
 
-    sparsity_pattern.compress();
-
+    sparsity_pattern.compress ();
     system_matrix.reinit (sparsity_pattern);
 
-    solution.reinit (dof_handler.n_dofs());
     system_rhs.reinit (dof_handler.n_dofs());
   }
 
@@ -273,7 +281,42 @@ namespace ShallowShelfApproximation
                                                      estimated_error_per_cell,
                                                      0.3, 0.03);
 
+    triangulation.prepare_coarsening_and_refinement ();
+
+    SolutionTransfer<2> solution_transfer (dof_handler);
+    solution_transfer.prepare_for_coarsening_and_refinement (solution);
     triangulation.execute_coarsening_and_refinement ();
+
+    dof_handler.distribute_dofs(fe);
+
+    // Interpolate the solution on the old mesh to the new mesh
+    Vector<double> tmp (dof_handler.n_dofs());
+    solution_transfer.interpolate (solution, tmp);
+    solution = tmp;
+
+    // Having just refined the mesh and interpolated the old solution, we
+    // can adjust any newly added points on the boundary so that the
+    // boundary values are exact rather than interpolated from the old ones.
+    std::map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values
+      (dof_handler,
+       0,
+       VectorFunctionFromTensorFunction<2> (boundary_velocity),
+       boundary_values);
+
+    //TODO: use C++11-style for loop once we know this works
+    for (std::map<types::global_dof_index, double>::const_iterator
+           p = boundary_values.begin();
+         p != boundary_values.end(); ++p)
+      solution(p->first) = p->second;
+
+    // Reconcile the hanging nodes on the new mesh
+    hanging_node_constraints.clear ();
+    DoFTools::make_hanging_node_constraints (dof_handler,
+                                             hanging_node_constraints);
+    hanging_node_constraints.close ();
+    hanging_node_constraints.distribute (solution);
+    setup_system (false);
   }
 
 
@@ -316,7 +359,7 @@ namespace ShallowShelfApproximation
                   << triangulation.n_active_cells()
                   << std::endl;
 
-        setup_system ();
+        setup_system (cycle == 0);
 
         std::cout << "   Number of degrees of freedom: "
                   << dof_handler.n_dofs()

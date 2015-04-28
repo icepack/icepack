@@ -47,7 +47,7 @@ namespace ShallowShelfApproximation
     //void output (const std::string& filename);
 
   private:
-    void setup_system ();
+    void setup_system (const bool initial_step);
     void assemble_system ();
     void solve ();
     void refine_grid ();
