@@ -304,11 +304,8 @@ namespace ShallowShelfApproximation
        VectorFunctionFromTensorFunction<2> (boundary_velocity),
        boundary_values);
 
-    //TODO: use C++11-style for loop once we know this works
-    for (std::map<types::global_dof_index, double>::const_iterator
-           p = boundary_values.begin();
-         p != boundary_values.end(); ++p)
-      solution(p->first) = p->second;
+    for (const auto& dof_val: boundary_values)
+      solution(dof_val.first) = dof_val.second;
 
     // Reconcile the hanging nodes on the new mesh
     hanging_node_constraints.clear ();
