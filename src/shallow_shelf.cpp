@@ -67,6 +67,12 @@ namespace ShallowShelfApproximation
         hanging_node_constraints.close ();
 
         solution.reinit (dof_handler.n_dofs());
+
+        // Fill the solution by interpolating from the boundary values
+        VectorTools::interpolate
+          (dof_handler,
+           VectorFunctionFromTensorFunction<2> (boundary_velocity),
+           solution);
       }
 
     sparsity_pattern.reinit (dof_handler.n_dofs(),
