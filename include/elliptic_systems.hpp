@@ -18,8 +18,9 @@ namespace EllipticSystems
   using dealii::Vector;
   using dealii::Tensor;
   using dealii::SymmetricTensor;
-  using dealii::FEValues;
   using dealii::FESystem;
+  using dealii::FEValues;
+  using dealii::FEFaceValues;
   using dealii::FullMatrix;
 
   template <int dim>
@@ -118,6 +119,26 @@ namespace EllipticSystems
         cell_rhs(i) += fe_values.shape_value(i, q_point) *
                        field_value[component_i] *
                        fe_values.JxW(q_point);
+      }
+  }
+
+
+
+  template <int dim>
+  inline
+  void fill_cell_rhs_neumann (Vector<double>& cell_rhs,
+                              const Tensor<1, dim>& neumann_value,
+                              const FESystem<dim>& fe,
+                              const FEFaceValues<dim>& fe_face_values,
+                              const unsigned int q_point,
+                              const unsigned int dofs_per_cell)
+  {
+    for (unsigned int i = 0; i < dofs_per_cell; ++i)
+      {
+        const unsigned int component_i = fe.system_to_component_index(i).first;
+        cell_rhs(i) += neumann_value[component_i] *
+                       fe_face_values.shape_value(i, q_point) *
+                       fe_face_values.JxW(q_point);
       }
   }
 

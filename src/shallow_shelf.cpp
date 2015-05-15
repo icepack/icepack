@@ -198,14 +198,13 @@ namespace ShallowShelfApproximation
                   const Tensor<1, 2> neumann_value
                     = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
                       fe_face_values.normal_vector(q_point);
-                  for (unsigned int i = 0; i < dofs_per_cell; ++i)
-                    {
-                      const unsigned int
-                        component_i = fe.system_to_component_index(i).first;
-                      cell_rhs(i) += neumann_value[component_i] *
-                                     fe_face_values.shape_value(i, q_point) *
-                                     fe_face_values.JxW(q_point);
-                    }
+
+                  EllipticSystems::fill_cell_rhs_neumann<2> (cell_rhs,
+                                                             neumann_value,
+                                                             fe,
+                                                             fe_face_values,
+                                                             q_point,
+                                                             dofs_per_cell);
                 }
             }
 
