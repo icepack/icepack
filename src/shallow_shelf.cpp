@@ -1,9 +1,12 @@
 
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/symmetric_tensor.h>
+
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_ilu.h>
+
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
 
@@ -19,6 +22,7 @@
 #include <deal.II/numerics/solution_transfer.h>
 
 
+#include "elliptic_systems.hpp"
 #include "shallow_shelf.hpp"
 #include "ice_thickness.hpp"
 #include "physical_constants.hpp"
@@ -138,44 +142,17 @@ namespace ShallowShelfApproximation
         surface.gradient_list (fe_values.get_quadrature_points(),
                                surface_gradient_values);
 
-        // Build the cell stiffness matrix
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
+        for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
-            const unsigned int
-              component_i = fe.system_to_component_index(i).first;
+            const double nu_q = nu_values[q_point] * thickness_values[q_point];
+            const SymmetricTensor<4, 2> stress_strain
+              = EllipticSystems::stress_strain_tensor<2> (2 * nu_q, nu_q);
 
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-              {
-                const unsigned int
-                  component_j = fe.system_to_component_index(j).first;
-
-                // Loop over all the quadrature points in the cell
-                for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-                  {
-                    cell_matrix(i,j)
-                      +=
-                      // First term: 2 * (nu * d_i u_i, d_j v_j)
-                      //               + (nu * d_i u_j, d_j v_i).
-                      (
-                       2 *
-                       (fe_values.shape_grad(i,q_point)[component_i] *
-                        fe_values.shape_grad(j,q_point)[component_j])
-                       +
-                       (fe_values.shape_grad(i,q_point)[component_j] *
-                        fe_values.shape_grad(j,q_point)[component_i])
-                       +
-                       // Second term: (nu * nabla u_i, nabla v_j)
-                       ((component_i == component_j) ?
-                        (fe_values.shape_grad(i,q_point) *
-                         fe_values.shape_grad(j,q_point))
-                        : 0)
-                       )
-                      *
-                      nu_values[q_point] *
-                      thickness_values[q_point] *
-                      fe_values.JxW(q_point);
-                  }
-              }
+            EllipticSystems::fill_cell_matrix<2> (cell_matrix,
+                                                  stress_strain,
+                                                  fe_values,
+                                                  q_point,
+                                                  dofs_per_cell);
           }
 
         // Build the cell right-hand side
