@@ -142,8 +142,15 @@ namespace ShallowShelfApproximation
         surface.gradient_list (fe_values.get_quadrature_points(),
                                surface_gradient_values);
 
+        // Note to future Daniel: investigate whether it matters to loop first
+        // over quadrature points and then degrees of freedom, or first over
+        // DoFs and then quadrature points.
+
+        // Loop over all the quadrature points in the current cell
         for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
           {
+            // Add up the contribution of the current quadrature point to the
+            // cell stiffness matrix
             const double nu_q = nu_values[q_point] * thickness_values[q_point];
             const SymmetricTensor<4, 2> stress_strain
               = EllipticSystems::stress_strain_tensor<2> (2 * nu_q, nu_q);
@@ -153,22 +160,22 @@ namespace ShallowShelfApproximation
                                                   fe_values,
                                                   q_point,
                                                   dofs_per_cell);
+
+
+            // Add up the weight for the driving stress to the cell RHS
+            const Tensor<1, 2> driving_stress
+              = -rho_ice * gravity *
+                thickness_values[q_point] *
+                surface_gradient_values[q_point];
+
+            EllipticSystems::fill_cell_rhs_field<2> (cell_rhs,
+                                                     driving_stress,
+                                                     fe,
+                                                     fe_values,
+                                                     q_point,
+                                                     dofs_per_cell);
           }
 
-        // Build the cell right-hand side
-        // First, add up contributions from the ice driving stress...
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-          {
-            const unsigned int
-              component_i = fe.system_to_component_index(i).first;
-
-            for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-              cell_rhs(i) -= rho_ice * gravity *
-                             fe_values.shape_value(i, q_point) *
-                             thickness_values[q_point] *
-                             surface_gradient_values[q_point][component_i] *
-                             fe_values.JxW(q_point);
-          }
 
         // ... then add up contributions from the boundary condition at the
         // ice calving front.
