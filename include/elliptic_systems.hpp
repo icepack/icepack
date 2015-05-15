@@ -15,7 +15,12 @@
 
 namespace EllipticSystems
 {
-  using namespace dealii;
+  using dealii::Vector;
+  using dealii::Tensor;
+  using dealii::SymmetricTensor;
+  using dealii::FEValues;
+  using dealii::FESystem;
+  using dealii::FullMatrix;
 
   template <int dim>
   SymmetricTensor<4, dim>
