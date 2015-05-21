@@ -5,11 +5,16 @@
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor_function.h>
+#include <deal.II/base/quadrature_lib.h>
+
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/constraint_matrix.h>
+
 #include <deal.II/grid/tria.h>
+
 #include <deal.II/dofs/dof_handler.h>
+
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_q.h>
@@ -25,6 +30,7 @@ namespace ShallowShelfApproximation
 {
 
   using dealii::Triangulation;
+  using dealii::QGauss;
   using dealii::Function;
   using dealii::TensorFunction;
   using dealii::DoFHandler;
@@ -62,6 +68,9 @@ namespace ShallowShelfApproximation
     DoFHandler<2>      dof_handler;
 
     FESystem<2>        fe;
+
+    QGauss<2>          quadrature_formula;
+    QGauss<1>          face_quadrature_formula;
 
     ConstraintMatrix     hanging_node_constraints;
 

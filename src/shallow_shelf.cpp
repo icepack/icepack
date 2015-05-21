@@ -1,5 +1,4 @@
 
-#include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/symmetric_tensor.h>
 
 #include <deal.II/lac/full_matrix.h>
@@ -49,7 +48,9 @@ namespace ShallowShelfApproximation
     boundary_velocity (_boundary_velocity),
     triangulation (_triangulation),
     dof_handler (triangulation),
-    fe (FE_Q<2>(1), 2)
+    fe (FE_Q<2>(1), 2),
+    quadrature_formula (2),
+    face_quadrature_formula (2)
   {}
 
 
@@ -97,9 +98,6 @@ namespace ShallowShelfApproximation
   {
     system_matrix = 0.0;
     system_rhs    = 0.0;
-
-    QGauss<2> quadrature_formula(2);
-    QGauss<1> face_quadrature_formula(2);
 
     FEValues<2> fe_values (fe, quadrature_formula,
                            update_values            | update_gradients |
