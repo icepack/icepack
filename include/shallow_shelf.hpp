@@ -55,6 +55,7 @@ namespace ShallowShelfApproximation
   private:
     void setup_system (const bool initial_step);
     void assemble_system ();
+    void assemble_system_nonlinear ();
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
