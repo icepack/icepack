@@ -23,6 +23,17 @@ namespace EllipticSystems
   using dealii::FEFaceValues;
   using dealii::FullMatrix;
 
+
+  template <int dim>
+  class AssembleMatrix
+  {
+  public:
+    virtual void operator() (const FEValues<dim>& fe_values,
+                             FullMatrix<double>&  cell_matrix) const = 0;
+    virtual ~AssembleMatrix () {};
+  };
+
+
   template <int dim>
   SymmetricTensor<4, dim>
   stress_strain_tensor (const double lambda, const double mu)

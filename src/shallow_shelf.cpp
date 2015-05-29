@@ -38,6 +38,20 @@ namespace ShallowShelfApproximation
   constexpr double nu_guess = B * pow(strain_rate * strain_rate, -1.0/3);
 
 
+  AssembleMatrixSSA::AssembleMatrixSSA (const unsigned int _n_q_points,
+                                        const unsigned int _dofs_per_cell)
+    :
+    n_q_points (_n_q_points),
+    dofs_per_cell (_dofs_per_cell)
+  {}
+
+  void AssembleMatrixSSA::operator() (const FEValues<2>&  fe_values,
+                                      FullMatrix<double>& cell_matrix) const
+  {
+    cell_matrix = 0.0;
+  }
+
+
   ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
                               const Function<2>& _surface,
                               const Function<2>& _bed,
@@ -401,6 +415,10 @@ namespace ShallowShelfApproximation
 
     SparseILU<double> preconditioner;
 
+    // R-VALUE REFERENCE, BITCH. WHAT. WHAT NOW.
+    AssembleMatrix<2>&& assemble_matrix = AssembleMatrixSSA (quadrature_formula.size(),
+                                                             fe.dofs_per_cell);
+
     for (unsigned int iteration = 0; iteration < 5; ++iteration)
       {
         if (iteration == 0) {
@@ -416,6 +434,7 @@ namespace ShallowShelfApproximation
 
         hanging_node_constraints.distribute (solution);
       }
+
   }
 
 

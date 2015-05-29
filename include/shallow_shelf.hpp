@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "elliptic_systems.hpp"
 #include "physical_constants.hpp"
 #include "ice_thickness.hpp"
 
@@ -34,13 +35,38 @@ namespace ShallowShelfApproximation
   using dealii::Function;
   using dealii::TensorFunction;
   using dealii::DoFHandler;
+  using dealii::FEValues;
   using dealii::FESystem;
   using dealii::ConstraintMatrix;
   using dealii::SparsityPattern;
   using dealii::SparseMatrix;
   using dealii::Vector;
+  using dealii::FullMatrix;
+
+  using EllipticSystems::AssembleMatrix;
 
 
+  /**
+   * Responsibility for assembling the cell stiffness matrix for the shallow
+   * shelf model is delegated to this class.
+   */
+  class AssembleMatrixSSA : public AssembleMatrix<2>
+  {
+  public:
+    AssembleMatrixSSA (const unsigned int _n_q_points,
+                       const unsigned int _dofs_per_cell);
+    void operator() (const FEValues<2>&  fe_values,
+                     FullMatrix<double>& cell_matrix) const;
+
+  protected:
+    const unsigned int n_q_points;
+    const unsigned int dofs_per_cell;
+  };
+
+
+  /**
+   * The main class for the shallow shelf glacier model.
+   */
   class ShallowShelf
   {
   public:
