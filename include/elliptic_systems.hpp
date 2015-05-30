@@ -29,7 +29,7 @@ namespace EllipticSystems
   {
   public:
     virtual void operator() (const FEValues<dim>& fe_values,
-                             FullMatrix<double>&  cell_matrix) const = 0;
+                             FullMatrix<double>&  cell_matrix) = 0;
     virtual ~AssembleMatrix () {};
   };
 

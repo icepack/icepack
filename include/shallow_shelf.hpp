@@ -41,6 +41,7 @@ namespace ShallowShelfApproximation
   using dealii::SparsityPattern;
   using dealii::SparseMatrix;
   using dealii::Vector;
+  using dealii::Tensor;
   using dealii::FullMatrix;
 
   using EllipticSystems::AssembleMatrix;
@@ -50,17 +51,43 @@ namespace ShallowShelfApproximation
    * Responsibility for assembling the cell stiffness matrix for the shallow
    * shelf model is delegated to this class.
    */
-  class AssembleMatrixSSA : public AssembleMatrix<2>
+  class AssembleMatrixLinear : public AssembleMatrix<2>
   {
   public:
-    AssembleMatrixSSA (const unsigned int _n_q_points,
-                       const unsigned int _dofs_per_cell);
+    AssembleMatrixLinear (const unsigned int _n_q_points,
+                          const unsigned int _dofs_per_cell,
+                          const IceThickness& _ice_thickness,
+                          const Function<2>& _nu);
     void operator() (const FEValues<2>&  fe_values,
-                     FullMatrix<double>& cell_matrix) const;
+                     FullMatrix<double>& cell_matrix);
 
   protected:
     const unsigned int n_q_points;
     const unsigned int dofs_per_cell;
+    const IceThickness& thickness;
+    const Function<2>& nu;
+    std::vector<double> thickness_values;
+    std::vector<double> nu_values;
+  };
+
+
+  class AssembleMatrixNonLinear : public AssembleMatrix<2>
+  {
+  public:
+    AssembleMatrixNonLinear (const unsigned int _n_q_points,
+                             const unsigned int _dofs_per_cell,
+                             const IceThickness& _ice_thickness,
+                             const Vector<double>& _solution);
+    void operator() (const FEValues<2>&  fe_values,
+                     FullMatrix<double>& cell_matrix);
+
+  protected:
+    const unsigned int n_q_points;
+    const unsigned int dofs_per_cell;
+    const IceThickness& thickness;
+    const Vector<double>& solution;
+    std::vector<double> thickness_values;
+    std::vector< std::vector< Tensor<1, 2> > > velocity_gradient_values;
   };
 
 
@@ -80,8 +107,7 @@ namespace ShallowShelfApproximation
 
   private:
     void setup_system (const bool initial_step);
-    void assemble_system ();
-    void assemble_system_nonlinear ();
+    void assemble_system (AssembleMatrix<2>& assemble_matrix);
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
