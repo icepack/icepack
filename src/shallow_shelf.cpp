@@ -55,8 +55,6 @@ namespace ShallowShelfApproximation
   void AssembleMatrixLinear::operator() (const FEValues<2>&  fe_values,
                                          FullMatrix<double>& cell_matrix)
   {
-    cell_matrix = 0.0;
-
     nu.value_list (fe_values.get_quadrature_points(),
                    nu_values);
     thickness.value_list (fe_values.get_quadrature_points(),
@@ -90,11 +88,10 @@ namespace ShallowShelfApproximation
     velocity_gradient_values (n_q_points, std::vector< Tensor<1, 2> >(2))
   {}
 
+
   void AssembleMatrixNonLinear::operator() (const FEValues<2>&  fe_values,
                                             FullMatrix<double>& cell_matrix)
   {
-    cell_matrix = 0.0;
-
     thickness.value_list (fe_values.get_quadrature_points(),
                           thickness_values);
     fe_values.get_function_gradients (solution,
@@ -116,6 +113,46 @@ namespace ShallowShelfApproximation
                                               fe_values,
                                               q_point,
                                               dofs_per_cell);
+      }
+  }
+
+
+  AssembleDrivingStress::AssembleDrivingStress (const unsigned int _n_q_points,
+                                                const unsigned int _dofs_per_cell,
+                                                const FESystem<2>& _fe,
+                                                const IceThickness& _thickness,
+                                                const Function<2>& _surface)
+    :
+    n_q_points (_n_q_points),
+    dofs_per_cell (_dofs_per_cell),
+    fe (_fe),
+    thickness (_thickness),
+    surface (_surface),
+    thickness_values (n_q_points),
+    surface_gradient_values (n_q_points, Tensor<1, 2>())
+  {}
+
+  void AssembleDrivingStress::operator() (const FEValues<2>& fe_values,
+                                          Vector<double>&    cell_rhs)
+  {
+    thickness.value_list (fe_values.get_quadrature_points(),
+                          thickness_values);
+    surface.gradient_list (fe_values.get_quadrature_points(),
+                           surface_gradient_values);
+
+    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+      {
+        const Tensor<1, 2> driving_stress
+          = -rho_ice * gravity *
+            thickness_values[q_point] *
+          surface_gradient_values[q_point];
+
+        EllipticSystems::fill_cell_rhs_field<2> (cell_rhs,
+                                                 driving_stress,
+                                                 fe,
+                                                 fe_values,
+                                                 q_point,
+                                                 dofs_per_cell);
       }
   }
 
@@ -178,7 +215,8 @@ namespace ShallowShelfApproximation
 
 
 
-  void ShallowShelf::assemble_system (AssembleMatrix<2>& assemble_matrix)
+  void ShallowShelf::assemble_system (AssembleMatrix<2>& assemble_matrix,
+                                      AssembleRHS<2>&    assemble_driving_stress)
   {
     system_matrix = 0.0;
     system_rhs    = 0.0;
@@ -192,17 +230,12 @@ namespace ShallowShelfApproximation
                                     update_normal_vectors | update_JxW_values);
 
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-    const unsigned int   n_q_points    = quadrature_formula.size();
     const unsigned int   n_face_q_points = face_quadrature_formula.size();
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
     Vector<double>       cell_rhs (dofs_per_cell);
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-
-    std::vector<double> thickness_values (n_q_points);
-    std::vector< Tensor<1, 2> > surface_gradient_values (n_q_points,
-                                                         Tensor<1, 2>());
 
     // Loop over every cell in the triangulation
     for (auto cell: dof_handler.active_cell_iterators())
@@ -212,31 +245,8 @@ namespace ShallowShelfApproximation
 
         fe_values.reinit (cell);
 
-        // Getting values of coefficients / RHS at the quadrature points
-        thickness.value_list  (fe_values.get_quadrature_points(),
-                               thickness_values);
-        surface.gradient_list (fe_values.get_quadrature_points(),
-                               surface_gradient_values);
-
         assemble_matrix (fe_values, cell_matrix);
-
-        // Loop over all the quadrature points in the current cell
-        for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-          {
-            // Add up the weight for the driving stress to the cell RHS
-            const Tensor<1, 2> driving_stress
-              = -rho_ice * gravity *
-                thickness_values[q_point] *
-                surface_gradient_values[q_point];
-
-            EllipticSystems::fill_cell_rhs_field<2> (cell_rhs,
-                                                     driving_stress,
-                                                     fe,
-                                                     fe_values,
-                                                     q_point,
-                                                     dofs_per_cell);
-          }
-
+        assemble_driving_stress (fe_values, cell_rhs);
 
         // ... then add up contributions from the boundary condition at the
         // ice calving front.
@@ -310,6 +320,12 @@ namespace ShallowShelfApproximation
 
     SparseILU<double> preconditioner;
 
+    AssembleDrivingStress assemble_driving_stress (quadrature_formula.size(),
+                                                   fe.dofs_per_cell,
+                                                   fe,
+                                                   thickness,
+                                                   surface);
+
     for (unsigned int iteration = 0; iteration < 5; ++iteration)
       {
         if (iteration == 0) {
@@ -320,13 +336,13 @@ namespace ShallowShelfApproximation
                                                 fe.dofs_per_cell,
                                                 thickness,
                                                 nu);
-          assemble_system (assemble_matrix);
+          assemble_system (assemble_matrix, assemble_driving_stress);
         } else {
           AssembleMatrixNonLinear assemble_matrix (quadrature_formula.size(),
                                                    fe.dofs_per_cell,
                                                    thickness,
                                                    solution);
-          assemble_system (assemble_matrix);
+          assemble_system (assemble_matrix, assemble_driving_stress);
         }
 
         preconditioner.initialize(system_matrix);

@@ -35,6 +35,15 @@ namespace EllipticSystems
 
 
   template <int dim>
+  class AssembleRHS
+  {
+  public:
+    virtual void operator() (const FEValues<dim>& fe_values,
+                             Vector<double>&      cell_rhs) = 0;
+    virtual ~AssembleRHS () {};
+  };
+
+  template <int dim>
   SymmetricTensor<4, dim>
   stress_strain_tensor (const double lambda, const double mu)
   {

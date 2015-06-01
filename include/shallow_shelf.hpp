@@ -45,6 +45,7 @@ namespace ShallowShelfApproximation
   using dealii::FullMatrix;
 
   using EllipticSystems::AssembleMatrix;
+  using EllipticSystems::AssembleRHS;
 
 
   /**
@@ -91,6 +92,27 @@ namespace ShallowShelfApproximation
   };
 
 
+  class AssembleDrivingStress : public AssembleRHS<2>
+  {
+  public:
+    AssembleDrivingStress (const unsigned int _n_q_points,
+                           const unsigned int _dofs_per_cell,
+                           const FESystem<2>& _fe,
+                           const IceThickness& _ice_thickness,
+                           const Function<2>& _surface);
+    void operator() (const FEValues<2>& fe_values,
+                     Vector<double>&    cell_rhs);
+
+  protected:
+    const unsigned int n_q_points;
+    const unsigned int dofs_per_cell;
+    const FESystem<2>& fe;
+    const IceThickness& thickness;
+    const Function<2>&  surface;
+    std::vector<double> thickness_values;
+    std::vector< Tensor<1, 2> > surface_gradient_values;
+  };
+
   /**
    * The main class for the shallow shelf glacier model.
    */
@@ -107,7 +129,8 @@ namespace ShallowShelfApproximation
 
   private:
     void setup_system (const bool initial_step);
-    void assemble_system (AssembleMatrix<2>& assemble_matrix);
+    void assemble_system (AssembleMatrix<2>& assemble_matrix,
+                          AssembleRHS<2>&    assemble_driving_stress);
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
