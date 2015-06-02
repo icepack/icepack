@@ -19,8 +19,8 @@ namespace EllipticSystems
   using dealii::Tensor;
   using dealii::SymmetricTensor;
   using dealii::FESystem;
-  using dealii::FEValues;
-  using dealii::FEFaceValues;
+  using dealii::FEValues;       // Get rid of this eventually
+  using dealii::FEValuesBase;
   using dealii::FullMatrix;
 
 
@@ -38,8 +38,8 @@ namespace EllipticSystems
   class AssembleRHS
   {
   public:
-    virtual void operator() (const FEValues<dim>& fe_values,
-                             Vector<double>&      cell_rhs) = 0;
+    virtual void operator() (const FEValuesBase<dim>& fe_values,
+                             Vector<double>&          cell_rhs) = 0;
     virtual ~AssembleRHS () {};
   };
 
@@ -126,12 +126,12 @@ namespace EllipticSystems
 
   template <int dim>
   inline
-  void fill_cell_rhs_field (Vector<double>& cell_rhs,
-                            const Tensor<1, dim>& field_value,
-                            const FESystem<dim>& fe,
-                            const FEValues<dim>& fe_values,
-                            const unsigned int q_point,
-                            const unsigned int dofs_per_cell)
+  void fill_cell_rhs (Vector<double>& cell_rhs,
+                      const Tensor<1, dim>& field_value,
+                      const FESystem<dim>& fe,
+                      const FEValuesBase<dim>& fe_values,
+                      const unsigned int q_point,
+                      const unsigned int dofs_per_cell)
   {
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
@@ -139,26 +139,6 @@ namespace EllipticSystems
         cell_rhs(i) += fe_values.shape_value(i, q_point) *
                        field_value[component_i] *
                        fe_values.JxW(q_point);
-      }
-  }
-
-
-
-  template <int dim>
-  inline
-  void fill_cell_rhs_neumann (Vector<double>& cell_rhs,
-                              const Tensor<1, dim>& neumann_value,
-                              const FESystem<dim>& fe,
-                              const FEFaceValues<dim>& fe_face_values,
-                              const unsigned int q_point,
-                              const unsigned int dofs_per_cell)
-  {
-    for (unsigned int i = 0; i < dofs_per_cell; ++i)
-      {
-        const unsigned int component_i = fe.system_to_component_index(i).first;
-        cell_rhs(i) += neumann_value[component_i] *
-                       fe_face_values.shape_value(i, q_point) *
-                       fe_face_values.JxW(q_point);
       }
   }
 

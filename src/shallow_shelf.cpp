@@ -52,8 +52,8 @@ namespace ShallowShelfApproximation
   {}
 
 
-  void AssembleMatrixLinear::operator() (const FEValues<2>&  fe_values,
-                                         FullMatrix<double>& cell_matrix)
+  void AssembleMatrixLinear::operator() (const FEValues<2>& fe_values,
+                                         FullMatrix<double>&    cell_matrix)
   {
     nu.value_list (fe_values.get_quadrature_points(),
                    nu_values);
@@ -89,8 +89,8 @@ namespace ShallowShelfApproximation
   {}
 
 
-  void AssembleMatrixNonLinear::operator() (const FEValues<2>&  fe_values,
-                                            FullMatrix<double>& cell_matrix)
+  void AssembleMatrixNonLinear::operator() (const FEValues<2>& fe_values,
+                                            FullMatrix<double>&    cell_matrix)
   {
     thickness.value_list (fe_values.get_quadrature_points(),
                           thickness_values);
@@ -132,8 +132,8 @@ namespace ShallowShelfApproximation
     surface_gradient_values (n_q_points, Tensor<1, 2>())
   {}
 
-  void AssembleDrivingStress::operator() (const FEValues<2>& fe_values,
-                                          Vector<double>&    cell_rhs)
+  void AssembleDrivingStress::operator() (const FEValuesBase<2>& fe_values,
+                                          Vector<double>&        cell_rhs)
   {
     thickness.value_list (fe_values.get_quadrature_points(),
                           thickness_values);
@@ -147,12 +147,54 @@ namespace ShallowShelfApproximation
             thickness_values[q_point] *
           surface_gradient_values[q_point];
 
-        EllipticSystems::fill_cell_rhs_field<2> (cell_rhs,
-                                                 driving_stress,
-                                                 fe,
-                                                 fe_values,
-                                                 q_point,
-                                                 dofs_per_cell);
+        EllipticSystems::fill_cell_rhs<2> (cell_rhs,
+                                           driving_stress,
+                                           fe,
+                                           fe_values,
+                                           q_point,
+                                           dofs_per_cell);
+      }
+  }
+
+
+
+  AssembleFrontalStress::AssembleFrontalStress (const unsigned int _n_face_q_points,
+                                                const unsigned int _dofs_per_cell,
+                                                const FESystem<2>& _fe,
+                                                const IceThickness& _thickness,
+                                                const Function<2>& _surface)
+    :
+    n_face_q_points (_n_face_q_points),
+    dofs_per_cell (_dofs_per_cell),
+    fe (_fe),
+    thickness (_thickness),
+    surface (_surface),
+    thickness_values (n_face_q_points),
+    surface_values (n_face_q_points)
+  {}
+
+  void AssembleFrontalStress::operator() (const FEValuesBase<2>& fe_values,
+                                          Vector<double>&        cell_rhs)
+  {
+    thickness.value_list (fe_values.get_quadrature_points(),
+                          thickness_values);
+    surface.value_list (fe_values.get_quadrature_points(),
+                        surface_values);
+
+    for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
+      {
+        const double h = thickness_values[q_point];
+        const double b = surface_values[q_point] - h;
+        const Tensor<1, 2> neumann_value
+          = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
+          fe_values.normal_vector (q_point);
+
+        EllipticSystems::fill_cell_rhs<2> (cell_rhs,
+                                           neumann_value,
+                                           fe,
+                                           fe_values,
+                                           q_point,
+                                           dofs_per_cell);
       }
   }
 
@@ -216,7 +258,8 @@ namespace ShallowShelfApproximation
 
 
   void ShallowShelf::assemble_system (AssembleMatrix<2>& assemble_matrix,
-                                      AssembleRHS<2>&    assemble_driving_stress)
+                                      AssembleRHS<2>&    assemble_driving_stress,
+                                      AssembleRHS<2>&    assemble_frontal_stress)
   {
     system_matrix = 0.0;
     system_rhs    = 0.0;
@@ -258,25 +301,7 @@ namespace ShallowShelfApproximation
               cell->face(face_number)->boundary_indicator() == 1)
             {
               fe_face_values.reinit (cell, face_number);
-              for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point)
-                {
-                  const Point<2> x = fe_face_values.quadrature_point(q_point);
-                  // Depth `b` of the ice base; note that this could be either
-                  // equal to or greater than the bed elevation depending on if
-                  // the ice is grounded or not.
-                  const double h = thickness.value(x);
-                  const double b = surface.value(x) - thickness.value(x);
-                  const Tensor<1, 2> neumann_value
-                    = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
-                      fe_face_values.normal_vector(q_point);
-
-                  EllipticSystems::fill_cell_rhs_neumann<2> (cell_rhs,
-                                                             neumann_value,
-                                                             fe,
-                                                             fe_face_values,
-                                                             q_point,
-                                                             dofs_per_cell);
-                }
+              assemble_frontal_stress (fe_face_values, cell_rhs);
             }
 
 
@@ -326,6 +351,12 @@ namespace ShallowShelfApproximation
                                                    thickness,
                                                    surface);
 
+    AssembleFrontalStress assemble_frontal_stress (face_quadrature_formula.size(),
+                                                   fe.dofs_per_cell,
+                                                   fe,
+                                                   thickness,
+                                                   surface);
+
     for (unsigned int iteration = 0; iteration < 5; ++iteration)
       {
         if (iteration == 0) {
@@ -336,13 +367,17 @@ namespace ShallowShelfApproximation
                                                 fe.dofs_per_cell,
                                                 thickness,
                                                 nu);
-          assemble_system (assemble_matrix, assemble_driving_stress);
+          assemble_system (assemble_matrix,
+                           assemble_driving_stress,
+                           assemble_frontal_stress);
         } else {
           AssembleMatrixNonLinear assemble_matrix (quadrature_formula.size(),
                                                    fe.dofs_per_cell,
                                                    thickness,
                                                    solution);
-          assemble_system (assemble_matrix, assemble_driving_stress);
+          assemble_system (assemble_matrix,
+                           assemble_driving_stress,
+                           assemble_frontal_stress);
         }
 
         preconditioner.initialize(system_matrix);

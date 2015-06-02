@@ -35,7 +35,8 @@ namespace ShallowShelfApproximation
   using dealii::Function;
   using dealii::TensorFunction;
   using dealii::DoFHandler;
-  using dealii::FEValues;
+  using dealii::FEValues;        // Get rid of this eventually
+  using dealii::FEValuesBase;
   using dealii::FESystem;
   using dealii::ConstraintMatrix;
   using dealii::SparsityPattern;
@@ -59,8 +60,8 @@ namespace ShallowShelfApproximation
                           const unsigned int _dofs_per_cell,
                           const IceThickness& _ice_thickness,
                           const Function<2>& _nu);
-    void operator() (const FEValues<2>&  fe_values,
-                     FullMatrix<double>& cell_matrix);
+    void operator() (const FEValues<2>& fe_values,
+                     FullMatrix<double>&    cell_matrix);
 
   protected:
     const unsigned int n_q_points;
@@ -79,8 +80,8 @@ namespace ShallowShelfApproximation
                              const unsigned int _dofs_per_cell,
                              const IceThickness& _ice_thickness,
                              const Vector<double>& _solution);
-    void operator() (const FEValues<2>&  fe_values,
-                     FullMatrix<double>& cell_matrix);
+    void operator() (const FEValues<2>& fe_values,
+                     FullMatrix<double>&    cell_matrix);
 
   protected:
     const unsigned int n_q_points;
@@ -100,8 +101,8 @@ namespace ShallowShelfApproximation
                            const FESystem<2>& _fe,
                            const IceThickness& _ice_thickness,
                            const Function<2>& _surface);
-    void operator() (const FEValues<2>& fe_values,
-                     Vector<double>&    cell_rhs);
+    void operator() (const FEValuesBase<2>& fe_values,
+                     Vector<double>&        cell_rhs);
 
   protected:
     const unsigned int n_q_points;
@@ -112,6 +113,30 @@ namespace ShallowShelfApproximation
     std::vector<double> thickness_values;
     std::vector< Tensor<1, 2> > surface_gradient_values;
   };
+
+
+  class AssembleFrontalStress : public AssembleRHS<2>
+  {
+  public:
+    AssembleFrontalStress (const unsigned int _n_face_q_points,
+                           const unsigned int _dofs_per_cell,
+                           const FESystem<2>& _fe,
+                           const IceThickness& _ice_thickness,
+                           const Function<2>& _surface);
+    void operator () (const FEValuesBase<2>& fe_face_values,
+                      Vector<double>&        cell_rhs);
+
+  protected:
+    const unsigned int n_face_q_points;
+    const unsigned int dofs_per_cell;
+    const FESystem<2>& fe;
+    const IceThickness& thickness;
+    const Function<2>&  surface;
+    std::vector<double> thickness_values;
+    std::vector<double> surface_values;
+  };
+
+
 
   /**
    * The main class for the shallow shelf glacier model.
@@ -130,7 +155,8 @@ namespace ShallowShelfApproximation
   private:
     void setup_system (const bool initial_step);
     void assemble_system (AssembleMatrix<2>& assemble_matrix,
-                          AssembleRHS<2>&    assemble_driving_stress);
+                          AssembleRHS<2>&    assemble_driving_stress,
+                          AssembleRHS<2>&    assemble_frontal_stress);
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
