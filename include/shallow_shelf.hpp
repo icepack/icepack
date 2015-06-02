@@ -35,7 +35,6 @@ namespace ShallowShelfApproximation
   using dealii::Function;
   using dealii::TensorFunction;
   using dealii::DoFHandler;
-  using dealii::FEValues;        // Get rid of this eventually
   using dealii::FEValuesBase;
   using dealii::FESystem;
   using dealii::ConstraintMatrix;
@@ -60,7 +59,7 @@ namespace ShallowShelfApproximation
                           const unsigned int _dofs_per_cell,
                           const IceThickness& _ice_thickness,
                           const Function<2>& _nu);
-    void operator() (const FEValues<2>& fe_values,
+    void operator() (const FEValuesBase<2>& fe_values,
                      FullMatrix<double>&    cell_matrix);
 
   protected:
@@ -80,7 +79,7 @@ namespace ShallowShelfApproximation
                              const unsigned int _dofs_per_cell,
                              const IceThickness& _ice_thickness,
                              const Vector<double>& _solution);
-    void operator() (const FEValues<2>& fe_values,
+    void operator() (const FEValuesBase<2>& fe_values,
                      FullMatrix<double>&    cell_matrix);
 
   protected:

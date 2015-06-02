@@ -19,7 +19,6 @@ namespace EllipticSystems
   using dealii::Tensor;
   using dealii::SymmetricTensor;
   using dealii::FESystem;
-  using dealii::FEValues;       // Get rid of this eventually
   using dealii::FEValuesBase;
   using dealii::FullMatrix;
 
@@ -28,8 +27,8 @@ namespace EllipticSystems
   class AssembleMatrix
   {
   public:
-    virtual void operator() (const FEValues<dim>& fe_values,
-                             FullMatrix<double>&  cell_matrix) = 0;
+    virtual void operator() (const FEValuesBase<dim>& fe_values,
+                             FullMatrix<double>&      cell_matrix) = 0;
     virtual ~AssembleMatrix () {};
   };
 
@@ -62,9 +61,9 @@ namespace EllipticSystems
   template <int dim>
   inline
   SymmetricTensor<2, dim>
-  get_strain (const FEValues<dim>& fe_values,
-              const unsigned int   shape_func,
-              const unsigned int   q_point)
+  get_strain (const FEValuesBase<dim>& fe_values,
+              const unsigned int       shape_func,
+              const unsigned int       q_point)
   {
     SymmetricTensor<2, dim> strain;
 
@@ -104,7 +103,7 @@ namespace EllipticSystems
   inline
   void fill_cell_matrix (FullMatrix<double>& cell_matrix,
                          const SymmetricTensor<4, dim>& stress_strain,
-                         const FEValues<dim>& fe_values,
+                         const FEValuesBase<dim>& fe_values,
                          const unsigned int q_point,
                          const unsigned int dofs_per_cell)
   {

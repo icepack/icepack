@@ -52,7 +52,7 @@ namespace ShallowShelfApproximation
   {}
 
 
-  void AssembleMatrixLinear::operator() (const FEValues<2>& fe_values,
+  void AssembleMatrixLinear::operator() (const FEValuesBase<2>& fe_values,
                                          FullMatrix<double>&    cell_matrix)
   {
     nu.value_list (fe_values.get_quadrature_points(),
@@ -89,7 +89,7 @@ namespace ShallowShelfApproximation
   {}
 
 
-  void AssembleMatrixNonLinear::operator() (const FEValues<2>& fe_values,
+  void AssembleMatrixNonLinear::operator() (const FEValuesBase<2>& fe_values,
                                             FullMatrix<double>&    cell_matrix)
   {
     thickness.value_list (fe_values.get_quadrature_points(),
