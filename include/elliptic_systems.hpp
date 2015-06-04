@@ -108,17 +108,20 @@ namespace EllipticSystems
                          const unsigned int dofs_per_cell)
   {
     for (unsigned int i = 0; i < dofs_per_cell; ++i)
-      for (unsigned int j = 0; j < dofs_per_cell; ++j)
-        {
-          const SymmetricTensor<2, dim>
-          eps_phi_i = get_strain (fe_values, i, q_point),
-          eps_phi_j = get_strain (fe_values, j, q_point);
+      {
+        const SymmetricTensor<2, dim>
+          eps_phi_i = get_strain (fe_values, i, q_point);
 
-          cell_matrix(i, j)
-            += (eps_phi_i * stress_strain * eps_phi_j)
-               *
-               fe_values.JxW (q_point);
-        }
+        for (unsigned int j = 0; j < dofs_per_cell; ++j)
+          {
+            const SymmetricTensor<2, dim>
+              eps_phi_j = get_strain (fe_values, j, q_point);
+            cell_matrix(i, j)
+              += (eps_phi_i * stress_strain * eps_phi_j)
+                 *
+                 fe_values.JxW (q_point);
+          }
+      }
   }
 
 
