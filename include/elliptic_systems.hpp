@@ -21,6 +21,7 @@ namespace EllipticSystems
   using dealii::FESystem;
   using dealii::FEValuesBase;
   using dealii::FullMatrix;
+  using dealii::SparseMatrix;
 
 
   template <int dim>
@@ -142,6 +143,35 @@ namespace EllipticSystems
                        field_value[component_i] *
                        fe_values.JxW(q_point);
       }
+  }
+
+
+
+  inline
+  void cell_to_global (const FullMatrix<double>& cell_matrix,
+                       const std::vector<unsigned int>& local_dof_indices,
+                       SparseMatrix<double>& system_matrix)
+  {
+    const unsigned int dofs_per_cell = local_dof_indices.size();
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i)
+      for (unsigned int j = 0; j < dofs_per_cell; ++j)
+        system_matrix.add (local_dof_indices[i],
+                           local_dof_indices[j],
+                           cell_matrix(i,j));
+
+  }
+
+
+  inline
+  void cell_to_global (const Vector<double>& cell_rhs,
+                       const std::vector<unsigned int>& local_dof_indices,
+                       Vector<double>& system_rhs)
+  {
+    const unsigned int dofs_per_cell = local_dof_indices.size();
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i)
+      system_rhs(local_dof_indices[i]) += cell_rhs(i);
   }
 
 } // End of EllipticSystems namespace

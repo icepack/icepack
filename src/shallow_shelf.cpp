@@ -1,7 +1,6 @@
 
 #include <deal.II/base/symmetric_tensor.h>
 
-#include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_ilu.h>
@@ -30,6 +29,12 @@
 namespace ShallowShelfApproximation
 {
   using namespace dealii;
+
+  using EllipticSystems::cell_to_global;
+  using EllipticSystems::fill_cell_matrix;
+  using EllipticSystems::fill_cell_rhs;
+  using EllipticSystems::get_strain;
+  using EllipticSystems::stress_strain_tensor;
 
   constexpr double strain_rate = 0.2;  // 1 / year
   constexpr double B = 0.5 * pow(A0_cold *
@@ -64,13 +69,13 @@ namespace ShallowShelfApproximation
     {
       const double nu_q = nu_values[q_point] * thickness_values[q_point];
       const SymmetricTensor<4, 2> stress_strain
-        = EllipticSystems::stress_strain_tensor<2> (2 * nu_q, nu_q);
+        = stress_strain_tensor<2> (2 * nu_q, nu_q);
 
-      EllipticSystems::fill_cell_matrix<2> (cell_matrix,
-                                            stress_strain,
-                                            fe_values,
-                                            q_point,
-                                            dofs_per_cell);
+      fill_cell_matrix<2> (cell_matrix,
+                           stress_strain,
+                           fe_values,
+                           q_point,
+                           dofs_per_cell);
     }
   }
 
@@ -106,13 +111,13 @@ namespace ShallowShelfApproximation
         const double nu = B * pow(eps2, -1.0/3) * thickness_values[q_point];
 
         const SymmetricTensor<4, 2> stress_strain
-          = EllipticSystems::stress_strain_tensor<2> (2 * nu, nu);
+          = stress_strain_tensor<2> (2 * nu, nu);
 
-        EllipticSystems::fill_cell_matrix<2> (cell_matrix,
-                                              stress_strain,
-                                              fe_values,
-                                              q_point,
-                                              dofs_per_cell);
+        fill_cell_matrix<2> (cell_matrix,
+                             stress_strain,
+                             fe_values,
+                             q_point,
+                             dofs_per_cell);
       }
   }
 
@@ -147,12 +152,12 @@ namespace ShallowShelfApproximation
             thickness_values[q_point] *
           surface_gradient_values[q_point];
 
-        EllipticSystems::fill_cell_rhs<2> (cell_rhs,
-                                           driving_stress,
-                                           fe,
-                                           fe_values,
-                                           q_point,
-                                           dofs_per_cell);
+        fill_cell_rhs<2> (cell_rhs,
+                          driving_stress,
+                          fe,
+                          fe_values,
+                          q_point,
+                          dofs_per_cell);
       }
   }
 
@@ -189,12 +194,12 @@ namespace ShallowShelfApproximation
           = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
           fe_values.normal_vector (q_point);
 
-        EllipticSystems::fill_cell_rhs<2> (cell_rhs,
-                                           neumann_value,
-                                           fe,
-                                           fe_values,
-                                           q_point,
-                                           dofs_per_cell);
+        fill_cell_rhs<2> (cell_rhs,
+                          neumann_value,
+                          fe,
+                          fe_values,
+                          q_point,
+                          dofs_per_cell);
       }
   }
 
@@ -273,7 +278,6 @@ namespace ShallowShelfApproximation
                                     update_normal_vectors | update_JxW_values);
 
     const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-    const unsigned int   n_face_q_points = face_quadrature_formula.size();
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
     Vector<double>       cell_rhs (dofs_per_cell);
@@ -291,8 +295,6 @@ namespace ShallowShelfApproximation
         assemble_matrix (fe_values, cell_matrix);
         assemble_driving_stress (fe_values, cell_rhs);
 
-        // ... then add up contributions from the boundary condition at the
-        // ice calving front.
         for (unsigned int face_number = 0;
              face_number < GeometryInfo<2>::faces_per_cell;
              ++face_number)
@@ -304,19 +306,9 @@ namespace ShallowShelfApproximation
               assemble_frontal_stress (fe_face_values, cell_rhs);
             }
 
-
-        // Add cell RHS/stiffness matrix to their global counterparts
         cell->get_dof_indices (local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-          {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-              system_matrix.add (local_dof_indices[i],
-                                 local_dof_indices[j],
-                                 cell_matrix(i,j));
-
-            system_rhs(local_dof_indices[i]) += cell_rhs(i);
-          }
-
+        cell_to_global (cell_matrix, local_dof_indices, system_matrix);
+        cell_to_global (cell_rhs,    local_dof_indices, system_rhs);
       } // End of loop over `cell`
 
 
