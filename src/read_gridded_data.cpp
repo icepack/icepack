@@ -141,9 +141,7 @@ GridData readGeoTIFF(const std::string& filename)
 {
   GDALAllRegister();
   GDALDataset *data = (GDALDataset *) GDALOpen(filename.c_str(), GA_ReadOnly);
-  if (data == 0) {
-    throw;
-  }
+  if (data == 0) throw;
 
   unsigned int nx = data->GetRasterXSize(),
                ny = data->GetRasterYSize();
