@@ -1,14 +1,13 @@
 
+// C++ includes
+#include <fstream>
+#include <iostream>
+
 // deal.II includes
 #include <deal.II/base/function.h>
 
 // our includes
 #include "read_gridded_data.hpp"
-
-// C++ includes
-#include <fstream>
-#include <iostream>
-
 
 constexpr size_t nx = 11, ny = 6;
 constexpr double xo = 0.0, yo = 0.0;
