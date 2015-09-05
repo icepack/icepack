@@ -24,7 +24,7 @@ enable_testing()
 include_directories("${PROJECT_SOURCE_DIR}/include")
 add_subdirectory("${CMAKE_SOURCE_DIR}/tests")
 
-set(LIBRARY_OUTPUT_PATH ${fe-experiments_BINARY_DIR}/lib)
+set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 
 add_library(icepack
   src/read_gridded_data.cpp

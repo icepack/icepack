@@ -1,4 +1,7 @@
 
+#include <cstring>
+#include <iostream>
+
 #include "physical_constants.hpp"
 #include "ice_thickness.hpp"
 

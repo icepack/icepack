@@ -36,12 +36,8 @@ namespace ShallowShelfApproximation
   using EllipticSystems::get_strain;
   using EllipticSystems::stress_strain_tensor;
 
-  constexpr double strain_rate = 0.2;  // 1 / year
-  constexpr double B = 0.5 * pow(A0_cold *
-                                 exp(-Q_cold / (idealgas * Temp)),
-                                 -1.0/3);
-  constexpr double nu_guess = B * pow(strain_rate * strain_rate, -1.0/3);
-
+  const double strain_rate = 0.2;  // 1 / year
+  const double nu_guess = viscosity(263.15, strain_rate);
 
   AssembleMatrixLinear::AssembleMatrixLinear (const unsigned int _n_q_points,
                                               const unsigned int _dofs_per_cell,
@@ -106,7 +102,7 @@ namespace ShallowShelfApproximation
         EllipticSystems::get_strain (velocity_gradient_values[q_point]);
       const double trace_eps = first_invariant (eps);
       const double eps2 = trace_eps * trace_eps - second_invariant (eps);
-      const double nu = B * pow(eps2, -1.0/3) * thickness_values[q_point];
+      const double nu = viscosity(263.15, sqrt(eps2)) * thickness_values[q_point];
 
       const SymmetricTensor<4, 2> stress_strain
         = stress_strain_tensor<2> (2 * nu, nu);
