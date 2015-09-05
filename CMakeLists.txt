@@ -17,7 +17,7 @@ DEAL_II_INITIALIZE_CACHED_VARIABLES()
 # ---------------
 
 
-project(fe-experiments)
+project(icepack)
 
 enable_testing()
 
