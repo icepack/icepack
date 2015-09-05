@@ -29,6 +29,7 @@ set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
+  src/physical_constants.cpp
   src/shallow_shelf.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
