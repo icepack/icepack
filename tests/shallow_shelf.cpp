@@ -53,5 +53,7 @@ int main()
 
   std::cout << system_matrix.m() << ", " << system_matrix.n() << std::endl;
 
+  shallow_shelf.run();
+
   return 0;
 }
