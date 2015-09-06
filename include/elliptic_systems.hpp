@@ -22,7 +22,7 @@ namespace EllipticSystems
   using dealii::FEValuesBase;
   using dealii::FullMatrix;
   using dealii::SparseMatrix;
-
+  namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
   template <int dim>
   class AssembleMatrix
@@ -108,13 +108,15 @@ namespace EllipticSystems
                          const unsigned int q_point,
                          const unsigned int dofs_per_cell)
   {
+    const FEValuesExtractors::Vector velocities (0);
+
     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
       const SymmetricTensor<2, dim>
-        eps_phi_i = get_strain (fe_values, i, q_point);
+        eps_phi_i = fe_values[velocities].symmetric_gradient (i, q_point);
 
       for (unsigned int j = 0; j < dofs_per_cell; ++j) {
         const SymmetricTensor<2, dim>
-          eps_phi_j = get_strain (fe_values, j, q_point);
+          eps_phi_j = fe_values[velocities].symmetric_gradient(j, q_point);
         cell_matrix(i, j)
           += (eps_phi_i * stress_strain * eps_phi_j)
              *
