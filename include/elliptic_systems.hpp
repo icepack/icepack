@@ -43,6 +43,7 @@ namespace EllipticSystems
     virtual ~AssembleRHS () {};
   };
 
+
   template <int dim>
   SymmetricTensor<4, dim>
   stress_strain_tensor (const double lambda, const double mu)
@@ -57,47 +58,6 @@ namespace EllipticSystems
                              ((i==j) && (k==l) ? lambda : 0.0));
     return C;
   }
-
-
-  template <int dim>
-  inline
-  SymmetricTensor<2, dim>
-  get_strain (const FEValuesBase<dim>& fe_values,
-              const unsigned int       shape_func,
-              const unsigned int       q_point)
-  {
-    SymmetricTensor<2, dim> strain;
-
-    for (unsigned int i = 0; i < dim; ++i)
-      strain[i][i] = fe_values.shape_grad_component (shape_func, q_point, i)[i];
-
-    for (unsigned int i = 0; i < dim; ++i)
-      for (unsigned int j = i+1; j < dim; ++j)
-        strain[i][j]
-          = (fe_values.shape_grad_component (shape_func, q_point, i)[j] +
-             fe_values.shape_grad_component (shape_func, q_point, j)[i]) / 2;
-
-    return strain;
-  }
-
-
-  template <int dim>
-  inline
-  SymmetricTensor<2, dim>
-  get_strain (const std::vector<Tensor<1, dim> >& grad)
-  {
-    // Put an Assert in here
-
-    SymmetricTensor<2, dim> strain;
-    for (unsigned int i = 0; i < dim; ++i) strain[i][i] = grad[i][i];
-
-    for (unsigned int i = 0; i < dim; ++i)
-      for (unsigned int j = i + 1; j < dim; ++j)
-        strain[i][j] = (grad[i][j] + grad[j][i]) / 2;
-
-    return strain;
-  }
-
 
 
   template <int dim>

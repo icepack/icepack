@@ -42,6 +42,7 @@ namespace ShallowShelfApproximation
   using dealii::SparseMatrix;
   using dealii::Vector;
   using dealii::Tensor;
+  using dealii::SymmetricTensor;
   using dealii::FullMatrix;
 
   using EllipticSystems::AssembleMatrix;
@@ -88,7 +89,7 @@ namespace ShallowShelfApproximation
     const IceThickness& thickness;
     const Vector<double>& solution;
     std::vector<double> thickness_values;
-    std::vector< std::vector< Tensor<1, 2> > > velocity_gradient_values;
+    std::vector<SymmetricTensor<2, 2>> velocity_gradient_values;
   };
 
 

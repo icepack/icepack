@@ -33,7 +33,6 @@ namespace ShallowShelfApproximation
   using EllipticSystems::cell_to_global;
   using EllipticSystems::fill_cell_matrix;
   using EllipticSystems::fill_cell_rhs;
-  using EllipticSystems::get_strain;
   using EllipticSystems::stress_strain_tensor;
 
   const double strain_rate = 0.2;  // 1 / year
@@ -85,21 +84,22 @@ namespace ShallowShelfApproximation
     thickness (_thickness),
     solution (_solution),
     thickness_values (n_q_points),
-    velocity_gradient_values (n_q_points, std::vector< Tensor<1, 2> >(2))
+    velocity_gradient_values (n_q_points)
   {}
 
 
   void AssembleMatrixNonLinear::operator() (const FEValuesBase<2>& fe_values,
                                             FullMatrix<double>&    cell_matrix)
   {
+    const FEValuesExtractors::Vector velocities (0);
+
     thickness.value_list (fe_values.get_quadrature_points(),
                           thickness_values);
-    fe_values.get_function_gradients (solution,
-                                      velocity_gradient_values);
+    fe_values[velocities].get_function_symmetric_gradients (solution,
+                                                            velocity_gradient_values);
 
     for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const SymmetricTensor<2, 2> eps =
-        EllipticSystems::get_strain (velocity_gradient_values[q_point]);
+      const SymmetricTensor<2, 2> eps = velocity_gradient_values[q_point];
       const double trace_eps = first_invariant (eps);
       const double eps2 = trace_eps * trace_eps - second_invariant (eps);
       const double nu = viscosity(263.15, sqrt(eps2)) * thickness_values[q_point];
