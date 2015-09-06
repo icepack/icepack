@@ -47,5 +47,11 @@ int main()
 
   ShallowShelf shallow_shelf(triangulation, surface, bed, boundary_velocity);
 
+  shallow_shelf.setup_system(true);
+
+  const auto& system_matrix = shallow_shelf.get_system_matrix();
+
+  std::cout << system_matrix.m() << ", " << system_matrix.n() << std::endl;
+
   return 0;
 }

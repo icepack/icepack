@@ -151,7 +151,6 @@ namespace ShallowShelfApproximation
     void run ();
     //void output (const std::string& filename);
 
-  private:
     void setup_system (const bool initial_step);
     void assemble_system (AssembleMatrix<2>& assemble_matrix,
                           AssembleRHS<2>&    assemble_driving_stress,
@@ -160,6 +159,11 @@ namespace ShallowShelfApproximation
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
 
+    // Functions for inspectiong & debugging
+    const Triangulation<2>& get_triangulation() const;
+    const SparseMatrix<double>& get_system_matrix() const;
+
+  private:
     const Function<2>& surface;
     const Function<2>& bed;
     const IceThickness thickness;
