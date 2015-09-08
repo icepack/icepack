@@ -1,6 +1,8 @@
 
 #include <deal.II/grid/grid_generator.h>
 
+#include <deal.II/numerics/vector_tools.h>
+
 #include "shallow_shelf.hpp"
 
 using namespace dealii;
@@ -59,11 +61,23 @@ int main()
 
   shallow_shelf.setup_system(true);
 
-  const auto& system_matrix = shallow_shelf.get_system_matrix();
-
-  std::cout << system_matrix.m() << ", " << system_matrix.n() << std::endl;
-
   shallow_shelf.run();
+
+  Vector<double> difference(triangulation.n_cells());
+
+  VectorTools::integrate_difference
+    (shallow_shelf.dof_handler,
+     shallow_shelf.solution,
+     VectorFunctionFromTensorFunction<2> (boundary_velocity),
+     difference,
+     shallow_shelf.quadrature_formula,
+     VectorTools::Linfty_norm);
+
+  const double error = difference.linfty_norm();
+  if (error > 1.0e-10) {
+    std::cout << error << std::endl;
+    return 1;
+  }
 
   return 0;
 }
