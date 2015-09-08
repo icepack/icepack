@@ -39,6 +39,16 @@ int main()
   const Point<2> p1(0.0, 0.0), p2(2000.0, 500.0);
   Triangulation<2> triangulation;
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
+
+  // Mark the right side of the rectangle as the ice front
+  for (auto cell: triangulation.active_cell_iterators()) {
+    for (unsigned int face_number = 0;
+         face_number < GeometryInfo<2>::faces_per_cell;
+         ++face_number)
+      if (cell->face(face_number)->center()(0) > 1999.0)
+        cell->face(face_number)->set_boundary_indicator (1);
+  }
+
   triangulation.refine_global(2);
 
   auto surface = ConstantFunction<2>(surf);
