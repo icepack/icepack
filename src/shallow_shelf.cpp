@@ -466,17 +466,4 @@ namespace ShallowShelfApproximation
     }
   }
 
-
-  const Triangulation<2>& ShallowShelf::get_triangulation() const
-  {
-    return triangulation;
-  }
-
-
-  const SparseMatrix<double>& ShallowShelf::get_system_matrix() const
-  {
-    return system_matrix;
-  }
-
-
 } // End of ShallowShelfApproximation namespace
