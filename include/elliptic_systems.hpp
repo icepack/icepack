@@ -24,15 +24,6 @@ namespace EllipticSystems
   using dealii::SparseMatrix;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
-  template <int dim>
-  class AssembleMatrix
-  {
-  public:
-    virtual void operator() (const FEValuesBase<dim>& fe_values,
-                             FullMatrix<double>&      cell_matrix) = 0;
-    virtual ~AssembleMatrix () {};
-  };
-
 
   template <int dim>
   class AssembleRHS

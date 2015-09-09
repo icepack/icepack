@@ -45,7 +45,6 @@ namespace ShallowShelfApproximation
   using dealii::SymmetricTensor;
   using dealii::FullMatrix;
 
-  using EllipticSystems::AssembleMatrix;
   using EllipticSystems::AssembleRHS;
 
 
@@ -53,45 +52,6 @@ namespace ShallowShelfApproximation
    * Responsibility for assembling the cell stiffness matrix for the shallow
    * shelf model is delegated to this class.
    */
-  class AssembleMatrixLinear : public AssembleMatrix<2>
-  {
-  public:
-    AssembleMatrixLinear (const unsigned int _n_q_points,
-                          const unsigned int _dofs_per_cell,
-                          const IceThickness& _ice_thickness,
-                          const Function<2>& _nu);
-    void operator() (const FEValuesBase<2>& fe_values,
-                     FullMatrix<double>&    cell_matrix);
-
-  protected:
-    const unsigned int n_q_points;
-    const unsigned int dofs_per_cell;
-    const IceThickness& thickness;
-    const Function<2>& nu;
-    std::vector<double> thickness_values;
-    std::vector<double> nu_values;
-  };
-
-
-  class AssembleMatrixNonLinear : public AssembleMatrix<2>
-  {
-  public:
-    AssembleMatrixNonLinear (const unsigned int _n_q_points,
-                             const unsigned int _dofs_per_cell,
-                             const IceThickness& _ice_thickness,
-                             const Vector<double>& _solution);
-    void operator() (const FEValuesBase<2>& fe_values,
-                     FullMatrix<double>&    cell_matrix);
-
-  protected:
-    const unsigned int n_q_points;
-    const unsigned int dofs_per_cell;
-    const IceThickness& thickness;
-    const Vector<double>& solution;
-    std::vector<double> thickness_values;
-    std::vector<SymmetricTensor<2, 2>> velocity_gradient_values;
-  };
-
 
   class AssembleDrivingStress : public AssembleRHS<2>
   {
@@ -153,9 +113,8 @@ namespace ShallowShelfApproximation
     //void output (const std::string& filename);
 
     void setup_system (const bool initial_step);
-    void assemble_system (AssembleMatrix<2>& assemble_matrix,
-                          AssembleRHS<2>&    assemble_driving_stress,
-                          AssembleRHS<2>&    assemble_frontal_stress);
+    void assemble_system (AssembleRHS<2>& assemble_driving_stress,
+                          AssembleRHS<2>& assemble_frontal_stress);
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;

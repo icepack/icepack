@@ -38,83 +38,6 @@ namespace ShallowShelfApproximation
   const double strain_rate = 0.2;  // 1 / year
   const double nu_guess = viscosity(263.15, strain_rate);
 
-  AssembleMatrixLinear::AssembleMatrixLinear (const unsigned int _n_q_points,
-                                              const unsigned int _dofs_per_cell,
-                                              const IceThickness& _thickness,
-                                              const Function<2>& _nu)
-    :
-    n_q_points (_n_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    thickness (_thickness),
-    nu (_nu),
-    thickness_values (n_q_points),
-    nu_values (n_q_points)
-  {}
-
-
-  void AssembleMatrixLinear::operator() (const FEValuesBase<2>& fe_values,
-                                         FullMatrix<double>&    cell_matrix)
-  {
-    nu.value_list (fe_values.get_quadrature_points(),
-                   nu_values);
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-
-    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const double nu_q = nu_values[q_point] * thickness_values[q_point];
-      const SymmetricTensor<4, 2> stress_strain
-        = stress_strain_tensor<2> (2 * nu_q, nu_q);
-
-      fill_cell_matrix<2> (cell_matrix,
-                           stress_strain,
-                           fe_values,
-                           q_point,
-                           dofs_per_cell);
-    }
-  }
-
-
-  AssembleMatrixNonLinear::AssembleMatrixNonLinear (const unsigned int _n_q_points,
-                                                    const unsigned int _dofs_per_cell,
-                                                    const IceThickness& _thickness,
-                                                    const Vector<double>& _solution)
-    :
-    n_q_points (_n_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    thickness (_thickness),
-    solution (_solution),
-    thickness_values (n_q_points),
-    velocity_gradient_values (n_q_points)
-  {}
-
-
-  void AssembleMatrixNonLinear::operator() (const FEValuesBase<2>& fe_values,
-                                            FullMatrix<double>&    cell_matrix)
-  {
-    const FEValuesExtractors::Vector velocities (0);
-
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-    fe_values[velocities].get_function_symmetric_gradients (solution,
-                                                            velocity_gradient_values);
-
-    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const SymmetricTensor<2, 2> eps = velocity_gradient_values[q_point];
-      const double trace_eps = first_invariant (eps);
-      const double eps2 = trace_eps * trace_eps - second_invariant (eps);
-      const double nu = viscosity(263.15, sqrt(eps2)) * thickness_values[q_point];
-
-      const SymmetricTensor<4, 2> stress_strain
-        = stress_strain_tensor<2> (2 * nu, nu);
-
-      fill_cell_matrix<2> (cell_matrix,
-                           stress_strain,
-                           fe_values,
-                           q_point,
-                           dofs_per_cell);
-    }
-  }
-
 
   AssembleDrivingStress::AssembleDrivingStress (const unsigned int _n_q_points,
                                                 const unsigned int _dofs_per_cell,
@@ -253,8 +176,7 @@ namespace ShallowShelfApproximation
 
 
 
-  void ShallowShelf::assemble_system (AssembleMatrix<2>& assemble_matrix,
-                                      AssembleRHS<2>&    assemble_driving_stress,
+  void ShallowShelf::assemble_system (AssembleRHS<2>&    assemble_driving_stress,
                                       AssembleRHS<2>&    assemble_frontal_stress)
   {
     system_matrix = 0.0;
@@ -268,12 +190,18 @@ namespace ShallowShelfApproximation
                                     update_values | update_quadrature_points |
                                     update_normal_vectors | update_JxW_values);
 
-    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_q_points    = quadrature_formula.size();
+
+    std::vector<double> nu_values (n_q_points);
+    std::vector<double> thickness_values (n_q_points);
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
     Vector<double>       cell_rhs (dofs_per_cell);
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    ConstantFunction<2> nu (nu_guess);
 
     // Loop over every cell in the triangulation
     for (auto cell: dof_handler.active_cell_iterators()) {
@@ -282,7 +210,19 @@ namespace ShallowShelfApproximation
 
       fe_values.reinit (cell);
 
-      assemble_matrix (fe_values, cell_matrix);
+      const std::vector<Point<2>>& quadrature_points
+        = fe_values.get_quadrature_points();
+
+      nu.value_list (quadrature_points, nu_values);
+      thickness.value_list (quadrature_points, thickness_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double nu_q = nu_values[q] * thickness_values[q];
+        const auto stress_strain = stress_strain_tensor<2> (2 * nu_q, nu_q);
+
+        fill_cell_matrix<2> (cell_matrix, stress_strain, fe_values, q, dofs_per_cell);
+      }
+
       assemble_driving_stress (fe_values, cell_rhs);
 
       for (unsigned int face_number = 0;
@@ -338,36 +278,14 @@ namespace ShallowShelfApproximation
                                                    thickness,
                                                    surface);
 
-    for (unsigned int iteration = 0; iteration < 5; ++iteration) {
-      if (iteration == 0) {
-        // Assuming constant viscosity for now, ignoring nonlinearity.
-        ConstantFunction<2> nu(nu_guess);
+    assemble_system (assemble_driving_stress,
+                     assemble_frontal_stress);
 
-        AssembleMatrixLinear assemble_matrix (quadrature_formula.size(),
-                                              fe.dofs_per_cell,
-                                              thickness,
-                                              nu);
-        assemble_system (assemble_matrix,
-                         assemble_driving_stress,
-                         assemble_frontal_stress);
-      } else {
-        AssembleMatrixNonLinear assemble_matrix (quadrature_formula.size(),
-                                                 fe.dofs_per_cell,
-                                                 thickness,
-                                                 solution);
-        assemble_system (assemble_matrix,
-                         assemble_driving_stress,
-                         assemble_frontal_stress);
-      }
+    preconditioner.initialize(system_matrix);
 
-      preconditioner.initialize(system_matrix);
+    cg.solve (system_matrix, solution, system_rhs, preconditioner);
 
-      cg.solve (system_matrix, solution, system_rhs,
-                preconditioner);
-
-      hanging_node_constraints.distribute (solution);
-    }
-
+    hanging_node_constraints.distribute (solution);
   }
 
 
