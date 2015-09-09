@@ -113,8 +113,9 @@ namespace ShallowShelfApproximation
     //void output (const std::string& filename);
 
     void setup_system (const bool initial_step);
-    void assemble_system (AssembleRHS<2>& assemble_driving_stress,
-                          AssembleRHS<2>& assemble_frontal_stress);
+    void assemble_system ();
+    void assemble_matrix ();
+    void assemble_rhs ();
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
