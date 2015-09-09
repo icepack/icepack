@@ -48,7 +48,7 @@ int main()
          face_number < GeometryInfo<2>::faces_per_cell;
          ++face_number)
       if (cell->face(face_number)->center()(0) > 1999.0)
-        cell->face(face_number)->set_boundary_indicator (1);
+        cell->face(face_number)->set_boundary_id (1);
   }
 
   triangulation.refine_global(2);
@@ -58,7 +58,6 @@ int main()
   BoundaryVelocity boundary_velocity;
 
   ShallowShelf shallow_shelf(triangulation, surface, bed, boundary_velocity);
-
   shallow_shelf.setup_system(true);
 
   shallow_shelf.run();

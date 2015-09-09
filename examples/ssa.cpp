@@ -18,7 +18,7 @@ int main ()
            face_number < GeometryInfo<2>::faces_per_cell;
            ++face_number)
         if (cell->face(face_number)->center()(1) < 1)
-          cell->face(face_number)->set_boundary_indicator (1);
+          cell->face(face_number)->set_boundary_id (1);
     }
 
     SurfaceElevation surface;
