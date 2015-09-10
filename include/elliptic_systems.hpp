@@ -53,33 +53,6 @@ namespace EllipticSystems
 
   template <int dim>
   inline
-  void fill_cell_matrix (FullMatrix<double>& cell_matrix,
-                         const SymmetricTensor<4, dim>& stress_strain,
-                         const FEValuesBase<dim>& fe_values,
-                         const unsigned int q_point,
-                         const unsigned int dofs_per_cell)
-  {
-    const FEValuesExtractors::Vector velocities (0);
-
-    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-      const SymmetricTensor<2, dim>
-        eps_phi_i = fe_values[velocities].symmetric_gradient (i, q_point);
-
-      for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-        const SymmetricTensor<2, dim>
-          eps_phi_j = fe_values[velocities].symmetric_gradient(j, q_point);
-        cell_matrix(i, j)
-          += (eps_phi_i * stress_strain * eps_phi_j)
-             *
-             fe_values.JxW (q_point);
-      }
-    }
-  }
-
-
-
-  template <int dim>
-  inline
   void fill_cell_rhs (Vector<double>& cell_rhs,
                       const Tensor<1, dim>& field_value,
                       const FESystem<dim>& fe,

@@ -31,7 +31,6 @@ namespace ShallowShelfApproximation
   using namespace dealii;
 
   using EllipticSystems::cell_to_global;
-  using EllipticSystems::fill_cell_matrix;
   using EllipticSystems::fill_cell_rhs;
   using EllipticSystems::stress_strain_tensor;
 
@@ -205,6 +204,7 @@ namespace ShallowShelfApproximation
     FEValues<2> fe_values (fe, quadrature_formula,
                            update_values            | update_gradients |
                            update_quadrature_points | update_JxW_values);
+    const FEValuesExtractors::Vector velocities (0);
 
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     const unsigned int n_q_points    = quadrature_formula.size();
@@ -221,7 +221,6 @@ namespace ShallowShelfApproximation
     // Loop over every cell in the triangulation
     for (auto cell: dof_handler.active_cell_iterators()) {
       cell_matrix = 0;
-
       fe_values.reinit (cell);
 
       const std::vector<Point<2>>& quadrature_points
@@ -231,10 +230,19 @@ namespace ShallowShelfApproximation
       thickness.value_list (quadrature_points, thickness_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = fe_values.JxW(q);
         const double nu_q = nu_values[q] * thickness_values[q];
         const auto stress_strain = stress_strain_tensor<2> (2 * nu_q, nu_q);
 
-        fill_cell_matrix<2> (cell_matrix, stress_strain, fe_values, q, dofs_per_cell);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          auto eps_phi_i = fe_values[velocities].symmetric_gradient(i, q);
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            auto eps_phi_j = fe_values[velocities].symmetric_gradient(j, q);
+
+            cell_matrix(i, j) += (eps_phi_i * stress_strain * eps_phi_j) * dx;
+          }
+        }
       }
 
       cell->get_dof_indices (local_dof_indices);
