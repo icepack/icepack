@@ -179,7 +179,7 @@ namespace ShallowShelfApproximation
     system_matrix = 0;
     system_rhs    = 0;
 
-    assemble_matrix ();
+    assemble_matrix<EllipticSystems::LinearSSATensor> ();
     assemble_rhs ();
 
     hanging_node_constraints.condense (system_matrix);
@@ -199,6 +199,7 @@ namespace ShallowShelfApproximation
   }
 
 
+  template <class ConstitutiveTensor>
   void ShallowShelf::assemble_matrix ()
   {
     FEValues<2> fe_values (fe, quadrature_formula,
@@ -211,6 +212,9 @@ namespace ShallowShelfApproximation
 
     std::vector<double> nu_values (n_q_points);
     std::vector<double> thickness_values (n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values (n_q_points);
+
+    ConstitutiveTensor C;
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
 
@@ -228,11 +232,14 @@ namespace ShallowShelfApproximation
 
       nu.value_list (quadrature_points, nu_values);
       thickness.value_list (quadrature_points, thickness_values);
+      fe_values[velocities].get_function_symmetric_gradients (solution,
+                                                              strain_rate_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = fe_values.JxW(q);
-        const double nu_q = nu_values[q] * thickness_values[q];
-        const auto stress_strain = stress_strain_tensor<2> (2 * nu_q, nu_q);
+        const SymmetricTensor<4, 2> Cq = C(nu_values[q],
+                                           thickness_values[q],
+                                           strain_rate_values[q]);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           auto eps_phi_i = fe_values[velocities].symmetric_gradient(i, q);
@@ -240,7 +247,7 @@ namespace ShallowShelfApproximation
           for (unsigned int j = 0; j < dofs_per_cell; ++j) {
             auto eps_phi_j = fe_values[velocities].symmetric_gradient(j, q);
 
-            cell_matrix(i, j) += (eps_phi_i * stress_strain * eps_phi_j) * dx;
+            cell_matrix(i, j) += (eps_phi_i * Cq * eps_phi_j) * dx;
           }
         }
       }

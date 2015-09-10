@@ -114,7 +114,10 @@ namespace ShallowShelfApproximation
 
     void setup_system (const bool initial_step);
     void assemble_system ();
+
+    template <class ConstitutiveTensor>
     void assemble_matrix ();
+
     void assemble_rhs ();
     void solve ();
     void refine_grid ();

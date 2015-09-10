@@ -45,10 +45,21 @@ namespace EllipticSystems
         for (unsigned int k = 0; k < dim; ++k)
           for (unsigned int l = 0; l < dim; ++l)
             C[i][j][k][l] = (((i==k) && (j==l) ? mu : 0.0) +
-                             ((i==l) && (j==k) ? mu : 0.0) +
                              ((i==j) && (k==l) ? lambda : 0.0));
     return C;
   }
+
+
+  struct LinearSSATensor
+  {
+    SymmetricTensor<4, 2> operator()(const double nu,
+                                     const double h,
+                                     const SymmetricTensor<2, 2>) const
+    {
+      const double nu_q = h * nu;
+      return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
+    }
+  };
 
 
   template <int dim>
