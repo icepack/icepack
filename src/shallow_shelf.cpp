@@ -315,9 +315,6 @@ namespace ShallowShelfApproximation
     SolverCG<>    cg (solver_control);
 
     SparseILU<double> preconditioner;
-
-    assemble_system ();
-
     preconditioner.initialize(system_matrix);
 
     cg.solve (system_matrix, solution, system_rhs, preconditioner);
@@ -416,6 +413,7 @@ namespace ShallowShelfApproximation
                 << dof_handler.n_dofs()
                 << std::endl;
 
+      assemble_system ();
       solve ();
       output_results (cycle);
     }
