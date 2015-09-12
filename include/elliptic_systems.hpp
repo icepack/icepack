@@ -12,6 +12,7 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_system.h>
 
+#include "physical_constants.hpp"
 
 namespace EllipticSystems
 {
@@ -23,15 +24,6 @@ namespace EllipticSystems
   using dealii::FullMatrix;
   using dealii::SparseMatrix;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
-
-  template <int dim>
-  class AssembleMatrix
-  {
-  public:
-    virtual void operator() (const FEValuesBase<dim>& fe_values,
-                             FullMatrix<double>&      cell_matrix) = 0;
-    virtual ~AssembleMatrix () {};
-  };
 
 
   template <int dim>
@@ -54,37 +46,36 @@ namespace EllipticSystems
         for (unsigned int k = 0; k < dim; ++k)
           for (unsigned int l = 0; l < dim; ++l)
             C[i][j][k][l] = (((i==k) && (j==l) ? mu : 0.0) +
-                             ((i==l) && (j==k) ? mu : 0.0) +
                              ((i==j) && (k==l) ? lambda : 0.0));
     return C;
   }
 
 
-  template <int dim>
-  inline
-  void fill_cell_matrix (FullMatrix<double>& cell_matrix,
-                         const SymmetricTensor<4, dim>& stress_strain,
-                         const FEValuesBase<dim>& fe_values,
-                         const unsigned int q_point,
-                         const unsigned int dofs_per_cell)
+  struct LinearSSATensor
   {
-    const FEValuesExtractors::Vector velocities (0);
-
-    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-      const SymmetricTensor<2, dim>
-        eps_phi_i = fe_values[velocities].symmetric_gradient (i, q_point);
-
-      for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-        const SymmetricTensor<2, dim>
-          eps_phi_j = fe_values[velocities].symmetric_gradient(j, q_point);
-        cell_matrix(i, j)
-          += (eps_phi_i * stress_strain * eps_phi_j)
-             *
-             fe_values.JxW (q_point);
-      }
+    SymmetricTensor<4, 2> operator()(const double nu,
+                                     const double h,
+                                     const SymmetricTensor<2, 2>) const
+    {
+      const double nu_q = h * nu;
+      return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
     }
-  }
+  };
 
+
+  struct SSATensor
+  {
+    inline
+    SymmetricTensor<4, 2> operator()(const double nu,
+                                     const double h,
+                                     const SymmetricTensor<2, 2> eps) const
+    {
+      const double tr = first_invariant (eps);
+      const double eps_e = sqrt(tr * tr - second_invariant (eps));
+      const double nu_q = viscosity(263.15, eps_e) * h;
+      return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
+    }
+  };
 
 
   template <int dim>

@@ -31,89 +31,11 @@ namespace ShallowShelfApproximation
   using namespace dealii;
 
   using EllipticSystems::cell_to_global;
-  using EllipticSystems::fill_cell_matrix;
   using EllipticSystems::fill_cell_rhs;
   using EllipticSystems::stress_strain_tensor;
 
   const double strain_rate = 0.2;  // 1 / year
   const double nu_guess = viscosity(263.15, strain_rate);
-
-  AssembleMatrixLinear::AssembleMatrixLinear (const unsigned int _n_q_points,
-                                              const unsigned int _dofs_per_cell,
-                                              const IceThickness& _thickness,
-                                              const Function<2>& _nu)
-    :
-    n_q_points (_n_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    thickness (_thickness),
-    nu (_nu),
-    thickness_values (n_q_points),
-    nu_values (n_q_points)
-  {}
-
-
-  void AssembleMatrixLinear::operator() (const FEValuesBase<2>& fe_values,
-                                         FullMatrix<double>&    cell_matrix)
-  {
-    nu.value_list (fe_values.get_quadrature_points(),
-                   nu_values);
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-
-    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const double nu_q = nu_values[q_point] * thickness_values[q_point];
-      const SymmetricTensor<4, 2> stress_strain
-        = stress_strain_tensor<2> (2 * nu_q, nu_q);
-
-      fill_cell_matrix<2> (cell_matrix,
-                           stress_strain,
-                           fe_values,
-                           q_point,
-                           dofs_per_cell);
-    }
-  }
-
-
-  AssembleMatrixNonLinear::AssembleMatrixNonLinear (const unsigned int _n_q_points,
-                                                    const unsigned int _dofs_per_cell,
-                                                    const IceThickness& _thickness,
-                                                    const Vector<double>& _solution)
-    :
-    n_q_points (_n_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    thickness (_thickness),
-    solution (_solution),
-    thickness_values (n_q_points),
-    velocity_gradient_values (n_q_points)
-  {}
-
-
-  void AssembleMatrixNonLinear::operator() (const FEValuesBase<2>& fe_values,
-                                            FullMatrix<double>&    cell_matrix)
-  {
-    const FEValuesExtractors::Vector velocities (0);
-
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-    fe_values[velocities].get_function_symmetric_gradients (solution,
-                                                            velocity_gradient_values);
-
-    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const SymmetricTensor<2, 2> eps = velocity_gradient_values[q_point];
-      const double trace_eps = first_invariant (eps);
-      const double eps2 = trace_eps * trace_eps - second_invariant (eps);
-      const double nu = viscosity(263.15, sqrt(eps2)) * thickness_values[q_point];
-
-      const SymmetricTensor<4, 2> stress_strain
-        = stress_strain_tensor<2> (2 * nu, nu);
-
-      fill_cell_matrix<2> (cell_matrix,
-                           stress_strain,
-                           fe_values,
-                           q_point,
-                           dofs_per_cell);
-    }
-  }
 
 
   AssembleDrivingStress::AssembleDrivingStress (const unsigned int _n_q_points,
@@ -252,54 +174,14 @@ namespace ShallowShelfApproximation
   }
 
 
-
-  void ShallowShelf::assemble_system (AssembleMatrix<2>& assemble_matrix,
-                                      AssembleRHS<2>&    assemble_driving_stress,
-                                      AssembleRHS<2>&    assemble_frontal_stress)
+  template <class ConstitutiveTensor>
+  void ShallowShelf::assemble_system ()
   {
-    system_matrix = 0.0;
-    system_rhs    = 0.0;
+    system_matrix = 0;
+    system_rhs    = 0;
 
-    FEValues<2> fe_values (fe, quadrature_formula,
-                           update_values            | update_gradients |
-                           update_quadrature_points | update_JxW_values);
-
-    FEFaceValues<2> fe_face_values (fe, face_quadrature_formula,
-                                    update_values | update_quadrature_points |
-                                    update_normal_vectors | update_JxW_values);
-
-    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-
-    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-    Vector<double>       cell_rhs (dofs_per_cell);
-
-    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-
-    // Loop over every cell in the triangulation
-    for (auto cell: dof_handler.active_cell_iterators()) {
-      cell_matrix = 0;
-      cell_rhs    = 0;
-
-      fe_values.reinit (cell);
-
-      assemble_matrix (fe_values, cell_matrix);
-      assemble_driving_stress (fe_values, cell_rhs);
-
-      for (unsigned int face_number = 0;
-           face_number < GeometryInfo<2>::faces_per_cell;
-           ++face_number)
-        if (cell->face(face_number)->at_boundary()
-            and
-            cell->face(face_number)->boundary_indicator() == 1) {
-          fe_face_values.reinit (cell, face_number);
-          assemble_frontal_stress (fe_face_values, cell_rhs);
-        }
-
-      cell->get_dof_indices (local_dof_indices);
-      cell_to_global (cell_matrix, local_dof_indices, system_matrix);
-      cell_to_global (cell_rhs,    local_dof_indices, system_rhs);
-    } // End of loop over `cell`
-
+    assemble_matrix<ConstitutiveTensor> ();
+    assemble_rhs ();
 
     hanging_node_constraints.condense (system_matrix);
     hanging_node_constraints.condense (system_rhs);
@@ -315,16 +197,79 @@ namespace ShallowShelfApproximation
                                         system_matrix,
                                         solution,
                                         system_rhs);
+  }
 
-  } // End of AssembleSystem
 
-
-  void ShallowShelf::solve ()
+  template <class ConstitutiveTensor>
+  void ShallowShelf::assemble_matrix ()
   {
-    SolverControl solver_control (1000, 1.0e-12);
-    SolverCG<>    cg (solver_control);
+    FEValues<2> fe_values (fe, quadrature_formula,
+                           update_values            | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+    const FEValuesExtractors::Vector velocities (0);
 
-    SparseILU<double> preconditioner;
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_q_points    = quadrature_formula.size();
+
+    std::vector<double> nu_values (n_q_points);
+    std::vector<double> thickness_values (n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values (n_q_points);
+
+    ConstitutiveTensor C;
+
+    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    ConstantFunction<2> nu (nu_guess);
+
+    // Loop over every cell in the triangulation
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      cell_matrix = 0;
+      fe_values.reinit (cell);
+
+      const std::vector<Point<2>>& quadrature_points
+        = fe_values.get_quadrature_points();
+
+      nu.value_list (quadrature_points, nu_values);
+      thickness.value_list (quadrature_points, thickness_values);
+      fe_values[velocities].get_function_symmetric_gradients (solution,
+                                                              strain_rate_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = fe_values.JxW(q);
+        const SymmetricTensor<4, 2> Cq = C(nu_values[q],
+                                           thickness_values[q],
+                                           strain_rate_values[q]);
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          auto eps_phi_i = fe_values[velocities].symmetric_gradient(i, q);
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            auto eps_phi_j = fe_values[velocities].symmetric_gradient(j, q);
+
+            cell_matrix(i, j) += (eps_phi_i * Cq * eps_phi_j) * dx;
+          }
+        }
+      }
+
+      cell->get_dof_indices (local_dof_indices);
+      cell_to_global (cell_matrix, local_dof_indices, system_matrix);
+    } // End of loop over `cell`
+
+  } // End of AssembleMatrix
+
+
+
+  void ShallowShelf::assemble_rhs ()
+  {
+    FEValues<2> fe_values (fe, quadrature_formula,
+                           update_values            | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+
+    FEFaceValues<2> fe_face_values (fe, face_quadrature_formula,
+                                    update_values | update_quadrature_points |
+                                    update_normal_vectors | update_JxW_values);
 
     AssembleDrivingStress assemble_driving_stress (quadrature_formula.size(),
                                                    fe.dofs_per_cell,
@@ -338,36 +283,44 @@ namespace ShallowShelfApproximation
                                                    thickness,
                                                    surface);
 
-    for (unsigned int iteration = 0; iteration < 5; ++iteration) {
-      if (iteration == 0) {
-        // Assuming constant viscosity for now, ignoring nonlinearity.
-        ConstantFunction<2> nu(nu_guess);
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    Vector<double> cell_rhs (dofs_per_cell);
 
-        AssembleMatrixLinear assemble_matrix (quadrature_formula.size(),
-                                              fe.dofs_per_cell,
-                                              thickness,
-                                              nu);
-        assemble_system (assemble_matrix,
-                         assemble_driving_stress,
-                         assemble_frontal_stress);
-      } else {
-        AssembleMatrixNonLinear assemble_matrix (quadrature_formula.size(),
-                                                 fe.dofs_per_cell,
-                                                 thickness,
-                                                 solution);
-        assemble_system (assemble_matrix,
-                         assemble_driving_stress,
-                         assemble_frontal_stress);
-      }
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-      preconditioner.initialize(system_matrix);
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      cell_rhs = 0;
+      fe_values.reinit (cell);
 
-      cg.solve (system_matrix, solution, system_rhs,
-                preconditioner);
+      assemble_driving_stress (fe_values, cell_rhs);
 
-      hanging_node_constraints.distribute (solution);
+      for (unsigned int face_number = 0;
+           face_number < GeometryInfo<2>::faces_per_cell;
+           ++face_number)
+        if (cell->face(face_number)->at_boundary()
+            and
+            cell->face(face_number)->boundary_indicator() == 1) {
+          fe_face_values.reinit (cell, face_number);
+          assemble_frontal_stress (fe_face_values, cell_rhs);
+        }
+
+      cell->get_dof_indices (local_dof_indices);
+      cell_to_global (cell_rhs, local_dof_indices, system_rhs);
     }
+  }
 
+
+  void ShallowShelf::solve ()
+  {
+    SolverControl solver_control (1000, 1.0e-12);
+    SolverCG<>    cg (solver_control);
+
+    SparseILU<double> preconditioner;
+    preconditioner.initialize(system_matrix);
+
+    cg.solve (system_matrix, solution, system_rhs, preconditioner);
+
+    hanging_node_constraints.distribute (solution);
   }
 
 
@@ -461,7 +414,14 @@ namespace ShallowShelfApproximation
                 << dof_handler.n_dofs()
                 << std::endl;
 
+      assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();
+
+      for (unsigned int k = 0; k < 5; ++k) {
+        assemble_system<EllipticSystems::SSATensor> ();
+        solve ();
+      }
+
       output_results (cycle);
     }
   }
