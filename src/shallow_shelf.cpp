@@ -21,7 +21,7 @@
 
 
 #include "icepack/elliptic_systems.hpp"
-#include "icepack/shallow_shelf.hpp"
+#include "icepack/glacier_models/shallow_shelf.hpp"
 #include "icepack/ice_thickness.hpp"
 #include "icepack/physical_constants.hpp"
 

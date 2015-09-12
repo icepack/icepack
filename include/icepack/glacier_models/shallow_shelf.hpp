@@ -22,9 +22,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "elliptic_systems.hpp"
-#include "physical_constants.hpp"
-#include "ice_thickness.hpp"
+#include "../elliptic_systems.hpp"
+#include "../physical_constants.hpp"
+#include "../ice_thickness.hpp"
 
 
 namespace ShallowShelfApproximation
