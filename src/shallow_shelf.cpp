@@ -299,7 +299,7 @@ namespace ShallowShelfApproximation
            ++face_number)
         if (cell->face(face_number)->at_boundary()
             and
-            cell->face(face_number)->boundary_indicator() == 1) {
+            cell->face(face_number)->boundary_id() == 1) {
           fe_face_values.reinit (cell, face_number);
           assemble_frontal_stress (fe_face_values, cell_rhs);
         }
