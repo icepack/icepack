@@ -3,7 +3,7 @@
 
 #include <deal.II/numerics/vector_tools.h>
 
-#include "shallow_shelf.hpp"
+#include "icepack/shallow_shelf.hpp"
 
 using namespace dealii;
 using namespace ShallowShelfApproximation;

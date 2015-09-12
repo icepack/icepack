@@ -4,7 +4,7 @@
 #include <gdal/cpl_string.h>
 #include <gdal/ogr_spatialref.h>
 
-#include "read_gridded_data.hpp"
+#include "icepack/read_gridded_data.hpp"
 
 using dealii::Point;
 

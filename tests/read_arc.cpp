@@ -7,7 +7,7 @@
 #include <deal.II/base/function.h>
 
 // our includes
-#include "read_gridded_data.hpp"
+#include "icepack/read_gridded_data.hpp"
 
 constexpr size_t nx = 11, ny = 6;
 constexpr double xo = 0.0, yo = 0.0;

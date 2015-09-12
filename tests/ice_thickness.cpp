@@ -2,8 +2,8 @@
 #include <cstring>
 #include <iostream>
 
-#include "physical_constants.hpp"
-#include "ice_thickness.hpp"
+#include "icepack/physical_constants.hpp"
+#include "icepack/ice_thickness.hpp"
 
 using namespace dealii;
 

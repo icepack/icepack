@@ -20,10 +20,10 @@
 #include <deal.II/numerics/solution_transfer.h>
 
 
-#include "elliptic_systems.hpp"
-#include "shallow_shelf.hpp"
-#include "ice_thickness.hpp"
-#include "physical_constants.hpp"
+#include "icepack/elliptic_systems.hpp"
+#include "icepack/shallow_shelf.hpp"
+#include "icepack/ice_thickness.hpp"
+#include "icepack/physical_constants.hpp"
 
 
 namespace ShallowShelfApproximation

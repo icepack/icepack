@@ -1,6 +1,6 @@
 
-#include "ice_thickness.hpp"
-#include "physical_constants.hpp"
+#include "icepack/ice_thickness.hpp"
+#include "icepack/physical_constants.hpp"
 
 using dealii::StandardExceptions::ExcDimensionMismatch;
 

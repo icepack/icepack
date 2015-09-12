@@ -1,7 +1,7 @@
 
 #include <cmath>
 
-#include "physical_constants.hpp"
+#include "icepack/physical_constants.hpp"
 
 const double transition_temperature = 263.215;
 const double A0_cold = 3.985e-13 * year_in_sec * 1.0e18; // MPa^{-3} a^{-1}
