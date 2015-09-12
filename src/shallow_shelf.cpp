@@ -416,6 +416,12 @@ namespace ShallowShelfApproximation
 
       assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();
+
+      for (unsigned int k = 0; k < 5; ++k) {
+        assemble_system<EllipticSystems::SSATensor> ();
+        solve ();
+      }
+
       output_results (cycle);
     }
   }

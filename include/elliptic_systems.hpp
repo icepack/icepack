@@ -12,6 +12,7 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_system.h>
 
+#include "physical_constants.hpp"
 
 namespace EllipticSystems
 {
@@ -57,6 +58,21 @@ namespace EllipticSystems
                                      const SymmetricTensor<2, 2>) const
     {
       const double nu_q = h * nu;
+      return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
+    }
+  };
+
+
+  struct SSATensor
+  {
+    inline
+    SymmetricTensor<4, 2> operator()(const double nu,
+                                     const double h,
+                                     const SymmetricTensor<2, 2> eps) const
+    {
+      const double tr = first_invariant (eps);
+      const double eps_e = sqrt(tr * tr - second_invariant (eps));
+      const double nu_q = viscosity(263.15, eps_e) * h;
       return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
     }
   };
