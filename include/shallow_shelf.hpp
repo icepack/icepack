@@ -113,6 +113,8 @@ namespace ShallowShelfApproximation
     //void output (const std::string& filename);
 
     void setup_system (const bool initial_step);
+
+    template <class ConstitutiveTensor>
     void assemble_system ();
 
     template <class ConstitutiveTensor>

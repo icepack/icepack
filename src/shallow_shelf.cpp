@@ -174,12 +174,13 @@ namespace ShallowShelfApproximation
   }
 
 
+  template <class ConstitutiveTensor>
   void ShallowShelf::assemble_system ()
   {
     system_matrix = 0;
     system_rhs    = 0;
 
-    assemble_matrix<EllipticSystems::LinearSSATensor> ();
+    assemble_matrix<ConstitutiveTensor> ();
     assemble_rhs ();
 
     hanging_node_constraints.condense (system_matrix);
@@ -413,7 +414,7 @@ namespace ShallowShelfApproximation
                 << dof_handler.n_dofs()
                 << std::endl;
 
-      assemble_system ();
+      assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();
       output_results (cycle);
     }
