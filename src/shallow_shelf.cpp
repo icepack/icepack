@@ -26,7 +26,7 @@
 #include "icepack/physical_constants.hpp"
 
 
-namespace ShallowShelfApproximation
+namespace icepack
 {
   using namespace dealii;
 
@@ -426,4 +426,4 @@ namespace ShallowShelfApproximation
     }
   }
 
-} // End of ShallowShelfApproximation namespace
+} // End of icepack namespace

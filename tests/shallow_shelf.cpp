@@ -6,7 +6,7 @@
 #include "icepack/glacier_models/shallow_shelf.hpp"
 
 using namespace dealii;
-using namespace ShallowShelfApproximation;
+using namespace icepack;
 
 /**
  * This program tests the correctness of the our implementation of the shallow

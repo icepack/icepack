@@ -27,7 +27,7 @@
 #include "../ice_thickness.hpp"
 
 
-namespace ShallowShelfApproximation
+namespace icepack
 {
 
   using dealii::Triangulation;
@@ -149,6 +149,6 @@ namespace ShallowShelfApproximation
   };
 
 
-} // End of ShallowShelf namespace
+} // End of icepack namespace
 
 #endif
