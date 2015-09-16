@@ -121,11 +121,13 @@ namespace icepack
   ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
                               const Function<2>& _surface,
                               const Function<2>& _bed,
+                              const Function<2>& _temperature,
                               const TensorFunction<1, 2>& _boundary_velocity)
     :
     surface (_surface),
     bed (_bed),
     thickness (IceThickness(surface, bed)),
+    temperature (_temperature),
     boundary_velocity (_boundary_velocity),
     triangulation (_triangulation),
     dof_handler (triangulation),
@@ -211,7 +213,7 @@ namespace icepack
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     const unsigned int n_q_points    = quadrature_formula.size();
 
-    std::vector<double> nu_values (n_q_points);
+    std::vector<double> temperature_values (n_q_points);
     std::vector<double> thickness_values (n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values (n_q_points);
 
@@ -221,8 +223,6 @@ namespace icepack
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
-    ConstantFunction<2> nu (nu_guess);
-
     // Loop over every cell in the triangulation
     for (auto cell: dof_handler.active_cell_iterators()) {
       cell_matrix = 0;
@@ -231,14 +231,14 @@ namespace icepack
       const std::vector<Point<2>>& quadrature_points
         = fe_values.get_quadrature_points();
 
-      nu.value_list (quadrature_points, nu_values);
+      temperature.value_list (quadrature_points, temperature_values);
       thickness.value_list (quadrature_points, thickness_values);
       fe_values[velocities].get_function_symmetric_gradients (solution,
                                                               strain_rate_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = fe_values.JxW(q);
-        const SymmetricTensor<4, 2> Cq = C(nu_values[q],
+        const SymmetricTensor<4, 2> Cq = C(temperature_values[q],
                                            thickness_values[q],
                                            strain_rate_values[q]);
 
@@ -399,20 +399,10 @@ namespace icepack
   void ShallowShelf::diagnostic_solve ()
   {
     for (unsigned int cycle = 0; cycle < 3; ++cycle) {
-      std::cout << "Cycle " << cycle << ':' << std::endl;
-
       if (cycle == 0) triangulation.refine_global (2);
       else refine_grid ();
 
-      std::cout << "   Number of active cells:       "
-                << triangulation.n_active_cells()
-                << std::endl;
-
       setup_system (cycle == 0);
-
-      std::cout << "   Number of degrees of freedom: "
-                << dof_handler.n_dofs()
-                << std::endl;
 
       assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();

@@ -53,11 +53,11 @@ namespace EllipticSystems
 
   struct LinearSSATensor
   {
-    SymmetricTensor<4, 2> operator()(const double nu,
+    SymmetricTensor<4, 2> operator()(const double temperature,
                                      const double h,
                                      const SymmetricTensor<2, 2>) const
     {
-      const double nu_q = h * nu;
+      const double nu_q = h * viscosity(temperature, 0.2);
       return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
     }
   };
@@ -66,13 +66,13 @@ namespace EllipticSystems
   struct SSATensor
   {
     inline
-    SymmetricTensor<4, 2> operator()(const double nu,
+    SymmetricTensor<4, 2> operator()(const double temperature,
                                      const double h,
                                      const SymmetricTensor<2, 2> eps) const
     {
       const double tr = first_invariant (eps);
       const double eps_e = sqrt(tr * tr - second_invariant (eps));
-      const double nu_q = viscosity(263.15, eps_e) * h;
+      const double nu_q = h * viscosity(temperature, eps_e);
       return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
     }
   };

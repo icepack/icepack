@@ -53,11 +53,13 @@ int main()
 
   triangulation.refine_global(2);
 
-  auto surface = ConstantFunction<2>(surf);
-  auto bed     = ConstantFunction<2>(-2000.0);
+  auto surface     = ConstantFunction<2>(surf);
+  auto bed         = ConstantFunction<2>(-2000.0);
+  auto temperature = ConstantFunction<2>(263.15);
   BoundaryVelocity boundary_velocity;
 
-  ShallowShelf shallow_shelf(triangulation, surface, bed, boundary_velocity);
+  ShallowShelf shallow_shelf(triangulation, surface, bed,
+                             temperature, boundary_velocity);
   shallow_shelf.setup_system(true);
 
   shallow_shelf.diagnostic_solve();

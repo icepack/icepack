@@ -107,6 +107,7 @@ namespace icepack
     ShallowShelf (Triangulation<2>&  _triangulation,
                   const Function<2>& _surface,
                   const Function<2>& _bed,
+                  const Function<2>& _temperature,
                   const TensorFunction<1, 2>& _boundary_velocity);
     ~ShallowShelf ();
     void diagnostic_solve ();
@@ -129,6 +130,7 @@ namespace icepack
     const Function<2>& surface;
     const Function<2>& bed;
     const IceThickness thickness;
+    const Function<2>& temperature;
     const TensorFunction<1, 2>& boundary_velocity;
 
     Triangulation<2>&  triangulation;
