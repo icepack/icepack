@@ -396,7 +396,7 @@ namespace icepack
   }
 
 
-  void ShallowShelf::run ()
+  void ShallowShelf::diagnostic_solve ()
   {
     for (unsigned int cycle = 0; cycle < 3; ++cycle) {
       std::cout << "Cycle " << cycle << ':' << std::endl;

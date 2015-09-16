@@ -109,7 +109,7 @@ namespace icepack
                   const Function<2>& _bed,
                   const TensorFunction<1, 2>& _boundary_velocity);
     ~ShallowShelf ();
-    void run ();
+    void diagnostic_solve ();
     //void output (const std::string& filename);
 
     void setup_system (const bool initial_step);

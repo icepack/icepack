@@ -60,7 +60,7 @@ int main()
   ShallowShelf shallow_shelf(triangulation, surface, bed, boundary_velocity);
   shallow_shelf.setup_system(true);
 
-  shallow_shelf.run();
+  shallow_shelf.diagnostic_solve();
 
   Vector<double> difference(triangulation.n_cells());
 
