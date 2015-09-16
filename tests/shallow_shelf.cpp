@@ -60,7 +60,6 @@ int main()
 
   ShallowShelf shallow_shelf(triangulation, surface, bed,
                              temperature, boundary_velocity);
-  shallow_shelf.setup_system(true);
 
   shallow_shelf.diagnostic_solve();
 
