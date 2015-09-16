@@ -35,7 +35,6 @@ namespace icepack
   using EllipticSystems::stress_strain_tensor;
 
   const double strain_rate = 0.2;  // 1 / year
-  const double nu_guess = viscosity(263.15, strain_rate);
 
 
   ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
