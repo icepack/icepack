@@ -38,86 +38,6 @@ namespace icepack
   const double nu_guess = viscosity(263.15, strain_rate);
 
 
-  AssembleDrivingStress::AssembleDrivingStress (const unsigned int _n_q_points,
-                                                const unsigned int _dofs_per_cell,
-                                                const FESystem<2>& _fe,
-                                                const IceThickness& _thickness,
-                                                const Function<2>& _surface)
-    :
-    n_q_points (_n_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    fe (_fe),
-    thickness (_thickness),
-    surface (_surface),
-    thickness_values (n_q_points),
-    surface_gradient_values (n_q_points, Tensor<1, 2>())
-  {}
-
-  void AssembleDrivingStress::operator() (const FEValuesBase<2>& fe_values,
-                                          Vector<double>&        cell_rhs)
-  {
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-    surface.gradient_list (fe_values.get_quadrature_points(),
-                           surface_gradient_values);
-
-    for (unsigned int q_point = 0; q_point < n_q_points; ++q_point) {
-      const Tensor<1, 2> driving_stress
-        = -rho_ice * gravity *
-          thickness_values[q_point] *
-          surface_gradient_values[q_point];
-
-      fill_cell_rhs<2> (cell_rhs,
-                        driving_stress,
-                        fe,
-                        fe_values,
-                        q_point,
-                        dofs_per_cell);
-    }
-  }
-
-
-
-  AssembleFrontalStress::AssembleFrontalStress (const unsigned int _n_face_q_points,
-                                                const unsigned int _dofs_per_cell,
-                                                const FESystem<2>& _fe,
-                                                const IceThickness& _thickness,
-                                                const Function<2>& _surface)
-    :
-    n_face_q_points (_n_face_q_points),
-    dofs_per_cell (_dofs_per_cell),
-    fe (_fe),
-    thickness (_thickness),
-    surface (_surface),
-    thickness_values (n_face_q_points),
-    surface_values (n_face_q_points)
-  {}
-
-  void AssembleFrontalStress::operator() (const FEValuesBase<2>& fe_values,
-                                          Vector<double>&        cell_rhs)
-  {
-    thickness.value_list (fe_values.get_quadrature_points(),
-                          thickness_values);
-    surface.value_list (fe_values.get_quadrature_points(),
-                        surface_values);
-
-    for (unsigned int q_point = 0; q_point < n_face_q_points; ++q_point) {
-      const double h = thickness_values[q_point];
-      const double b = surface_values[q_point] - h;
-      const Tensor<1, 2> neumann_value
-        = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) *
-          fe_values.normal_vector (q_point);
-
-      fill_cell_rhs<2> (cell_rhs,
-                        neumann_value,
-                        fe,
-                        fe_values,
-                        q_point,
-                        dofs_per_cell);
-    }
-  }
-
-
   ShallowShelf::ShallowShelf (Triangulation<2>&  _triangulation,
                               const Function<2>& _surface,
                               const Function<2>& _bed,
@@ -271,19 +191,16 @@ namespace icepack
                                     update_values | update_quadrature_points |
                                     update_normal_vectors | update_JxW_values);
 
-    AssembleDrivingStress assemble_driving_stress (quadrature_formula.size(),
-                                                   fe.dofs_per_cell,
-                                                   fe,
-                                                   thickness,
-                                                   surface);
-
-    AssembleFrontalStress assemble_frontal_stress (face_quadrature_formula.size(),
-                                                   fe.dofs_per_cell,
-                                                   fe,
-                                                   thickness,
-                                                   surface);
-
+    const unsigned int n_q_points = quadrature_formula.size();
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
+
+    std::vector<double> thickness_values (n_q_points);
+    std::vector<double> thickness_face_values (n_face_q_points);
+    std::vector<double> surface_values (n_q_points);
+    std::vector<double> surface_face_values (n_face_q_points);
+    std::vector<Tensor<1, 2>> surface_gradient_values (n_q_points);
+
     Vector<double> cell_rhs (dofs_per_cell);
 
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
@@ -292,7 +209,17 @@ namespace icepack
       cell_rhs = 0;
       fe_values.reinit (cell);
 
-      assemble_driving_stress (fe_values, cell_rhs);
+      const auto& quadrature_points = fe_values.get_quadrature_points();
+
+      thickness.value_list(quadrature_points, thickness_values);
+      surface.gradient_list(quadrature_points, surface_gradient_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const Tensor<1, 2> driving_stress
+          = -rho_ice * gravity * thickness_values[q] * surface_gradient_values[q];
+
+        fill_cell_rhs<2> (cell_rhs, driving_stress, fe, fe_values, q, dofs_per_cell);
+      }
 
       for (unsigned int face_number = 0;
            face_number < GeometryInfo<2>::faces_per_cell;
@@ -301,7 +228,20 @@ namespace icepack
             and
             cell->face(face_number)->boundary_id() == 1) {
           fe_face_values.reinit (cell, face_number);
-          assemble_frontal_stress (fe_face_values, cell_rhs);
+
+          const auto& face_quadrature_points = fe_face_values.get_quadrature_points();
+          thickness.value_list(face_quadrature_points, thickness_face_values);
+          surface.value_list(face_quadrature_points, surface_face_values);
+
+          for (unsigned int q = 0; q < n_face_q_points; ++q) {
+            const double h = thickness_face_values[q];
+            const double b = surface_face_values[q] - h;
+            const Tensor<1, 2> n = fe_face_values.normal_vector(q);
+            const Tensor<1, 2> stress_value
+              = 0.5 * gravity * (rho_ice * h * h - rho_water * b * b) * n;
+
+            fill_cell_rhs<2>(cell_rhs, stress_value, fe, fe_face_values, q, dofs_per_cell);
+          }
         }
 
       cell->get_dof_indices (local_dof_indices);

@@ -49,56 +49,6 @@ namespace icepack
 
 
   /**
-   * Responsibility for assembling the cell stiffness matrix for the shallow
-   * shelf model is delegated to this class.
-   */
-
-  class AssembleDrivingStress : public AssembleRHS<2>
-  {
-  public:
-    AssembleDrivingStress (const unsigned int _n_q_points,
-                           const unsigned int _dofs_per_cell,
-                           const FESystem<2>& _fe,
-                           const IceThickness& _ice_thickness,
-                           const Function<2>& _surface);
-    void operator() (const FEValuesBase<2>& fe_values,
-                     Vector<double>&        cell_rhs);
-
-  protected:
-    const unsigned int n_q_points;
-    const unsigned int dofs_per_cell;
-    const FESystem<2>& fe;
-    const IceThickness& thickness;
-    const Function<2>&  surface;
-    std::vector<double> thickness_values;
-    std::vector< Tensor<1, 2> > surface_gradient_values;
-  };
-
-
-  class AssembleFrontalStress : public AssembleRHS<2>
-  {
-  public:
-    AssembleFrontalStress (const unsigned int _n_face_q_points,
-                           const unsigned int _dofs_per_cell,
-                           const FESystem<2>& _fe,
-                           const IceThickness& _ice_thickness,
-                           const Function<2>& _surface);
-    void operator () (const FEValuesBase<2>& fe_face_values,
-                      Vector<double>&        cell_rhs);
-
-  protected:
-    const unsigned int n_face_q_points;
-    const unsigned int dofs_per_cell;
-    const FESystem<2>& fe;
-    const IceThickness& thickness;
-    const Function<2>&  surface;
-    std::vector<double> thickness_values;
-    std::vector<double> surface_values;
-  };
-
-
-
-  /**
    * The main class for the shallow shelf glacier model.
    */
   class ShallowShelf
