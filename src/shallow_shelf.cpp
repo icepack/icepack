@@ -91,6 +91,7 @@ namespace icepack
     sparsity_pattern.compress ();
     system_matrix.reinit (sparsity_pattern);
 
+    velocity_solution.reinit (dof_handler.n_dofs());
     system_rhs.reinit (dof_handler.n_dofs());
   }
 
@@ -346,10 +347,23 @@ namespace icepack
       assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();
 
+      Vector<double> difference(triangulation.n_cells());
+
       for (unsigned int k = 0; k < 5; ++k) {
+        velocity_solution = solution;
+
         assemble_system<EllipticSystems::SSATensor> ();
         solve ();
+
+        velocity_solution -= solution;
+        VectorTools::integrate_difference
+          (dof_handler, velocity_solution, ZeroFunction<2>(2),
+           difference, quadrature_formula, VectorTools::L2_norm);
+
+        const double error = difference.l2_norm();
+        std::cout << error << " ";
       }
+      std::cout << std::endl;
 
       output_results (cycle);
     }
