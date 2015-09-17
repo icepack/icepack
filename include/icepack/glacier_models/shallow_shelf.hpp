@@ -97,7 +97,6 @@ namespace icepack
     SparseMatrix<double> system_matrix;
 
     Vector<double>       solution;
-    Vector<double>       velocity_solution;
     Vector<double>       system_rhs;
   };
 

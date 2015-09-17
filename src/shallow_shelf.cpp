@@ -91,7 +91,6 @@ namespace icepack
     sparsity_pattern.compress ();
     system_matrix.reinit (sparsity_pattern);
 
-    velocity_solution.reinit (dof_handler.n_dofs());
     system_rhs.reinit (dof_handler.n_dofs());
   }
 
@@ -343,24 +342,28 @@ namespace icepack
       else refine_grid ();
 
       setup_system (cycle == 0);
+      Vector<double> old_solution(dof_handler.n_dofs());
 
       assemble_system<EllipticSystems::LinearSSATensor> ();
       solve ();
 
       Vector<double> difference(triangulation.n_cells());
+      double error = 1.0e16;
 
-      for (unsigned int k = 0; k < 5; ++k) {
-        velocity_solution = solution;
+      for (unsigned int k = 0; k < 5 || error > 1.0e-6; ++k) {
+        old_solution = solution;
 
         assemble_system<EllipticSystems::SSATensor> ();
         solve ();
 
-        velocity_solution -= solution;
+        // Subtract the new solution from the old one and calculate the
+        // L2-norm difference between the two.
+        old_solution -= solution;
         VectorTools::integrate_difference
-          (dof_handler, velocity_solution, ZeroFunction<2>(2),
+          (dof_handler, old_solution, ZeroFunction<2>(2),
            difference, quadrature_formula, VectorTools::L2_norm);
 
-        const double error = difference.l2_norm();
+        error = difference.l2_norm();
         std::cout << error << " ";
       }
       std::cout << std::endl;
