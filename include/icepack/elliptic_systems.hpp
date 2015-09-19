@@ -71,7 +71,7 @@ namespace EllipticSystems
                                      const SymmetricTensor<2, 2> eps) const
     {
       const double tr = first_invariant (eps);
-      const double eps_e = sqrt(tr * tr - second_invariant (eps));
+      const double eps_e = sqrt(0.5 * (eps * eps + tr * tr));
       const double nu_q = h * viscosity(temperature, eps_e);
       return stress_strain_tensor<2>(2 * nu_q, 2 * nu_q);
     }
