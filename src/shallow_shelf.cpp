@@ -319,7 +319,7 @@ namespace icepack
     filename += ('0' + cycle);
     Assert (cycle < 10, ExcInternalError());
 
-    filename += ".vtk";
+    filename += ".ucd";
     std::ofstream output (filename.c_str());
 
     DataOut<2> data_out;
@@ -331,7 +331,7 @@ namespace icepack
 
     data_out.add_data_vector (solution, solution_names);
     data_out.build_patches ();
-    data_out.write_vtk (output);
+    data_out.write_ucd (output);
   }
 
 
