@@ -1,7 +1,12 @@
 
 import numpy as np
 
+
+# ----------------
 def read(filename):
+    """
+    Read in a .ucd file containing a 2D deal.II quad mesh and velocity data.
+    """
     with open(filename, 'r') as f:
         num_points, num_cells, _, _, _ = map(int, f.readline().split())
 
