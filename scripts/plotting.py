@@ -37,8 +37,16 @@ def interpolate(x, y, cell, q, x0, y0):
     """
     k = cell_containing_point(x, y, cell, x0, y0)
 
-    # Quick and dirty while I debug things
-    return 0.25 * sum(q[cell[k,:]])
+    dx = x[cell[k, 1]] - x[cell[k, 0]]
+    dy = y[cell[k, 3]] - y[cell[k, 0]]
+
+    px = (x0 - x[cell[k, 0]]) / dx
+    py = (y0 - y[cell[k, 0]]) / dy
+
+    return (q[cell[k, 0]] +
+            px * (q[cell[k, 1]] - q[cell[k, 0]]) +
+            py * (q[cell[k, 3]] - q[cell[k, 0]]) +
+            px * py * (q[cell[k, 0]] + q[cell[k, 2]] - q[cell[k, 1]] - q[cell[k, 3]]))
 
 
 # ---------------------------------
