@@ -99,18 +99,19 @@ int main()
 
   shallow_shelf.diagnostic_solve();
 
+  Vector<double>& solution = shallow_shelf.solution;
   Vector<double> difference(triangulation.n_cells());
 
   VectorTools::integrate_difference
     (shallow_shelf.dof_handler,
-     shallow_shelf.solution,
+     solution,
      VectorFunctionFromTensorFunction<2> (boundary_velocity),
      difference,
      shallow_shelf.quadrature_formula,
-     VectorTools::L2_norm);
+     VectorTools::Linfty_norm);
 
-  const double error = difference.l2_norm();
-  if (error > 1.0e-10) {
+  const double error = difference.linfty_norm() / solution.linfty_norm();
+  if (error > 1.0e-3) {
     std::cout << error << std::endl;
     return 1;
   }

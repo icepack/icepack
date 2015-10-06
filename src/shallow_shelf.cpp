@@ -350,7 +350,7 @@ namespace icepack
       Vector<double> difference(triangulation.n_cells());
       double error = 1.0e16;
 
-      for (unsigned int k = 0; k < 5 || error > 1.0e-6; ++k) {
+      for (unsigned int k = 0; k < 5 || error > 1.0e-5; ++k) {
         old_solution = solution;
 
         assemble_system<EllipticSystems::SSATensor> ();
@@ -361,9 +361,9 @@ namespace icepack
         old_solution -= solution;
         VectorTools::integrate_difference
           (dof_handler, old_solution, ZeroFunction<2>(2),
-           difference, quadrature_formula, VectorTools::L2_norm);
+           difference, quadrature_formula, VectorTools::Linfty_norm);
 
-        error = difference.l2_norm();
+        error = difference.linfty_norm() / solution.linfty_norm();
         std::cout << error << " ";
       }
       std::cout << std::endl;
