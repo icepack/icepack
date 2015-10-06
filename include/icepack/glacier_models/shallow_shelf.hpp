@@ -60,7 +60,7 @@ namespace icepack
                   const Function<2>& _temperature,
                   const TensorFunction<1, 2>& _boundary_velocity);
     ~ShallowShelf ();
-    void diagnostic_solve ();
+    void diagnostic_solve (const double tolerance = 1.0e-8);
     //void output (const std::string& filename);
 
     void setup_system (const bool initial_step);

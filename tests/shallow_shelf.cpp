@@ -41,8 +41,11 @@ public:
     v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
     v[1] = 0.0;
 
-    // TODO include a fudge factor so the initial guess isn't the exact
-    // solution.
+    // Fudge factor so the initial guess isn't the exact solution.
+    const double px = x[0] / length, py = x[1] / width;
+    const double p = px * (1 - px) * py * (1 - py);
+    v[0] += p * 10.0;
+    v[1] += p * (0.5 - py) * 5.0;
 
     return v;
   }
@@ -97,7 +100,7 @@ int main()
   ShallowShelf shallow_shelf(triangulation, surface, bed,
                              temperature, boundary_velocity);
 
-  shallow_shelf.diagnostic_solve();
+  shallow_shelf.diagnostic_solve(1.0e-8);
 
   Vector<double>& solution = shallow_shelf.solution;
   Vector<double> difference(triangulation.n_cells());
@@ -111,7 +114,7 @@ int main()
      VectorTools::Linfty_norm);
 
   const double error = difference.linfty_norm() / solution.linfty_norm();
-  if (error > 1.0e-3) {
+  if (error > 1.0e-2) {
     std::cout << error << std::endl;
     return 1;
   }

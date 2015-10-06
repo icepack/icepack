@@ -335,7 +335,7 @@ namespace icepack
   }
 
 
-  void ShallowShelf::diagnostic_solve ()
+  void ShallowShelf::diagnostic_solve (const double tolerance)
   {
     for (unsigned int cycle = 0; cycle < 3; ++cycle) {
       if (cycle == 0) triangulation.refine_global (2);
@@ -350,14 +350,14 @@ namespace icepack
       Vector<double> difference(triangulation.n_cells());
       double error = 1.0e16;
 
-      for (unsigned int k = 0; k < 5 || error > 1.0e-5; ++k) {
+      for (unsigned int k = 0; k < 5 || error > tolerance; ++k) {
         old_solution = solution;
 
         assemble_system<EllipticSystems::SSATensor> ();
         solve ();
 
         // Subtract the new solution from the old one and calculate the
-        // L2-norm difference between the two.
+        // norm of the difference.
         old_solution -= solution;
         VectorTools::integrate_difference
           (dof_handler, old_solution, ZeroFunction<2>(2),
