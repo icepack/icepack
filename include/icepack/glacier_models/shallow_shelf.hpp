@@ -58,6 +58,7 @@ namespace icepack
                   const Function<2>& _surface,
                   const Function<2>& _bed,
                   const Function<2>& _temperature,
+                  const Function<2>& _friction,
                   const TensorFunction<1, 2>& _boundary_velocity);
     ~ShallowShelf ();
     void diagnostic_solve (const double tolerance = 1.0e-8);
@@ -71,7 +72,9 @@ namespace icepack
     template <class ConstitutiveTensor>
     void assemble_matrix ();
 
+    void assemble_bed_stress ();
     void assemble_rhs ();
+
     void solve ();
     void refine_grid ();
     void output_results (const unsigned int cycle) const;
@@ -81,6 +84,7 @@ namespace icepack
     const Function<2>& bed;
     const IceThickness thickness;
     const Function<2>& temperature;
+    const Function<2>& friction;
     const TensorFunction<1, 2>& boundary_velocity;
 
     Triangulation<2>&  triangulation;

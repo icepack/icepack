@@ -41,12 +41,14 @@ namespace icepack
                               const Function<2>& _surface,
                               const Function<2>& _bed,
                               const Function<2>& _temperature,
+                              const Function<2>& _friction,
                               const TensorFunction<1, 2>& _boundary_velocity)
     :
     surface (_surface),
     bed (_bed),
     thickness (IceThickness(surface, bed)),
     temperature (_temperature),
+    friction (_friction),
     boundary_velocity (_boundary_velocity),
     triangulation (_triangulation),
     dof_handler (triangulation),
@@ -102,6 +104,7 @@ namespace icepack
     system_rhs    = 0;
 
     assemble_matrix<ConstitutiveTensor> ();
+    assemble_bed_stress ();
     assemble_rhs ();
 
     hanging_node_constraints.condense (system_matrix);
@@ -138,8 +141,7 @@ namespace icepack
 
     ConstitutiveTensor C;
 
-    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-
+    FullMatrix<double> cell_matrix (dofs_per_cell, dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
     // Loop over every cell in the triangulation
@@ -179,6 +181,48 @@ namespace icepack
   } // End of AssembleMatrix
 
 
+  void ShallowShelf::assemble_bed_stress()
+  {
+    FEValues<2> fe_values (fe, quadrature_formula,
+                           update_values            | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_q_points    = quadrature_formula.size();
+
+    std::vector<double> friction_values (n_q_points);
+
+    FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+    // Loop over every cell in the triangulation
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      cell_matrix = 0;
+      fe_values.reinit (cell);
+
+      const std::vector<Point<2>>& quadrature_points
+        = fe_values.get_quadrature_points();
+
+      friction.value_list(quadrature_points, friction_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = fe_values.JxW(q);
+        const double beta = friction_values[q];
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const double phi_i = fe_values.shape_value(i, q);
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            const double phi_j = fe_values.shape_value(j, q);
+
+            cell_matrix(i, j) += phi_i * phi_j * beta * dx;
+          }
+        }
+      }
+
+      cell->get_dof_indices (local_dof_indices);
+      cell_to_global (cell_matrix, local_dof_indices, system_matrix);
+    }
+  }
 
   void ShallowShelf::assemble_rhs ()
   {

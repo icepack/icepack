@@ -94,11 +94,12 @@ int main()
 
   auto bed         = ConstantFunction<2>(-2000.0);
   auto temperature = ConstantFunction<2>(temp);
+  auto friction    = ZeroFunction<2>();
   SurfaceElevation surface;
   BoundaryVelocity boundary_velocity;
 
-  ShallowShelf shallow_shelf(triangulation, surface, bed,
-                             temperature, boundary_velocity);
+  ShallowShelf shallow_shelf(triangulation, surface, bed, temperature,
+                             friction, boundary_velocity);
 
   shallow_shelf.diagnostic_solve(1.0e-8);
 
