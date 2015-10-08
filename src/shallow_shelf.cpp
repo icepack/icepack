@@ -186,6 +186,8 @@ namespace icepack
     FEValues<2> fe_values (fe, quadrature_formula,
                            update_values            | update_gradients |
                            update_quadrature_points | update_JxW_values);
+    const FEValuesExtractors::Vector velocities(0);
+
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
     const unsigned int n_q_points    = quadrature_formula.size();
 
@@ -209,12 +211,12 @@ namespace icepack
         const double beta = friction_values[q];
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          const double phi_i = fe_values.shape_value(i, q);
+          const Tensor<1, 2> phi_i = fe_values[velocities].value(i, q);
 
           for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            const double phi_j = fe_values.shape_value(j, q);
+            const Tensor<1, 2> phi_j = fe_values[velocities].value(j, q);
 
-            cell_matrix(i, j) += phi_i * phi_j * beta * dx;
+            cell_matrix(i, j) += (phi_i * phi_j) * beta * dx;
           }
         }
       }
