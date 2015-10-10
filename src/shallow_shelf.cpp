@@ -192,6 +192,8 @@ namespace icepack
     const unsigned int n_q_points    = quadrature_formula.size();
 
     std::vector<double> friction_values (n_q_points);
+    std::vector<double> thickness_values (n_q_points);
+    std::vector<double> surface_values (n_q_points);
 
     FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
     std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
@@ -204,19 +206,27 @@ namespace icepack
       const std::vector<Point<2>>& quadrature_points
         = fe_values.get_quadrature_points();
 
+      thickness.value_list(quadrature_points, thickness_values);
+      surface.value_list(quadrature_points, surface_values);
       friction.value_list(quadrature_points, friction_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = fe_values.JxW(q);
+
+        const double flotation = (1 - rho_ice/rho_water) * thickness_values[q];
+        const bool floating = (surface_values[q] <= flotation);
+
         const double beta = friction_values[q];
 
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          const Tensor<1, 2> phi_i = fe_values[velocities].value(i, q);
+        if (!floating) {
+          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            const Tensor<1, 2> phi_i = fe_values[velocities].value(i, q);
 
-          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            const Tensor<1, 2> phi_j = fe_values[velocities].value(j, q);
+            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+              const Tensor<1, 2> phi_j = fe_values[velocities].value(j, q);
 
-            cell_matrix(i, j) += (phi_i * phi_j) * beta * dx;
+              cell_matrix(i, j) += (phi_i * phi_j) * beta * dx;
+            }
           }
         }
       }
