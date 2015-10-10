@@ -23,10 +23,50 @@ const double A = pow(rho * gravity / 4, 3) * rate_factor(temp);
 
 
 const double u0 = 100;
-const double h0 = 500;
-const double delta_h = 100.0;
 const double length = 2000.0;
 const double width = 500.0;
+
+
+const double s0 = 200.0;
+const double b0 = -800.0;
+const double delta_s = 50.0;
+const double delta_b = 200.0;
+
+const double h0 = s0 - b0;
+const double delta_h = s0 - b0 - (delta_s + delta_b);
+
+
+class SurfaceElevation : public Function<2>
+{
+public:
+  SurfaceElevation() : Function<2>() {}
+
+  double value (const Point<2>& x, const unsigned int) const
+  {
+    return s0 - delta_s / length * x[0];
+  }
+
+  Tensor<1, 2> gradient(const Point<2>&, const unsigned int) const
+  {
+    Tensor<1, 2> ds;
+    ds[0] = -delta_s / length;
+    ds[1] = 0.0;
+
+    return ds;
+  }
+};
+
+
+class BedElevation : public Function<2>
+{
+public:
+  BedElevation() : Function<2>() {}
+
+  double value (const Point<2>& x, const unsigned int) const
+  {
+    return b0 + delta_b / length * x[0];
+  }
+};
 
 
 class BoundaryVelocity : public TensorFunction<1, 2>
@@ -45,29 +85,6 @@ public:
     return v;
   }
 };
-
-
-
-class SurfaceElevation : public Function<2>
-{
-public:
-  SurfaceElevation() : Function<2>() {}
-
-  double value (const Point<2>& x, const unsigned int) const
-  {
-    return (1 - rho_ice / rho_water) * (h0 - delta_h / length * x[0]);
-  }
-
-  Tensor<1, 2> gradient(const Point<2>&, const unsigned int) const
-  {
-    Tensor<1, 2> ds;
-    ds[0] = -(1 - rho_ice / rho_water) * delta_h / length;
-    ds[1] = 0.0;
-
-    return ds;
-  }
-};
-
 
 
 int main()
@@ -89,9 +106,9 @@ int main()
 
   triangulation.refine_global(2);
 
-  auto bed         = ConstantFunction<2>(-2000.0);
   auto temperature = ConstantFunction<2>(temp);
-  auto friction    = ConstantFunction<2>(0.0001);
+  auto friction    = ConstantFunction<2>(0.001);
+  BedElevation bed;
   SurfaceElevation surface;
   BoundaryVelocity boundary_velocity;
 
