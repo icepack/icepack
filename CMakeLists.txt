@@ -33,3 +33,6 @@ add_library(icepack
   src/shallow_shelf.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
+
+install (TARGETS icepack DESTINATION lib)
+install (DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
