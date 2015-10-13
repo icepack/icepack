@@ -70,6 +70,9 @@ bool generateExampleGeoTIFF(const std::string& filename)
 
 int main(int argc, char **argv)
 {
+  bool verbose = false;
+  if (strcmp(argv[argc-1], "-v") == 0) verbose = true;
+
   const std::string& filename = "example_geotiff_file.tiff";
 
   GDALAllRegister();
@@ -117,6 +120,6 @@ int main(int argc, char **argv)
     }
   }
 
-  std::cout << "Reading GeoTIFF data worked!" << std::endl;
+  if (verbose) std::cout << "Reading GeoTIFF data worked!" << std::endl;
   return 0;
 }
