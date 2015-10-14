@@ -1,4 +1,5 @@
 
+#include <deal.II/base/function.h>
 #include <deal.II/base/symmetric_tensor.h>
 
 #include <deal.II/lac/solver_cg.h>
