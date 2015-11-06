@@ -10,7 +10,7 @@ set(test_list
 
 foreach(test ${test_list})
   string(REPLACE ".cpp" "" test ${test})
-  add_executable(${test} ${PROJECT_SOURCE_DIR}/tests/${test}.cpp)
+  add_executable(${test} ${PROJECT_SOURCE_DIR}/test/${test}.cpp)
   DEAL_II_SETUP_TARGET(${test})
   target_link_libraries(${test} icepack)
   add_test(${test} ${test})

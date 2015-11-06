@@ -22,7 +22,7 @@ project(icepack)
 enable_testing()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-add_subdirectory("${CMAKE_SOURCE_DIR}/tests")
+add_subdirectory("${CMAKE_SOURCE_DIR}/test")
 
 set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 
