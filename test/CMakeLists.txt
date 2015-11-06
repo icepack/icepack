@@ -3,6 +3,7 @@ set(test_list
   read_arc.cpp
   read_geotiff.cpp
   ice_thickness.cpp
+  field.cpp
   shallow_shelf.cpp
   shallow_stream.cpp
 )
