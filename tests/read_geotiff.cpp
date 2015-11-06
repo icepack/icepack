@@ -1,11 +1,13 @@
 
-#include <gdal/gdal_priv.h>
-#include <gdal/cpl_conv.h>
-#include <gdal/cpl_string.h>
-#include <gdal/ogr_spatialref.h>
+#include <gdal_priv.h>
+#include <cpl_conv.h>
+#include <cpl_string.h>
+#include <ogr_spatialref.h>
 
-#include "icepack/read_gridded_data.hpp"
+#include <icepack/read_gridded_data.hpp>
 
+
+using namespace icepack;
 using dealii::Point;
 
 

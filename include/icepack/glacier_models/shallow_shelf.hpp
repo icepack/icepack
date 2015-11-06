@@ -22,9 +22,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "../elliptic_systems.hpp"
-#include "../physical_constants.hpp"
-#include "../ice_thickness.hpp"
+#include <icepack/elliptic_systems.hpp>
+#include <icepack/physical_constants.hpp>
+#include <icepack/ice_thickness.hpp>
 
 
 namespace icepack

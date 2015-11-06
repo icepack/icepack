@@ -2,10 +2,11 @@
 #include <cstring>
 #include <iostream>
 
-#include "icepack/physical_constants.hpp"
-#include "icepack/ice_thickness.hpp"
+#include <icepack/physical_constants.hpp>
+#include <icepack/ice_thickness.hpp>
 
 using namespace dealii;
+using namespace icepack;
 
 int main (int argc, char **argv)
 {

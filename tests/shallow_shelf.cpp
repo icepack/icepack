@@ -3,7 +3,7 @@
 
 #include <deal.II/numerics/vector_tools.h>
 
-#include "icepack/glacier_models/shallow_shelf.hpp"
+#include <icepack/glacier_models/shallow_shelf.hpp>
 
 using namespace dealii;
 using namespace icepack;

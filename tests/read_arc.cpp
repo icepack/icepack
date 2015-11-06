@@ -7,14 +7,16 @@
 #include <deal.II/base/function.h>
 
 // our includes
-#include "icepack/read_gridded_data.hpp"
+#include <icepack/read_gridded_data.hpp>
+
+using namespace icepack;
+using dealii::Point;
+
 
 constexpr size_t nx = 11, ny = 6;
 constexpr double xo = 0.0, yo = 0.0;
 constexpr double dx = 0.2, dy = dx;
 
-
-using dealii::Point;
 
 void generateExampleArcAsciiGrid(const std::string& filename)
 {
