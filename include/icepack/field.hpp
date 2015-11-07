@@ -2,6 +2,7 @@
 #ifndef ICEPACK_FIELD_HPP
 #define ICEPACK_FIELD_HPP
 
+#include <deal.II/base/tensor.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor_function.h>
 #include <deal.II/grid/tria.h>
@@ -14,6 +15,7 @@ namespace icepack
   using dealii::Tensor;
   using dealii::Function;
   using dealii::TensorFunction;
+  using dealii::VectorFunctionFromTensorFunction;
   using dealii::Triangulation;
   using dealii::FiniteElement;
   using dealii::DoFHandler;
@@ -129,9 +131,10 @@ namespace icepack
   {
     VectorField<dim> psi(triangulation, finite_element);
 
+    const VectorFunctionFromTensorFunction<dim> vphi(phi);
     VectorTools::interpolate(
-      psi.get_dof_handler,
-      VectorFunctionFromTensorFunction(phi),
+      psi.get_dof_handler(),
+      vphi,
       psi.get_coefficients()
     );
 

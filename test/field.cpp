@@ -2,7 +2,10 @@
 #include <iostream>
 
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
+
 
 #include <icepack/field.hpp>
 
@@ -21,6 +24,17 @@ class Phi : public Function<dim>
 };
 
 
+template <int dim>
+class F : public TensorFunction<1, dim>
+{
+  Tensor<1, dim> value(const Point<dim>& x) const
+  {
+    Tensor<1, dim> v;
+    for (unsigned int i = 0; i < dim; ++i) v[i] = x[(i + 1) % dim];
+    return v;
+  }
+};
+
 
 template <int dim>
 bool test_field(
@@ -37,8 +51,7 @@ bool test_field(
   const auto& dof_handler = psi.get_dof_handler();
   const auto& coefficients = psi.get_coefficients();
 
-  std::vector<double> phi_values(n_q_points);
-  std::vector<double> psi_values(n_q_points);
+  std::vector<double> phi_values(n_q_points), psi_values(n_q_points);
   FEValues<dim> fe_values(finite_element, quad,
                           update_values | update_quadrature_points);
   const FEValuesExtractors::Scalar extractor(0);
@@ -57,6 +70,40 @@ bool test_field(
 }
 
 
+template <int dim>
+bool test_vector_field(
+  const Triangulation<dim>& triangulation,
+  const TensorFunction<1, dim>& f
+)
+{
+  FESystem<dim> finite_element(FE_Q<dim>(1), dim);
+  VectorField<dim> g = interpolate(triangulation, finite_element, f);
+
+  Quadrature<dim> quad(2);
+  const unsigned int n_q_points = quad.size();
+
+  const auto& dof_handler = g.get_dof_handler();
+  const auto& coefficients = g.get_coefficients();
+
+  std::vector<Tensor<1, dim> > f_values(n_q_points), g_values(n_q_points);
+  FEValues<dim> fe_values(finite_element, quad,
+                          update_values | update_quadrature_points);
+  const FEValuesExtractors::Vector extractor(0);
+
+  for (auto cell: dof_handler.active_cell_iterators()) {
+    fe_values.reinit(cell);
+    const std::vector<Point<dim> >& qs = fe_values.get_quadrature_points();
+    f.value_list(qs, f_values);
+    fe_values[extractor].get_function_values(coefficients, g_values);
+
+    for (unsigned int q = 0; q < n_q_points; ++q)
+      Assert((f_values[q] - g_values[q]).norm() < 1.0e-6, ExcInternalError());
+  }
+
+  return true;
+}
+
+
 int main()
 {
   const Point<2> p1(0.0, 0.0), p2(1.0, 1.0);
@@ -65,8 +112,10 @@ int main()
   triangulation.refine_global(3);
 
   Phi<2> phi;
-
   if (!test_field(triangulation, phi)) return 1;
+
+  F<2> f;
+  if (!test_vector_field(triangulation, f)) return 1;
 
   return 0;
 }
