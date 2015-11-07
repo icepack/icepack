@@ -2,6 +2,8 @@
 #ifndef ICEPACK_FIELD_HPP
 #define ICEPACK_FIELD_HPP
 
+#include <fstream>
+
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor_function.h>
@@ -9,6 +11,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/data_out.h>
 
 namespace icepack
 {
@@ -20,7 +23,6 @@ namespace icepack
   using dealii::FiniteElement;
   using dealii::DoFHandler;
   using dealii::Vector;
-  namespace VectorTools = dealii::VectorTools;
 
 
   namespace
@@ -88,6 +90,30 @@ namespace icepack
       }
 
 
+      // File I/O
+      bool write(const std::string& filename,
+                 const std::string& field_name)
+      {
+        std::ofstream output(filename.c_str());
+
+        dealii::DataOut<dim> data_out;
+        data_out.attach_dof_handler(*dof_handler);
+
+        std::vector<std::string> component_names;
+        if (rank == 1)
+          for (unsigned int k = 0; k < dim; ++k)
+            component_names.push_back(field_name + "_" + std::to_string(k+1));
+        else
+          component_names.push_back(field_name);
+
+        data_out.add_data_vector(coefficients, component_names);
+        data_out.build_patches();
+        data_out.write_ucd(output);
+
+        return true;
+      }
+
+
     protected:
       const Triangulation<dim>& triangulation;
       const FiniteElement<dim>& fe;
@@ -114,7 +140,7 @@ namespace icepack
   {
     Field<dim> psi(triangulation, finite_element);
 
-    VectorTools::interpolate(
+    dealii::VectorTools::interpolate(
       psi.get_dof_handler(),
       phi,
       psi.get_coefficients()
@@ -132,7 +158,7 @@ namespace icepack
     VectorField<dim> psi(triangulation, finite_element);
 
     const VectorFunctionFromTensorFunction<dim> vphi(phi);
-    VectorTools::interpolate(
+    dealii::VectorTools::interpolate(
       psi.get_dof_handler(),
       vphi,
       psi.get_coefficients()
