@@ -65,35 +65,32 @@ namespace icepack
   }
 
 
-  void ShallowShelf::setup_system (const bool initial_step)
+  void ShallowShelf::setup_system ()
   {
-    if (initial_step) {
-      dof_handler.distribute_dofs (fe);
+    dof_handler.distribute_dofs (fe);
 
-      hanging_node_constraints.clear ();
-      DoFTools::make_hanging_node_constraints (dof_handler,
-                                               hanging_node_constraints);
-      hanging_node_constraints.close ();
+    hanging_node_constraints.clear ();
+    DoFTools::make_hanging_node_constraints (dof_handler,
+                                             hanging_node_constraints);
+    hanging_node_constraints.close ();
 
-      solution.reinit (dof_handler.n_dofs());
+    solution.reinit (dof_handler.n_dofs());
 
-      // Fill the solution by interpolating from the boundary values
-      VectorTools::interpolate
-        (dof_handler,
-         VectorFunctionFromTensorFunction<2> (boundary_velocity),
-         solution);
-    }
+    // Fill the solution by interpolating from the boundary values
+    VectorTools::interpolate(
+      dof_handler,
+      VectorFunctionFromTensorFunction<2>(boundary_velocity),
+      solution
+    );
 
     sparsity_pattern.reinit (dof_handler.n_dofs(),
                              dof_handler.n_dofs(),
                              dof_handler.max_couplings_between_dofs());
     DoFTools::make_sparsity_pattern (dof_handler, sparsity_pattern);
 
-    hanging_node_constraints.condense (sparsity_pattern);
-
     sparsity_pattern.compress ();
-    system_matrix.reinit (sparsity_pattern);
 
+    system_matrix.reinit (sparsity_pattern);
     system_rhs.reinit (dof_handler.n_dofs());
   }
 
@@ -108,8 +105,8 @@ namespace icepack
     assemble_bed_stress ();
     assemble_rhs ();
 
-    hanging_node_constraints.condense (system_matrix);
-    hanging_node_constraints.condense (system_rhs);
+    system_matrix.compress(VectorOperation::add);
+    system_rhs.compress(VectorOperation::add);
 
     std::map<types::global_dof_index,double> boundary_values;
     VectorTools::interpolate_boundary_values
@@ -121,7 +118,8 @@ namespace icepack
     MatrixTools::apply_boundary_values (boundary_values,
                                         system_matrix,
                                         solution,
-                                        system_rhs);
+                                        system_rhs,
+                                        false);
   }
 
 
@@ -176,9 +174,9 @@ namespace icepack
       }
 
       cell->get_dof_indices (local_dof_indices);
-      cell_to_global (cell_matrix, local_dof_indices, system_matrix);
+      hanging_node_constraints
+        .distribute_local_to_global(cell_matrix, local_dof_indices, system_matrix);
     } // End of loop over `cell`
-
   } // End of AssembleMatrix
 
 
@@ -232,8 +230,9 @@ namespace icepack
         }
       }
 
-      cell->get_dof_indices (local_dof_indices);
-      cell_to_global (cell_matrix, local_dof_indices, system_matrix);
+      cell->get_dof_indices(local_dof_indices);
+      hanging_node_constraints
+        .distribute_local_to_global(cell_matrix, local_dof_indices, system_matrix);
     }
   }
 
@@ -301,7 +300,8 @@ namespace icepack
         }
 
       cell->get_dof_indices (local_dof_indices);
-      cell_to_global (cell_rhs, local_dof_indices, system_rhs);
+      hanging_node_constraints
+        .distribute_local_to_global(cell_rhs, local_dof_indices, system_rhs);
     }
   }
 
@@ -320,63 +320,9 @@ namespace icepack
   }
 
 
-  void ShallowShelf::refine_grid ()
+  void ShallowShelf::output_results () const
   {
-    Vector<float> estimated_error_per_cell (triangulation.n_active_cells());
-
-    KellyErrorEstimator<2>::estimate (dof_handler,
-                                      QGauss<1>(2),
-                                      typename FunctionMap<2>::type(),
-                                      solution,
-                                      estimated_error_per_cell);
-
-    GridRefinement::refine_and_coarsen_fixed_number (triangulation,
-                                                     estimated_error_per_cell,
-                                                     0.3, 0.03);
-
-    triangulation.prepare_coarsening_and_refinement ();
-
-    SolutionTransfer<2> solution_transfer (dof_handler);
-    solution_transfer.prepare_for_coarsening_and_refinement (solution);
-    triangulation.execute_coarsening_and_refinement ();
-
-    dof_handler.distribute_dofs(fe);
-
-    // Interpolate the solution on the old mesh to the new mesh
-    Vector<double> tmp (dof_handler.n_dofs());
-    solution_transfer.interpolate (solution, tmp);
-    solution = tmp;
-
-    // Having just refined the mesh and interpolated the old solution, we
-    // can adjust any newly added points on the boundary so that the
-    // boundary values are exact rather than interpolated from the old ones.
-    std::map<types::global_dof_index, double> boundary_values;
-    VectorTools::interpolate_boundary_values
-      (dof_handler,
-       0,
-       VectorFunctionFromTensorFunction<2> (boundary_velocity),
-       boundary_values);
-
-    for (const auto& dof_val: boundary_values)
-      solution(dof_val.first) = dof_val.second;
-
-    // Reconcile the hanging nodes on the new mesh
-    hanging_node_constraints.clear ();
-    DoFTools::make_hanging_node_constraints (dof_handler,
-                                             hanging_node_constraints);
-    hanging_node_constraints.close ();
-    hanging_node_constraints.distribute (solution);
-    setup_system (false);
-  }
-
-
-  void ShallowShelf::output_results (const unsigned int cycle) const
-  {
-    std::string filename = "solution-";
-    filename += ('0' + cycle);
-    Assert (cycle < 10, ExcInternalError());
-
-    filename += ".ucd";
+    std::string filename = "solution.ucd";
     std::ofstream output (filename.c_str());
 
     DataOut<2> data_out;
@@ -394,39 +340,36 @@ namespace icepack
 
   void ShallowShelf::diagnostic_solve (const double tolerance)
   {
-    for (unsigned int cycle = 0; cycle < 3; ++cycle) {
-      if (cycle == 0) triangulation.refine_global (2);
-      else refine_grid ();
+    triangulation.refine_global (2);
 
-      setup_system (cycle == 0);
-      Vector<double> old_solution(dof_handler.n_dofs());
+    setup_system();
+    Vector<double> old_solution(dof_handler.n_dofs());
 
-      assemble_system<EllipticSystems::LinearSSATensor> ();
+    assemble_system<EllipticSystems::LinearSSATensor>();
+    solve();
+
+    Vector<double> difference(triangulation.n_cells());
+    double error = 1.0e16;
+
+    for (unsigned int k = 0; k < 5 || error > tolerance; ++k) {
+      old_solution = solution;
+
+      assemble_system<EllipticSystems::SSATensor> ();
       solve ();
 
-      Vector<double> difference(triangulation.n_cells());
-      double error = 1.0e16;
+      // Subtract the new solution from the old one and calculate the
+      // norm of the difference.
+      old_solution -= solution;
+      VectorTools::integrate_difference
+        (dof_handler, old_solution, ZeroFunction<2>(2),
+         difference, quadrature_formula, VectorTools::Linfty_norm);
 
-      for (unsigned int k = 0; k < 5 || error > tolerance; ++k) {
-        old_solution = solution;
-
-        assemble_system<EllipticSystems::SSATensor> ();
-        solve ();
-
-        // Subtract the new solution from the old one and calculate the
-        // norm of the difference.
-        old_solution -= solution;
-        VectorTools::integrate_difference
-          (dof_handler, old_solution, ZeroFunction<2>(2),
-           difference, quadrature_formula, VectorTools::Linfty_norm);
-
-        error = difference.linfty_norm() / solution.linfty_norm();
-        std::cout << error << " ";
-      }
-      std::cout << std::endl;
-
-      output_results (cycle);
+      error = difference.linfty_norm() / solution.linfty_norm();
+      std::cout << error << " ";
     }
+    std::cout << std::endl;
+
+    output_results();
   }
 
 } // End of icepack namespace

@@ -64,7 +64,7 @@ namespace icepack
     void diagnostic_solve (const double tolerance = 1.0e-8);
     //void output (const std::string& filename);
 
-    void setup_system (const bool initial_step);
+    void setup_system ();
 
     template <class ConstitutiveTensor>
     void assemble_system ();
@@ -76,8 +76,7 @@ namespace icepack
     void assemble_rhs ();
 
     void solve ();
-    void refine_grid ();
-    void output_results (const unsigned int cycle) const;
+    void output_results () const;
 
     // Member variables
     const Function<2>& surface;
