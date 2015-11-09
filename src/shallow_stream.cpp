@@ -8,23 +8,13 @@ namespace icepack
    * Constructors & destructors
    */
 
-  ShallowStream::ShallowStream(const Triangulation<2>& tri, const unsigned int p)
+  ShallowStream::ShallowStream(const Triangulation<2>& tria,
+                               const unsigned int p)
     :
-    triangulation(tri),
-    scalar_finite_element(p),
-    vector_finite_element(scalar_finite_element, 2),
-    scalar_dof_handler(triangulation),
-    vector_dof_handler(triangulation)
-  {
-    scalar_dof_handler.distribute_dofs(scalar_finite_element);
-    vector_dof_handler.distribute_dofs(vector_finite_element);
-  }
-
-  ShallowStream::~ShallowStream()
-  {
-    scalar_dof_handler.clear();
-    vector_dof_handler.clear();
-  }
+    triangulation(tria),
+    scalar_pde_skeleton(tria, FE_Q<2>(p)),
+    vector_pde_skeleton(tria, FESystem<2>(FE_Q<2>(p), 2))
+  {}
 
 
   /**
@@ -36,8 +26,8 @@ namespace icepack
   {
     return icepack::interpolate(
       triangulation,
-      scalar_finite_element,
-      scalar_dof_handler,
+      scalar_pde_skeleton.get_fe(),
+      scalar_pde_skeleton.get_dof_handler(),
       phi
     );
   }
@@ -47,8 +37,8 @@ namespace icepack
   {
     return icepack::interpolate(
       triangulation,
-      vector_finite_element,
-      vector_dof_handler,
+      vector_pde_skeleton.get_fe(),
+      vector_pde_skeleton.get_dof_handler(),
       f
     );
   }
@@ -105,24 +95,14 @@ namespace icepack
     return triangulation;
   }
 
-  const FE_Q<2>& ShallowStream::get_scalar_fe() const
+  const ScalarPDESkeleton<2>& ShallowStream::get_scalar_pde_skeleton() const
   {
-    return scalar_finite_element;
+    return scalar_pde_skeleton;
   }
 
-  const FESystem<2>& ShallowStream::get_vector_fe() const
+  const VectorPDESkeleton<2>& ShallowStream::get_vector_pde_skeleton() const
   {
-    return vector_finite_element;
-  }
-
-  const DoFHandler<2>& ShallowStream::get_scalar_dof_handler() const
-  {
-    return scalar_dof_handler;
-  }
-
-  const DoFHandler<2>& ShallowStream::get_vector_dof_handler() const
-  {
-    return vector_dof_handler;
+    return vector_pde_skeleton;
   }
 
 }

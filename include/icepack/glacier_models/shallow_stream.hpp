@@ -7,6 +7,7 @@
 
 #include <icepack/physical_constants.hpp>
 #include <icepack/field.hpp>
+#include <icepack/glacier_models/pde_skeleton.hpp>
 
 
 namespace icepack
@@ -34,7 +35,6 @@ namespace icepack
       const unsigned int polynomial_order
     );
 
-    ~ShallowStream();
 
     /**
      * Given some observed data, represented by a dealii::Function object,
@@ -50,6 +50,14 @@ namespace icepack
      */
     VectorField<2> interpolate(const TensorFunction<1, 2>& f) const;
 
+
+    /**
+     * Compute the driving stress from the ice geometry.
+     */
+    VectorField<2> driving_stress(
+      const Field<2>& surface,
+      const Field<2>& thickness
+    );
 
     /**
      * Compute the ice velocity from the thickness and friction coefficient.
@@ -89,21 +97,14 @@ namespace icepack
      */
     const Triangulation<2>& get_triangulation() const;
 
-    const FE_Q<2>& get_scalar_fe() const;
-    const FESystem<2>& get_vector_fe() const;
-
-    const DoFHandler<2>& get_scalar_dof_handler() const;
-    const DoFHandler<2>& get_vector_dof_handler() const;
-
+    const ScalarPDESkeleton<2>& get_scalar_pde_skeleton() const;
+    const VectorPDESkeleton<2>& get_vector_pde_skeleton() const;
 
   protected:
     const Triangulation<2>& triangulation;
 
-    const FE_Q<2> scalar_finite_element;
-    const FESystem<2> vector_finite_element;
-
-    DoFHandler<2> scalar_dof_handler;
-    DoFHandler<2> vector_dof_handler;
+    const ScalarPDESkeleton<2> scalar_pde_skeleton;
+    const VectorPDESkeleton<2> vector_pde_skeleton;
   };
 
 }
