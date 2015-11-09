@@ -4,6 +4,7 @@ set(test_list
   read_geotiff.cpp
   ice_thickness.cpp
   field.cpp
+  shallow_stream.cpp
   shallow_shelf.cpp
   shelfy_stream.cpp
 )

@@ -30,7 +30,8 @@ add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
   src/physical_constants.cpp
-  src/shallow_shelf.cpp)
+  src/shallow_shelf.cpp
+  src/shallow_stream.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
 
