@@ -69,7 +69,7 @@ namespace icepack
         triangulation(phi.triangulation),
         fe(phi.fe),
         dof_handler(std::move(phi.dof_handler)),
-        coefficients(phi.coefficients)
+        coefficients(std::move(phi.coefficients))
       {}
 
       virtual ~FieldType()
