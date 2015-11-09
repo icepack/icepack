@@ -42,18 +42,18 @@ bool test_field(
   const Function<dim>& phi
 )
 {
-  FE_Q<dim> finite_element(1);
-  Field<dim> psi = interpolate(triangulation, finite_element, phi);
+  FE_Q<dim> fe(1);
+  DoFHandler<dim> dof_handler(triangulation);
+  dof_handler.distribute_dofs(fe);
+  Field<dim> psi = interpolate(triangulation, fe, dof_handler, phi);
 
   Quadrature<dim> quad(2);
   const unsigned int n_q_points = quad.size();
 
-  const auto& dof_handler = psi.get_dof_handler();
   const auto& coefficients = psi.get_coefficients();
 
   std::vector<double> phi_values(n_q_points), psi_values(n_q_points);
-  FEValues<dim> fe_values(finite_element, quad,
-                          update_values | update_quadrature_points);
+  FEValues<dim> fe_values(fe, quad, update_values | update_quadrature_points);
   const FEValuesExtractors::Scalar extractor(0);
 
   for (auto cell: dof_handler.active_cell_iterators()) {
@@ -76,18 +76,18 @@ bool test_vector_field(
   const TensorFunction<1, dim>& f
 )
 {
-  FESystem<dim> finite_element(FE_Q<dim>(1), dim);
-  VectorField<dim> g = interpolate(triangulation, finite_element, f);
+  FESystem<dim> fe(FE_Q<dim>(1), dim);
+  DoFHandler<dim> dof_handler(triangulation);
+  dof_handler.distribute_dofs(fe);
+  VectorField<dim> g = interpolate(triangulation, fe, dof_handler, f);
 
   Quadrature<dim> quad(2);
   const unsigned int n_q_points = quad.size();
 
-  const auto& dof_handler = g.get_dof_handler();
   const auto& coefficients = g.get_coefficients();
 
   std::vector<Tensor<1, dim> > f_values(n_q_points), g_values(n_q_points);
-  FEValues<dim> fe_values(finite_element, quad,
-                          update_values | update_quadrature_points);
+  FEValues<dim> fe_values(fe, quad, update_values | update_quadrature_points);
   const FEValuesExtractors::Vector extractor(0);
 
   for (auto cell: dof_handler.active_cell_iterators()) {

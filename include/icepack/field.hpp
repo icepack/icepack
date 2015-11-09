@@ -23,7 +23,7 @@ namespace icepack
   using dealii::FiniteElement;
   using dealii::DoFHandler;
   using dealii::Vector;
-
+  using dealii::SmartPointer;
 
   namespace
   {
@@ -41,19 +41,29 @@ namespace icepack
 
       // Constructors & destructors
       FieldType(const Triangulation<dim>& _triangulation,
-                const FiniteElement<dim>& _fe)
+                const FiniteElement<dim>& _fe,
+                const DoFHandler<dim>& _dof_handler)
         :
         triangulation(_triangulation),
         fe(_fe),
-        dof_handler(new DoFHandler<dim>(triangulation))
+        dof_handler(&_dof_handler)
       {
-        dof_handler->distribute_dofs(fe);
         coefficients.reinit(dof_handler->n_dofs());
 
         // TODO: put in some asserts to make sure that the FiniteElement object
         // supplied is compatible with the field type (scalar vs. vector)
       }
 
+      // Copy constructor
+      FieldType(const FieldType<rank, dim>& phi)
+        :
+        triangulation(phi.triangulation),
+        fe(phi.fe),
+        dof_handler(phi.dof_handler),
+        coefficients(phi.coefficients)
+      {}
+
+      // Move constructor
       FieldType(FieldType<rank, dim>&& phi)
         :
         triangulation(phi.triangulation),
@@ -63,9 +73,7 @@ namespace icepack
       {}
 
       virtual ~FieldType()
-      {
-        dof_handler->clear();
-      }
+      {}
 
 
       // Accessors to raw data
@@ -117,7 +125,7 @@ namespace icepack
     protected:
       const Triangulation<dim>& triangulation;
       const FiniteElement<dim>& fe;
-      std::unique_ptr<DoFHandler<dim> > dof_handler;
+      SmartPointer<const DoFHandler<dim> > dof_handler;
       Vector<double> coefficients;
     };
   }
@@ -136,9 +144,10 @@ namespace icepack
   template <int dim>
   Field<dim> interpolate(const Triangulation<dim>& triangulation,
                          const FiniteElement<dim>& finite_element,
+                         const DoFHandler<dim>& dof_handler,
                          const Function<dim>& phi)
   {
-    Field<dim> psi(triangulation, finite_element);
+    Field<dim> psi(triangulation, finite_element, dof_handler);
 
     dealii::VectorTools::interpolate(
       psi.get_dof_handler(),
@@ -153,9 +162,10 @@ namespace icepack
   template <int dim>
   VectorField<dim> interpolate(const Triangulation<dim>& triangulation,
                                const FiniteElement<dim>& finite_element,
+                               const DoFHandler<dim>& dof_handler,
                                const TensorFunction<1, dim>& phi)
   {
-    VectorField<dim> psi(triangulation, finite_element);
+    VectorField<dim> psi(triangulation, finite_element, dof_handler);
 
     const VectorFunctionFromTensorFunction<dim> vphi(phi);
     dealii::VectorTools::interpolate(
