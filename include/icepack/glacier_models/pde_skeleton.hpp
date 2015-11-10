@@ -15,6 +15,27 @@ namespace icepack
   using dealii::FESystem;
   using dealii::DoFHandler;
   using dealii::SparsityPattern;
+  using dealii::UpdateFlags;
+
+
+  // Default update flags for FEValues objects.
+  namespace DefaultUpdateFlags
+  {
+    using dealii::update_values;
+    using dealii::update_gradients;
+    using dealii::update_quadrature_points;
+    using dealii::update_JxW_values;
+    using dealii::update_normal_vectors;
+
+    const UpdateFlags flags =
+      update_values            | update_gradients |
+      update_quadrature_points | update_JxW_values;
+
+    const UpdateFlags face_flags =
+      update_values         | update_quadrature_points |
+      update_normal_vectors | update_JxW_values;
+  }
+
 
   /**
    * This is a utility class for setting up partial differential equations.
@@ -32,6 +53,7 @@ namespace icepack
   class PDESkeleton
   {
   public:
+    // Constructors & destructors
     PDESkeleton(const Triangulation<dim>& triangulation,
                 const FE& _fe)
       :
@@ -50,6 +72,8 @@ namespace icepack
       dof_handler.clear();
     }
 
+
+    // Accessors
     const FE& get_fe() const
     {
       return fe;

@@ -2,9 +2,6 @@
 #ifndef ICEPACK_SHALLOW_STREAM_HPP
 #define ICEPACK_SHALLOW_STREAM_HPP
 
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/fe_system.h>
-
 #include <icepack/physical_constants.hpp>
 #include <icepack/field.hpp>
 #include <icepack/glacier_models/pde_skeleton.hpp>
@@ -12,8 +9,6 @@
 
 namespace icepack
 {
-  using dealii::FE_Q;
-  using dealii::FESystem;
 
   /**
    * This class solves the shallow stream model of glacier flow, appropriate
