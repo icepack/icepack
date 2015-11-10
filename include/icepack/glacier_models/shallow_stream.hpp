@@ -52,7 +52,7 @@ namespace icepack
     VectorField<2> driving_stress(
       const Field<2>& surface,
       const Field<2>& thickness
-    );
+    ) const;
 
     /**
      * Compute the ice velocity from the thickness and friction coefficient.
@@ -62,7 +62,7 @@ namespace icepack
       const Thickness& thickness,
       const Field<2>& beta,
       const Velocity& u0
-    );
+    ) const;
 
     /**
      * Propagate the ice thickness forward in time using the current velocity
@@ -73,7 +73,7 @@ namespace icepack
       const Thickness& thickness,
       const Field<2>& accumulation,
       const Velocity& u
-    );
+    ) const;
 
     /**
      * Solve the linearization of the diagnostic equation around a velocity u0
@@ -84,7 +84,7 @@ namespace icepack
       const Field<2>& beta,
       const Field<2>& u0,
       const VectorField<2>& f
-    );
+    ) const;
 
 
     /**
