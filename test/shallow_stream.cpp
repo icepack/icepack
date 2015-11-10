@@ -59,5 +59,8 @@ int main()
     std::cout << std::endl;
   }
 
+  const ConstraintMatrix& constraints = vector_pde.get_constraints();
+  std::cout << constraints.n_constraints() << std::endl;
+
   return 0;
 }

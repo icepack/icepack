@@ -15,6 +15,7 @@ namespace icepack
   using dealii::FESystem;
   using dealii::DoFHandler;
   using dealii::SparsityPattern;
+  using dealii::ConstraintMatrix;
   using dealii::UpdateFlags;
 
 
@@ -65,6 +66,10 @@ namespace icepack
       const unsigned int nn = dof_handler.n_dofs();
       sparsity.reinit(nn, nn, dof_handler.max_couplings_between_dofs());
       dealii::DoFTools::make_sparsity_pattern(dof_handler, sparsity);
+
+      constraints.clear();
+      dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+      constraints.close();
     }
 
     ~PDESkeleton()
@@ -89,10 +94,16 @@ namespace icepack
       return sparsity;
     }
 
+    const ConstraintMatrix& get_constraints() const
+    {
+      return constraints;
+    }
+
   protected:
     const FE fe;
     DoFHandler<dim> dof_handler;
     SparsityPattern sparsity;
+    ConstraintMatrix constraints;
   };
 
 
