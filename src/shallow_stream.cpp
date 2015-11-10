@@ -10,6 +10,7 @@ namespace icepack
   using dealii::QGauss;
   using dealii::FEValues;
   using dealii::FEFaceValues;
+  using dealii::GeometryInfo;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
   /**
@@ -111,6 +112,8 @@ namespace icepack
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_gradients(s.get_coefficients(), grad_s_values);
 
+      // Add up the driving stress contributions to the cell right-hand side
+      // from each quadrature point.
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = tau_fe_values.JxW(q);
         const Tensor<1, 2> tau_q =
@@ -120,7 +123,36 @@ namespace icepack
           cell_rhs(i) += tau_fe_values[exv].value(i, q) * tau_q * dx;
       }
 
-      // TODO: add face contribution
+      // If we're at the calving terminus, add in the frontal stress.
+      for (unsigned int face_number = 0;
+           face_number < GeometryInfo<2>::faces_per_cell; ++face_number)
+        if (cell->face(face_number)->at_boundary()
+            and
+            cell->face(face_number)->boundary_id() == 1) {
+          tau_fe_face_values.reinit(cell, face_number);
+          h_fe_face_values.reinit(h_cell, face_number);
+
+          h_fe_face_values[exs].get_function_values(h.get_coefficients(), h_face_values);
+          h_fe_face_values[exs].get_function_values(s.get_coefficients(), s_face_values);
+
+          for (unsigned int q = 0; q < n_face_q_points; ++q) {
+            const double dl = tau_fe_face_values.JxW(q);
+            const double H = h_face_values[q];
+            const double D = s_face_values[q] - H;
+            const Tensor<1, 2> n = h_fe_face_values.normal_vector(q);
+
+            // Compute the stress at the ice terminus.
+            // Observe the d<0 -- this is a logical, which is technically also
+            // an integer, which equals 1 when the ice base is below sea level
+            // and 0 otherwise. There's no water pressure if it's a land-
+            // terminating glacier.
+            const Tensor<1, 2> tau_q =
+              0.5 * gravity * (rho_ice * H * H - (D<0) * rho_water * D * D) * n;
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i)
+              cell_rhs(i) += tau_fe_face_values[exv].value(i, q) * tau_q * dl;
+          }
+        }
 
       cell->get_dof_indices(local_dof_indices);
       vector_pde_skeleton.get_constraints().distribute_local_to_global(
