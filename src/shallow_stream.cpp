@@ -60,16 +60,23 @@ namespace icepack
   VectorField<2>
   ShallowStream::driving_stress(const Field<2>& s, const Field<2>& h) const
   {
+    // Initialize the VectorField for the driving stress
     const auto& tau_fe = vector_pde_skeleton.get_fe();
     const auto& tau_dof_handler = vector_pde_skeleton.get_dof_handler();
     VectorField<2> tau(triangulation, tau_fe, tau_dof_handler);
 
+    // Get the finite element & DoF handler for scalar fields
     const auto& h_fe = scalar_pde_skeleton.get_fe();
     const auto& h_dof_handler = scalar_pde_skeleton.get_dof_handler();
 
-    const QGauss<2> quad(2);
-    const QGauss<1> f_quad(2);
+    // Find the polynomial degree of the finite element expansion and make
+    // quadrature rules for cells and faces with sufficient accuracy
+    const unsigned int p = tau_fe.tensor_degree();
+    const QGauss<2> quad(p);
+    const QGauss<1> f_quad(p);
 
+    // Get FEValues objects and an extractor for the driving stress and the
+    // thickness/surface elevation fields.
     FEValues<2> tau_fe_values(tau_fe, quad, DefaultUpdateFlags::flags);
     FEFaceValues<2> tau_fe_face_values(tau_fe, f_quad, DefaultUpdateFlags::face_flags);
     const FEValuesExtractors::Vector exv(0);
@@ -78,6 +85,7 @@ namespace icepack
     FEFaceValues<2> h_fe_face_values(h_fe, f_quad, DefaultUpdateFlags::face_flags);
     const FEValuesExtractors::Scalar exs(0);
 
+    // Initialize storage for cell- and face-local data
     const unsigned int n_q_points = quad.size();
     const unsigned int n_face_q_points = f_quad.size();
     const unsigned int dofs_per_cell = tau_fe.dofs_per_cell;
@@ -91,6 +99,8 @@ namespace icepack
     Vector<double> cell_rhs(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
+    // Create cell iterators from the tau and h DoFHandlers; these will be
+    // iterated jointly.
     auto cell = tau_dof_handler.begin_active();
     auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
     for (; cell != tau_dof_handler.end(); ++cell, ++h_cell) {
