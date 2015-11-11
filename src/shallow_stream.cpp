@@ -68,7 +68,6 @@ namespace icepack
 
     // Get the finite element & DoF handler for scalar fields
     const auto& h_fe = scalar_pde_skeleton.get_fe();
-    const auto& h_dof_handler = scalar_pde_skeleton.get_dof_handler();
 
     // Find the polynomial degree of the finite element expansion and make
     // quadrature rules for cells and faces with sufficient accuracy

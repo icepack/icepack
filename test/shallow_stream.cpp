@@ -6,8 +6,34 @@
 using namespace dealii;
 using namespace icepack;
 
-const double length = 2000.0;
-const double width = 500.0;
+const double length = 2000;
+const double width = 500;
+const double h0 = 500;
+const double delta_h = 100;
+
+
+class Surface : public Function<2>
+{
+public:
+  Surface() {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    return (1 - rho_ice/rho_water) * (h0 - delta_h/length * x[0]);
+  }
+};
+
+class Thickness : public Function<2>
+{
+public:
+  Thickness() {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    return h0 - delta_h/length * x[0];
+  }
+};
+
 
 int main()
 {
@@ -27,40 +53,13 @@ int main()
   triangulation.refine_global(3);
 
   ShallowStream ssa(triangulation, 1);
-  const auto& vector_pde = ssa.get_vector_pde_skeleton();
-  const FiniteElement<2>& fe = vector_pde.get_fe();
+  const Surface _s;
+  const Thickness _h;
 
-  const QGauss<2> quad(2);
-  const QGauss<1> face_quad(2);
+  Field<2> s = ssa.interpolate(_s);
+  Field<2> h = ssa.interpolate(_h);
 
-  FEValues<2> fe_values(fe, quad,  DefaultUpdateFlags::flags);
-  FEFaceValues<2> fe_face_values(fe, face_quad, DefaultUpdateFlags::face_flags);
-
-  for (auto cell: vector_pde.get_dof_handler().active_cell_iterators()) {
-    fe_values.reinit(cell);
-
-    const auto& xs = fe_values.get_quadrature_points();
-
-    for (auto x: xs) std::cout << x << "  ";
-
-    for (unsigned int face_number = 0;
-         face_number < GeometryInfo<2>::faces_per_cell;
-         ++face_number)
-      if (cell->face(face_number)->at_boundary()
-          and
-          cell->face(face_number)->boundary_id() == 1) {
-        fe_face_values.reinit(cell, face_number);
-        const auto& face_xs = fe_face_values.get_quadrature_points();
-
-        for (auto x: face_xs)
-          std::cout << " " << x;
-      }
-
-    std::cout << std::endl;
-  }
-
-  const ConstraintMatrix& constraints = vector_pde.get_constraints();
-  std::cout << constraints.n_constraints() << std::endl;
+  VectorField<2> tau = ssa.driving_stress(s, h);
 
   return 0;
 }
