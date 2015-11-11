@@ -25,110 +25,106 @@ namespace icepack
   using dealii::Vector;
   using dealii::SmartPointer;
 
-  namespace
+  /**
+   * Base class for any physical field discretized by finite elements.
+   */
+  template <int rank, int dim>
+  class FieldType
   {
-    /**
-     * Base class for any physical field discretized by finite elements.
-     */
-    template <int rank, int dim>
-    class FieldType
+  public:
+    // Type aliases; these are for template magic.
+    using value_type = typename Tensor<rank, dim>::tensor_type;
+    using gradient_type = typename Tensor<rank + 1, dim>::tensor_type;
+
+
+    // Constructors & destructors
+    FieldType(const Triangulation<dim>& _triangulation,
+              const FiniteElement<dim>& _fe,
+              const DoFHandler<dim>& _dof_handler)
+      :
+      triangulation(_triangulation),
+      fe(_fe),
+      dof_handler(&_dof_handler)
     {
-    public:
-      // Type aliases; these are for template magic.
-      using value_type = typename Tensor<rank, dim>::tensor_type;
-      using gradient_type = typename Tensor<rank + 1, dim>::tensor_type;
+      coefficients.reinit(dof_handler->n_dofs());
+
+      // TODO: put in some asserts to make sure that the FiniteElement object
+      // supplied is compatible with the field type (scalar vs. vector)
+    }
+
+    // Copy constructor
+    FieldType(const FieldType<rank, dim>& phi)
+      :
+      triangulation(phi.triangulation),
+      fe(phi.fe),
+      dof_handler(phi.dof_handler),
+      coefficients(phi.coefficients)
+    {}
+
+    // Move constructor
+    FieldType(FieldType<rank, dim>&& phi)
+      :
+      triangulation(phi.triangulation),
+      fe(phi.fe),
+      dof_handler(std::move(phi.dof_handler)),
+      coefficients(std::move(phi.coefficients))
+    {}
+
+    virtual ~FieldType()
+    {}
 
 
-      // Constructors & destructors
-      FieldType(const Triangulation<dim>& _triangulation,
-                const FiniteElement<dim>& _fe,
-                const DoFHandler<dim>& _dof_handler)
-        :
-        triangulation(_triangulation),
-        fe(_fe),
-        dof_handler(&_dof_handler)
-      {
-        coefficients.reinit(dof_handler->n_dofs());
+    // Accessors to raw data
+    const Vector<double>& get_coefficients() const
+    {
+      return coefficients;
+    }
 
-        // TODO: put in some asserts to make sure that the FiniteElement object
-        // supplied is compatible with the field type (scalar vs. vector)
-      }
+    Vector<double>& get_coefficients()
+    {
+      return coefficients;
+    }
 
-      // Copy constructor
-      FieldType(const FieldType<rank, dim>& phi)
-        :
-        triangulation(phi.triangulation),
-        fe(phi.fe),
-        dof_handler(phi.dof_handler),
-        coefficients(phi.coefficients)
-      {}
+    const FiniteElement<dim>& get_fe() const
+    {
+      return fe;
+    }
 
-      // Move constructor
-      FieldType(FieldType<rank, dim>&& phi)
-        :
-        triangulation(phi.triangulation),
-        fe(phi.fe),
-        dof_handler(std::move(phi.dof_handler)),
-        coefficients(std::move(phi.coefficients))
-      {}
-
-      virtual ~FieldType()
-      {}
+    const DoFHandler<dim>& get_dof_handler() const
+    {
+      return *dof_handler;
+    }
 
 
-      // Accessors to raw data
-      const Vector<double>& get_coefficients() const
-      {
-        return coefficients;
-      }
+    // File I/O
+    bool write(const std::string& filename,
+               const std::string& field_name)
+    {
+      std::ofstream output(filename.c_str());
 
-      Vector<double>& get_coefficients()
-      {
-        return coefficients;
-      }
+      dealii::DataOut<dim> data_out;
+      data_out.attach_dof_handler(*dof_handler);
 
-      const FiniteElement<dim>& get_fe() const
-      {
-        return fe;
-      }
+      std::vector<std::string> component_names;
+      if (rank == 1)
+        for (unsigned int k = 0; k < dim; ++k)
+          component_names.push_back(field_name + "_" + std::to_string(k+1));
+      else
+        component_names.push_back(field_name);
 
-      const DoFHandler<dim>& get_dof_handler() const
-      {
-        return *dof_handler;
-      }
+      data_out.add_data_vector(coefficients, component_names);
+      data_out.build_patches();
+      data_out.write_ucd(output);
 
+      return true;
+    }
 
-      // File I/O
-      bool write(const std::string& filename,
-                 const std::string& field_name)
-      {
-        std::ofstream output(filename.c_str());
-
-        dealii::DataOut<dim> data_out;
-        data_out.attach_dof_handler(*dof_handler);
-
-        std::vector<std::string> component_names;
-        if (rank == 1)
-          for (unsigned int k = 0; k < dim; ++k)
-            component_names.push_back(field_name + "_" + std::to_string(k+1));
-        else
-          component_names.push_back(field_name);
-
-        data_out.add_data_vector(coefficients, component_names);
-        data_out.build_patches();
-        data_out.write_ucd(output);
-
-        return true;
-      }
-
-
-    protected:
-      const Triangulation<dim>& triangulation;
-      const FiniteElement<dim>& fe;
-      SmartPointer<const DoFHandler<dim> > dof_handler;
-      Vector<double> coefficients;
-    };
-  }
+  protected:
+    const Triangulation<dim>& triangulation;
+    const FiniteElement<dim>& fe;
+    SmartPointer<const DoFHandler<dim> > dof_handler;
+    Vector<double> coefficients;
+  };
 
 
   // Scalar and vector fields are specializations of FieldType with ranks 0, 1.
