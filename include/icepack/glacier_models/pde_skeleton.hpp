@@ -79,6 +79,43 @@ namespace icepack
     }
 
 
+    // Helper functions for making boundary value maps
+    template <int rank>
+    std::map<dealii::types::global_dof_index, double>
+    interpolate_boundary_values(const FieldType<rank, dim>& phi,
+                                const unsigned int boundary_id = 0) const
+    {
+      // TODO: add an Assert, this only works for rank 0 for a scalar field
+      // and rank 1 for a vector field.
+
+      std::map<dealii::types::global_dof_index, double> boundary_values;
+
+      // This perhaps requires some explanation.
+      // Usually, one would take a deal.II Function object, interpolate it to
+      // the boundary of the Triangulation, then keep track of the relevant
+      // degress of freedom in a std::map object. One then uses this std::map
+      // to fix the Dirichlet boundary conditions. Creating this std::map
+      // is done in the function VectorTools::interpolate_boundary_values.
+      //
+      // In our case, however, we don't have a Function object for the boundary
+      // values, just some FE field `phi`. Instead, we create the std::map by
+      // interpolating 0 to the boundary...
+      dealii::VectorTools::interpolate_boundary_values(
+        dof_handler,
+        boundary_id,
+        dealii::ZeroFunction<dim>(std::pow(dim, rank)),
+        boundary_values
+      );
+
+      // ...and, knowing the right degrees of freedom to fix for Dirichlet BCs,
+      // we can get these directly from the coefficients of the input Field.
+      const Vector<double>& Phi = phi.get_coefficients();
+      for (auto& p: boundary_values) p.second = Phi(p.first);
+
+      return std::move(boundary_values);
+    }
+
+
     // Accessors
     const FE& get_fe() const
     {

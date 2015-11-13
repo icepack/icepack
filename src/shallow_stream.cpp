@@ -200,30 +200,7 @@ namespace icepack
     VectorField<2> tau = driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
 
-    std::map<dealii::types::global_dof_index, double> boundary_values;
-
-    // Fill the boundary values. This perhaps requires some explanation.
-    // Usually, one would take a deal.II Function object, interpolate it to the
-    // boundary of the Triangulation, then keep track of the relevant degrees
-    // of freedom and values in a std::map object (defined above). Creating the
-    // std::map object is done in the function interpolate_boundary_values.
-    //
-    // In our case, however, we don't have a Function object for the boundary
-    // values, just the old FE solution `u0`. Instead, we create the std::map
-    // by interpolating 0 to the boundary...
-    const DoFHandler<2>& dof_handler = vector_pde_skeleton.get_dof_handler();
-    dealii::VectorTools::interpolate_boundary_values(
-      dof_handler, 0, dealii::ZeroFunction<2>(2), boundary_values
-    );
-
-    // ...and, knowing the right degrees of freedom to fix for Dirichlet
-    // boundary conditions, we can get these from `u0`.
-    for (auto& p: boundary_values) {
-      auto i = p.first;
-      p.second = U(i);
-    }
-
-    // Then we apply these boundary values to the linear system as a whole.
+    auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
     dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
     // linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
@@ -374,6 +351,8 @@ namespace icepack
         cell_matrix, local_dof_indices, A
       );
     }
+
+    A.compress(dealii::VectorOperation::add);
   }
 
 }
