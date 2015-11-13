@@ -6,6 +6,11 @@
 using namespace dealii;
 using namespace icepack;
 
+const double rho = rho_ice * (1 - rho_ice / rho_water);
+const double temp = 263.15;
+const double A = pow(rho * gravity / 4, 3) * rate_factor(temp);
+
+const double u0 = 100;
 const double length = 2000;
 const double width = 500;
 const double h0 = 500;
@@ -34,6 +39,23 @@ public:
   }
 };
 
+class Velocity : public TensorFunction<1, 2>
+{
+public:
+  Velocity() {}
+
+  Tensor<1, 2> value(const Point<2>& x) const
+  {
+    const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
+
+    Tensor<1, 2> v;
+    v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
+    v[1] = 0.0;
+
+    return v;
+  }
+};
+
 
 int main()
 {
@@ -58,8 +80,12 @@ int main()
 
   Field<2> s = ssa.interpolate(_s);
   Field<2> h = ssa.interpolate(_h);
+  Field<2> beta = ssa.interpolate(ZeroFunction<2>());
+  VectorField<2> u0 = ssa.interpolate(Velocity());
 
   VectorField<2> tau = ssa.driving_stress(s, h);
+
+  VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
 
   return 0;
 }
