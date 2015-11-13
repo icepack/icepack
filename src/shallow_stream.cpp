@@ -3,6 +3,8 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/numerics/matrix_tools.h>
 
 #include <icepack/glacier_models/shallow_stream.hpp>
@@ -17,6 +19,10 @@ namespace icepack
 
   using dealii::FullMatrix;
   using dealii::SparseMatrix;
+
+  using dealii::SolverControl;
+  using dealii::SolverCG;
+  using dealii::SparseILU;
 
   using dealii::QGauss;
   using dealii::FEValues;
@@ -185,6 +191,13 @@ namespace icepack
     const VectorField<2>& u0
   );
 
+  void linear_solve(
+    const SparseMatrix<double>& A,
+    Vector<double>& u,
+    const Vector<double>& f,
+    const ConstraintMatrix& constraints
+  );
+
   VectorField<2> ShallowStream::diagnostic_solve(
     const Field<2>& s,
     const Field<2>& h,
@@ -203,7 +216,7 @@ namespace icepack
     auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
     dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
-    // linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
+    linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
 
     return std::move(u);
   }
@@ -353,6 +366,25 @@ namespace icepack
     }
 
     A.compress(dealii::VectorOperation::add);
+  }
+
+
+  void linear_solve(
+    const SparseMatrix<double>& A,
+    Vector<double>& u,
+    const Vector<double>& f,
+    const ConstraintMatrix& constraints
+  )
+  {
+    SolverControl solver_control(1000, 1.0e-12);
+    SolverCG<>    cg(solver_control);
+
+    SparseILU<double> M;
+    M.initialize(A);
+
+    cg.solve(A, u, f, M);
+
+    constraints.distribute(u);
   }
 
 }
