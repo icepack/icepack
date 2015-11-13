@@ -206,17 +206,39 @@ namespace icepack
   ) const
   {
     SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
-    velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u0);
 
     VectorField<2> u = u0;
-    Vector<double>& U = u.get_coefficients();
+    auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
+
     VectorField<2> tau = driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
+    Vector<double>& U = u.get_coefficients();
+    Vector<double> V(U);
 
-    auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
-    dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
+    // TODO: make these function parameters
+    const double tolerance = 1.0e-2;
+    const unsigned int max_iteration_count = 12;
+    unsigned int iteration_count = 0;
+    double error = 1.0e16;
 
-    linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
+    for (; iteration_count < max_iteration_count && error > tolerance;
+         ++iteration_count) {
+      // Fill the system matrix
+      velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, V, F, false);
+
+      // Solve the linear system with the updated matrix
+      linear_solve(A, V, F, vector_pde_skeleton.get_constraints());
+
+      // Compute the difference between the new and old solutions
+      // TODO: this is the L2-norm difference of the coefficient vectors; we
+      // should be using the L2-norm difference of the fields.
+      // Also, this allocates a temporary vector.
+      U -= V;
+      error = U.l2_norm() / V.l2_norm();
+
+      U = V;
+    }
 
     return std::move(u);
   }
