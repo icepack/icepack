@@ -66,6 +66,7 @@ namespace icepack
       const unsigned int nn = dof_handler.n_dofs();
       sparsity.reinit(nn, nn, dof_handler.max_couplings_between_dofs());
       dealii::DoFTools::make_sparsity_pattern(dof_handler, sparsity);
+      sparsity.compress();
 
       constraints.clear();
       dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
