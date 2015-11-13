@@ -56,6 +56,31 @@ public:
   }
 };
 
+class BoundaryVelocity : public TensorFunction<1, 2>
+{
+public:
+  BoundaryVelocity() {}
+
+  Tensor<1, 2> value(const Point<2>& x) const
+  {
+    const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
+
+    Tensor<1, 2> v;
+    v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
+    v[1] = 0.0;
+
+    // Fudge factor so this isn't the same as the exact solution
+    const double px = x[0] / length;
+    const double ax = px * (1 - px);
+    const double py = x[1] / width;
+    const double ay = py * (1 - py);
+    v[1] += ax * ay * (0.5 - py) * 50.0;
+
+    return v;
+  }
+};
+
+
 
 int main()
 {
@@ -81,9 +106,7 @@ int main()
   Field<2> s = ssa.interpolate(_s);
   Field<2> h = ssa.interpolate(_h);
   Field<2> beta = ssa.interpolate(ZeroFunction<2>());
-  VectorField<2> u0 = ssa.interpolate(Velocity());
-
-  VectorField<2> tau = ssa.driving_stress(s, h);
+  VectorField<2> u0 = ssa.interpolate(BoundaryVelocity());
 
   VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
 
