@@ -11,8 +11,13 @@
 namespace icepack
 {
   using dealii::SymmetricTensor;
+  using dealii::unit_symmetric_tensor;
+  using dealii::identity_tensor;
+  using dealii::outer_product;
+
   using dealii::FullMatrix;
   using dealii::SparseMatrix;
+
   using dealii::QGauss;
   using dealii::FEValues;
   using dealii::FEFaceValues;
@@ -187,7 +192,7 @@ namespace icepack
     const VectorField<2>& u0
   ) const
   {
-    SparseMatrix<double> A;
+    SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
     velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u0);
 
     VectorField<2> u = u0;
@@ -202,7 +207,7 @@ namespace icepack
     // boundary of the Triangulation, then keep track of the relevant degrees
     // of freedom and values in a std::map object (defined above). Creating the
     // std::map object is done in the function interpolate_boundary_values.
-
+    //
     // In our case, however, we don't have a Function object for the boundary
     // values, just the old FE solution `u0`. Instead, we create the std::map
     // by interpolating 0 to the boundary...
@@ -275,6 +280,22 @@ namespace icepack
   /**
    * Helper functions
    */
+  SymmetricTensor<4, 2> constitutive_tensor(
+    const double temperature,
+    const double h,
+    const SymmetricTensor<2, 2> eps
+  )
+  {
+    const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
+    const SymmetricTensor<4, 2> II = identity_tensor<2>();
+    const SymmetricTensor<4, 2> C = II + outer_product(I, I);
+
+    const double tr = first_invariant(eps);
+    const double eps_e = sqrt((eps * eps + tr * tr)/2);
+    const double nu = h * viscosity(temperature, eps_e);
+    return nu * C;
+  }
+
 
   void velocity_matrix (
     SparseMatrix<double>& A,
@@ -286,7 +307,7 @@ namespace icepack
     const VectorField<2>& u0
   )
   {
-    A.reinit(vector_pde_skeleton.get_sparsity_pattern());
+    A = 0;
 
     const auto& u_fe = vector_pde_skeleton.get_fe();
     const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
@@ -298,14 +319,12 @@ namespace icepack
     const QGauss<1> f_quad(p);
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
-    FEFaceValues<2> u_fe_face_values(u_fe, f_quad, DefaultUpdateFlags::face_flags);
     const FEValuesExtractors::Vector exv(0);
 
     FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Scalar exs(0);
 
     const unsigned int n_q_points = quad.size();
-    const unsigned int n_face_q_points = f_quad.size();
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
@@ -331,9 +350,13 @@ namespace icepack
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
+        const double h = h_values[q];
+        const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
-        // TODO: figure out what to do with this
-        const SymmetricTensor<4, 2> Cq;
+        // TODO: use an actual temperature field
+        const double T = 263.15;
+
+        const SymmetricTensor<4, 2> Cq = constitutive_tensor(T, h, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
