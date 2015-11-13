@@ -85,8 +85,8 @@ namespace icepack
     interpolate_boundary_values(const FieldType<rank, dim>& phi,
                                 const unsigned int boundary_id = 0) const
     {
-      // TODO: add an Assert, this only works for rank 0 for a scalar field
-      // and rank 1 for a vector field.
+      const unsigned int n_components = std::pow(dim, rank);
+      AssertDimension(fe.n_components(), n_components);
 
       std::map<dealii::types::global_dof_index, double> boundary_values;
 
@@ -103,7 +103,7 @@ namespace icepack
       dealii::VectorTools::interpolate_boundary_values(
         dof_handler,
         boundary_id,
-        dealii::ZeroFunction<dim>(std::pow(dim, rank)),
+        dealii::ZeroFunction<dim>(n_components),
         boundary_values
       );
 
