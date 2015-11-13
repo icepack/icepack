@@ -1,12 +1,18 @@
 
+#include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/numerics/matrix_tools.h>
 
 #include <icepack/glacier_models/shallow_stream.hpp>
 
 
 namespace icepack
 {
+  using dealii::SymmetricTensor;
+  using dealii::FullMatrix;
+  using dealii::SparseMatrix;
   using dealii::QGauss;
   using dealii::FEValues;
   using dealii::FEFaceValues;
@@ -163,21 +169,65 @@ namespace icepack
   }
 
 
-  VectorField<2>
-  ShallowStream::diagnostic_solve(
+  // Forward declarations for some helper functions
+  void velocity_matrix(
+    SparseMatrix<double>& A,
+    const ScalarPDESkeleton<2>& scalar_pde_skeleton,
+    const VectorPDESkeleton<2>& vector_pde_skeleton,
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u0
+  );
+
+  VectorField<2> ShallowStream::diagnostic_solve(
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
     const VectorField<2>& u0
   ) const
   {
-    /* TODO: write this */
-    return u0;
+    SparseMatrix<double> A;
+    velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u0);
+
+    VectorField<2> u = u0;
+    Vector<double>& U = u.get_coefficients();
+    VectorField<2> tau = driving_stress(s, h);
+    Vector<double>& F = tau.get_coefficients();
+
+    std::map<dealii::types::global_dof_index, double> boundary_values;
+
+    // Fill the boundary values. This perhaps requires some explanation.
+    // Usually, one would take a deal.II Function object, interpolate it to the
+    // boundary of the Triangulation, then keep track of the relevant degrees
+    // of freedom and values in a std::map object (defined above). Creating the
+    // std::map object is done in the function interpolate_boundary_values.
+
+    // In our case, however, we don't have a Function object for the boundary
+    // values, just the old FE solution `u0`. Instead, we create the std::map
+    // by interpolating 0 to the boundary...
+    const DoFHandler<2>& dof_handler = vector_pde_skeleton.get_dof_handler();
+    dealii::VectorTools::interpolate_boundary_values(
+      dof_handler, 0, dealii::ZeroFunction<2>(2), boundary_values
+    );
+
+    // ...and, knowing the right degrees of freedom to fix for Dirichlet
+    // boundary conditions, we can get these from `u0`.
+    for (auto& p: boundary_values) {
+      auto i = p.first;
+      p.second = U(i);
+    }
+
+    // Then we apply these boundary values to the linear system as a whole.
+    dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
+
+    // linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
+
+    return std::move(u);
   }
 
 
-  Field<2>
-  ShallowStream::prognostic_solve(
+  Field<2> ShallowStream::prognostic_solve(
     const double dt,
     const Field<2>& h,
     const Field<2>& a,
@@ -189,8 +239,7 @@ namespace icepack
   }
 
 
-  VectorField<2>
-  ShallowStream::adjoint_solve(
+  VectorField<2> ShallowStream::adjoint_solve(
     const Field<2>& h,
     const Field<2>& beta,
     const Field<2>& u0,
@@ -219,6 +268,89 @@ namespace icepack
   const VectorPDESkeleton<2>& ShallowStream::get_vector_pde_skeleton() const
   {
     return vector_pde_skeleton;
+  }
+
+
+
+  /**
+   * Helper functions
+   */
+
+  void velocity_matrix (
+    SparseMatrix<double>& A,
+    const ScalarPDESkeleton<2>& scalar_pde_skeleton,
+    const VectorPDESkeleton<2>& vector_pde_skeleton,
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u0
+  )
+  {
+    A.reinit(vector_pde_skeleton.get_sparsity_pattern());
+
+    const auto& u_fe = vector_pde_skeleton.get_fe();
+    const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
+
+    const auto& h_fe = scalar_pde_skeleton.get_fe();
+
+    const unsigned int p = u_fe.tensor_degree();
+    const QGauss<2> quad(p);
+    const QGauss<1> f_quad(p);
+
+    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
+    FEFaceValues<2> u_fe_face_values(u_fe, f_quad, DefaultUpdateFlags::face_flags);
+    const FEValuesExtractors::Vector exv(0);
+
+    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Scalar exs(0);
+
+    const unsigned int n_q_points = quad.size();
+    const unsigned int n_face_q_points = f_quad.size();
+    const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
+
+    std::vector<double> h_values(n_q_points);
+    std::vector<double> s_values(n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    auto cell = u_dof_handler.begin_active();
+    auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
+    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+      cell_matrix = 0;
+      u_fe_values.reinit(cell);
+      h_fe_values.reinit(h_cell);
+
+      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+
+      u_fe_values[exv].get_function_symmetric_gradients(
+        u0.get_coefficients(), strain_rate_values
+      );
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = u_fe_values.JxW(q);
+
+        // TODO: figure out what to do with this
+        const SymmetricTensor<4, 2> Cq;
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
+
+            cell_matrix(i, j) += (eps_phi_i * Cq * eps_phi_j) * dx;
+          }
+        }
+      }
+
+      cell->get_dof_indices(local_dof_indices);
+      vector_pde_skeleton.get_constraints().distribute_local_to_global(
+        cell_matrix, local_dof_indices, A
+      );
+    }
   }
 
 }
