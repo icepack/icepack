@@ -6,8 +6,11 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
-
 #include <icepack/field.hpp>
+
+
+const unsigned int num_levels = 3;
+const double dx = 1.0/(1 << num_levels);
 
 
 using namespace dealii;
@@ -66,6 +69,10 @@ bool test_field(
       Assert(abs(phi_values[q] - psi_values[q]) < 1.0e-6, ExcInternalError());
   }
 
+  const double n = norm(psi);
+  const double exact_integral = 1.0/3;
+  Assert(std::abs(n - exact_integral) < dx*dx, ExcInternalError());
+
   return true;
 }
 
@@ -100,6 +107,10 @@ bool test_vector_field(
       Assert((f_values[q] - g_values[q]).norm() < 1.0e-6, ExcInternalError());
   }
 
+  const double n = norm(g);
+  const double exact_integral = std::sqrt(dim/3.0);
+  Assert(std::abs(n - exact_integral) < dx*dx, ExcInternalError());
+
   return true;
 }
 
@@ -109,7 +120,7 @@ int main()
   const Point<2> p1(0.0, 0.0), p2(1.0, 1.0);
   Triangulation<2> triangulation;
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
-  triangulation.refine_global(3);
+  triangulation.refine_global(num_levels);
 
   Phi<2> phi;
   if (!test_field(triangulation, phi)) return 1;

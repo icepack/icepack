@@ -24,7 +24,6 @@ namespace icepack
   using dealii::SolverCG;
   using dealii::SparseILU;
 
-  using dealii::QGauss;
   using dealii::FEValues;
   using dealii::FEFaceValues;
   using dealii::GeometryInfo;

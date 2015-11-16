@@ -9,6 +9,7 @@
 #include <deal.II/base/tensor_function.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/dofs/dof_handler.h>
+#include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -19,11 +20,40 @@ namespace icepack
   using dealii::Function;
   using dealii::TensorFunction;
   using dealii::VectorFunctionFromTensorFunction;
+
   using dealii::Triangulation;
+  using dealii::QGauss;
   using dealii::FiniteElement;
   using dealii::DoFHandler;
+  using dealii::FEValues;
+
+  using dealii::update_values;
+  using dealii::update_quadrature_points;
+  using dealii::update_JxW_values;
+
   using dealii::Vector;
   using dealii::SmartPointer;
+
+
+  // This is for template magic, nothing to see here, move along folks...
+  namespace
+  {
+    template <int rank> struct ExtractorType
+    {
+      using type = dealii::FEValuesExtractors::Tensor<rank>;
+    };
+
+    template <> struct ExtractorType<0>
+    {
+      using type = dealii::FEValuesExtractors::Scalar;
+    };
+
+    template <> struct ExtractorType<1>
+    {
+      using type = dealii::FEValuesExtractors::Vector;
+    };
+  }
+
 
   /**
    * Base class for any physical field discretized by finite elements.
@@ -35,7 +65,7 @@ namespace icepack
     // Type aliases; these are for template magic.
     using value_type = typename Tensor<rank, dim>::tensor_type;
     using gradient_type = typename Tensor<rank + 1, dim>::tensor_type;
-
+    using extractor_type = typename ExtractorType<rank>::type;
 
     // Constructors & destructors
     FieldType(const Triangulation<dim>& _triangulation,
@@ -173,6 +203,46 @@ namespace icepack
     return psi;
   }
 
+
+  /**
+   * Compute the L2-norm of a finite element field
+   */
+  template <int rank, int dim>
+  double norm(const FieldType<rank, dim>& phi)
+  {
+    const auto& dof_handler = phi.get_dof_handler();
+    const auto& fe = phi.get_fe();
+    const Vector<double>& Phi = phi.get_coefficients();
+
+    const unsigned int p = fe.tensor_degree();
+    const QGauss<dim> quad(p);
+
+    FEValues<dim> fe_values(
+      fe, quad, update_values | update_JxW_values | update_quadrature_points
+    );
+
+    const unsigned int n_q_points = quad.size();
+    std::vector<typename FieldType<rank, dim>::value_type> phi_values(n_q_points);
+
+    // TODO: figure out how to make the right extractor a class-local typedef
+    const typename FieldType<rank, dim>::extractor_type extractor(0);
+
+    double N = 0.0;
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      fe_values.reinit(cell);
+      fe_values[extractor].get_function_values(Phi, phi_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = fe_values.JxW(q);
+        const auto phi_q = phi_values[q];
+        N += (phi_q * phi_q) * dx;
+      }
+    }
+
+    return std::sqrt(N);
+  }
+
+  // TODO: distance b/t two fields
 }
 
 #endif
