@@ -157,7 +157,7 @@ namespace icepack
             const Tensor<1, 2> n = h_fe_face_values.normal_vector(q);
 
             // Compute the stress at the ice terminus.
-            // Observe the d<0 -- this is a logical, which is technically also
+            // Observe the d<0 -- this is a boolean, which is technically also
             // an integer, which equals 1 when the ice base is below sea level
             // and 0 otherwise. There's no water pressure if it's a land-
             // terminating glacier.
@@ -216,8 +216,8 @@ namespace icepack
     Vector<double>& U_old = u_old.get_coefficients();
 
     // TODO: make these function parameters
-    const double tolerance = 1.0e-2;
-    const unsigned int max_iteration_count = 12;
+    const double tolerance = 1.0e-10;
+    const unsigned int max_iteration_count = 100;
     unsigned int iteration_count = 0;
     double error = 1.0e16;
 

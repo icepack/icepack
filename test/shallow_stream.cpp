@@ -74,7 +74,8 @@ public:
     const double ax = px * (1 - px);
     const double py = x[1] / width;
     const double ay = py * (1 - py);
-    v[1] += ax * ay * (0.5 - py) * 50.0;
+    v[1] += ax * ay * (0.5 - py) * 500.0;
+    v[0] += ax * ay * 500.0;
 
     return v;
   }
@@ -82,8 +83,12 @@ public:
 
 
 
-int main()
+int main(int argc, char **argv)
 {
+  const bool verbose = argc == 2 &&
+    (strcmp(argv[1], "-v") == 0 ||
+     strcmp(argv[1], "--verbose") == 0);
+
   Triangulation<2> triangulation;
   const Point<2> p1(0.0, 0.0), p2(length, width);
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
@@ -97,7 +102,8 @@ int main()
         cell->face(face_number)->set_boundary_id(1);
   }
 
-  triangulation.refine_global(3);
+  const unsigned int num_levels = 5;
+  triangulation.refine_global(num_levels);
 
   ShallowStream ssa(triangulation, 1);
   const Surface _s;
@@ -106,9 +112,23 @@ int main()
   Field<2> s = ssa.interpolate(_s);
   Field<2> h = ssa.interpolate(_h);
   Field<2> beta = ssa.interpolate(ZeroFunction<2>());
+  VectorField<2> u_true = ssa.interpolate(Velocity());
   VectorField<2> u0 = ssa.interpolate(BoundaryVelocity());
 
   VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
+
+  if (verbose) {
+    std::cout << "Relative initial error: "
+              << dist(u0, u_true)/norm(u_true) << std::endl;
+
+    std::cout << "Relative final error:   "
+              << dist(u, u_true)/norm(u_true) << std::endl;
+
+
+    u0.write("u0.ucd", "u0");
+    u_true.write("u_true.ucd", "u_true");
+    u.write("u.ucd", "u");
+  }
 
   return 0;
 }
