@@ -71,7 +71,7 @@ bool test_field(
 
   const double n = norm(psi);
   const double exact_integral = 1.0/3;
-  Assert(std::abs(n - exact_integral) < dx*dx, ExcInternalError());
+  Assert(abs(n - exact_integral) < dx*dx, ExcInternalError());
 
   return true;
 }
@@ -109,7 +109,7 @@ bool test_vector_field(
 
   const double n = norm(g);
   const double exact_integral = std::sqrt(dim/3.0);
-  Assert(std::abs(n - exact_integral) < dx*dx, ExcInternalError());
+  Assert(abs(n - exact_integral) < dx, ExcInternalError());
 
   return true;
 }

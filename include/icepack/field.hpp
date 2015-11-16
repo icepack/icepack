@@ -224,7 +224,6 @@ namespace icepack
     const unsigned int n_q_points = quad.size();
     std::vector<typename FieldType<rank, dim>::value_type> phi_values(n_q_points);
 
-    // TODO: figure out how to make the right extractor a class-local typedef
     const typename FieldType<rank, dim>::extractor_type extractor(0);
 
     double N = 0.0;
@@ -242,7 +241,47 @@ namespace icepack
     return std::sqrt(N);
   }
 
-  // TODO: distance b/t two fields
+
+  template <int rank, int dim>
+  double dist(const FieldType<rank, dim>& phi1, const FieldType<rank, dim>& phi2)
+  {
+    const auto& dof_handler = phi1.get_dof_handler();
+    const auto& fe = phi1.get_fe();
+    const Vector<double>& Phi1 = phi1.get_coefficients();
+    const Vector<double>& Phi2 = phi2.get_coefficients();
+
+    //TODO: add some error handling to make sure both fields are defined with
+    // the same FE discretization
+
+    const unsigned int p = fe.tensor_degree();
+    const QGauss<dim> quad(p);
+
+    FEValues<dim> fe_values(
+      fe, quad, update_values | update_JxW_values | update_quadrature_points
+    );
+
+    const unsigned int n_q_points = quad.size();
+    using value_type = typename FieldType<rank, dim>::value_type;
+    std::vector<value_type> phi1_values(n_q_points), phi2_values(n_q_points);
+
+    const typename FieldType<rank, dim>::extractor_type extractor(0);
+
+    double N = 0.0;
+    for (auto cell: dof_handler.active_cell_iterators()) {
+      fe_values.reinit(cell);
+      fe_values[extractor].get_function_values(Phi1, phi1_values);
+      fe_values[extractor].get_function_values(Phi2, phi2_values);
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = fe_values.JxW(q);
+        const auto diff_q = phi1_values[q] - phi2_values[q];
+        N += (diff_q * diff_q) * dx;
+      }
+    }
+
+    return std::sqrt(N);
+  }
+
 }
 
 #endif
