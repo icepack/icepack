@@ -206,13 +206,14 @@ namespace icepack
   {
     SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
 
+    VectorField<2> u_old = u0;
     VectorField<2> u = u0;
     auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
 
     VectorField<2> tau = driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
     Vector<double>& U = u.get_coefficients();
-    Vector<double> V(U);
+    Vector<double>& U_old = u_old.get_coefficients();
 
     // TODO: make these function parameters
     const double tolerance = 1.0e-2;
@@ -224,19 +225,15 @@ namespace icepack
          ++iteration_count) {
       // Fill the system matrix
       velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u);
-      dealii::MatrixTools::apply_boundary_values(boundary_values, A, V, F, false);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
-      linear_solve(A, V, F, vector_pde_skeleton.get_constraints());
+      linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
 
-      // Compute the difference between the new and old solutions
-      // TODO: this is the L2-norm difference of the coefficient vectors; we
-      // should be using the L2-norm difference of the fields.
-      // Also, this allocates a temporary vector.
-      U -= V;
-      error = U.l2_norm() / V.l2_norm();
+      // Compute the relative difference between the new and old solutions
+      error = dist(u, u_old) / norm(u_old);
 
-      U = V;
+      U_old = U;
     }
 
     return std::move(u);

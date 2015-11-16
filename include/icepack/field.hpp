@@ -242,6 +242,9 @@ namespace icepack
   }
 
 
+  /**
+   * Compute the L2-distance between two finite element fields
+   */
   template <int rank, int dim>
   double dist(const FieldType<rank, dim>& phi1, const FieldType<rank, dim>& phi2)
   {
