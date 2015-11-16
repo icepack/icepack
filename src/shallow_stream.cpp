@@ -301,7 +301,7 @@ namespace icepack
     const double tr = first_invariant(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const double nu = h * viscosity(temperature, eps_e);
-    return nu * C;
+    return 2 * nu * C;
   }
 
 
