@@ -124,11 +124,13 @@ int main(int argc, char **argv)
     std::cout << "Relative final error:   "
               << dist(u, u_true)/norm(u_true) << std::endl;
 
-
     u0.write("u0.ucd", "u0");
     u_true.write("u_true.ucd", "u_true");
     u.write("u.ucd", "u");
   }
+
+  const double dx = std::sqrt(length * width) / (1 << num_levels);
+  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
 }
