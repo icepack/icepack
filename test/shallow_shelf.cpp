@@ -1,84 +1,96 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-#include <deal.II/numerics/vector_tools.h>
-
-#include <icepack/glacier_models/shallow_shelf.hpp>
+#include <icepack/glacier_models/shallow_stream.hpp>
 
 using namespace dealii;
 using namespace icepack;
-
-/**
- * This program tests the correctness of the our implementation of the shallow
- * shelf approximation using the method of manufactured solutions.
- * We use the exact solution for the ice ramp from ch. 6.4 in Greve & Blatter.
- */
-
 
 const double rho = rho_ice * (1 - rho_ice / rho_water);
 const double temp = 263.15;
 const double A = pow(rho * gravity / 4, 3) * rate_factor(temp);
 
-
 const double u0 = 100;
+const double length = 2000;
+const double width = 500;
 const double h0 = 500;
-const double delta_h = 100.0;
-const double length = 2000.0;
-const double width = 500.0;
+const double delta_h = 100;
 
 
-class BoundaryVelocity : public TensorFunction<1, 2>
+class Surface : public Function<2>
 {
 public:
-  BoundaryVelocity () : TensorFunction<1, 2>() {}
+  Surface() {}
 
-  Tensor<1, 2> value (const Point<2>& x) const
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    return (1 - rho_ice/rho_water) * (h0 - delta_h/length * x[0]);
+  }
+};
+
+class Thickness : public Function<2>
+{
+public:
+  Thickness() {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    return h0 - delta_h/length * x[0];
+  }
+};
+
+class Velocity : public TensorFunction<1, 2>
+{
+public:
+  Velocity() {}
+
+  Tensor<1, 2> value(const Point<2>& x) const
   {
     const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
 
-    // This is the exact solution to the PDE.
     Tensor<1, 2> v;
     v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
     v[1] = 0.0;
 
-    // Fudge factor so the initial guess isn't the exact solution.
-    const double px = x[0] / length, py = x[1] / width;
-    const double p = px * (1 - px) * py * (1 - py);
-    v[0] += p * 10.0;
-    v[1] += p * (0.5 - py) * 5.0;
+    return v;
+  }
+};
+
+class BoundaryVelocity : public TensorFunction<1, 2>
+{
+public:
+  BoundaryVelocity() {}
+
+  Tensor<1, 2> value(const Point<2>& x) const
+  {
+    const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
+
+    Tensor<1, 2> v;
+    v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
+    v[1] = 0.0;
+
+    // Fudge factor so this isn't the same as the exact solution
+    const double px = x[0] / length;
+    const double ax = px * (1 - px);
+    const double py = x[1] / width;
+    const double ay = py * (1 - py);
+    v[1] += ax * ay * (0.5 - py) * 500.0;
+    v[0] += ax * ay * 500.0;
 
     return v;
   }
 };
 
 
-class SurfaceElevation : public Function<2>
+
+int main(int argc, char **argv)
 {
-public:
-  SurfaceElevation() : Function<2>() {}
+  const bool verbose = argc == 2 &&
+    (strcmp(argv[1], "-v") == 0 ||
+     strcmp(argv[1], "--verbose") == 0);
 
-  double value (const Point<2>& x, const unsigned int) const
-  {
-    return (1 - rho_ice / rho_water) * (h0 - delta_h / length * x[0]);
-  }
-
-  Tensor<1, 2> gradient(const Point<2>&, const unsigned int) const
-  {
-    Tensor<1, 2> ds;
-    ds[0] = -(1 - rho_ice / rho_water) * delta_h / length;
-    ds[1] = 0.0;
-
-    return ds;
-  }
-};
-
-
-int main()
-{
-  dealii::deallog.depth_console (0);
-
-  const Point<2> p1(0.0, 0.0), p2(length, width);
   Triangulation<2> triangulation;
+  const Point<2> p1(0.0, 0.0), p2(length, width);
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
 
   // Mark the right side of the rectangle as the ice front
@@ -87,38 +99,36 @@ int main()
          face_number < GeometryInfo<2>::faces_per_cell;
          ++face_number)
       if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id (1);
+        cell->face(face_number)->set_boundary_id(1);
   }
 
-  triangulation.refine_global(2);
+  const unsigned int num_levels = 5;
+  triangulation.refine_global(num_levels);
 
-  auto bed         = ConstantFunction<2>(-2000.0);
-  auto temperature = ConstantFunction<2>(temp);
-  auto friction    = ZeroFunction<2>();
-  SurfaceElevation surface;
-  BoundaryVelocity boundary_velocity;
+  ShallowStream ssa(triangulation, 1);
 
-  ShallowShelf shallow_shelf(triangulation, surface, bed, temperature,
-                             friction, boundary_velocity);
+  Field<2> s = ssa.interpolate(Surface());
+  Field<2> h = ssa.interpolate(Thickness());
+  Field<2> beta = ssa.interpolate(ZeroFunction<2>());
+  VectorField<2> u_true = ssa.interpolate(Velocity());
+  VectorField<2> u0 = ssa.interpolate(BoundaryVelocity());
 
-  shallow_shelf.diagnostic_solve(1.0e-8);
+  VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
 
-  Vector<double>& solution = shallow_shelf.solution;
-  Vector<double> difference(triangulation.n_cells());
+  if (verbose) {
+    std::cout << "Relative initial error: "
+              << dist(u0, u_true)/norm(u_true) << std::endl;
 
-  VectorTools::integrate_difference
-    (shallow_shelf.dof_handler,
-     solution,
-     VectorFunctionFromTensorFunction<2> (boundary_velocity),
-     difference,
-     shallow_shelf.quadrature_formula,
-     VectorTools::Linfty_norm);
+    std::cout << "Relative final error:   "
+              << dist(u, u_true)/norm(u_true) << std::endl;
 
-  const double error = difference.linfty_norm() / solution.linfty_norm();
-  if (error > 1.0e-2) {
-    std::cout << error << std::endl;
-    return 1;
+    u0.write("u0.ucd", "u0");
+    u_true.write("u_true.ucd", "u_true");
+    u.write("u.ucd", "u");
   }
+
+  const double dx = 1.0 / (1 << num_levels);
+  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
 }
