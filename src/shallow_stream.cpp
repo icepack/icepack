@@ -217,12 +217,11 @@ namespace icepack
 
     // TODO: make these function parameters
     const double tolerance = 1.0e-10;
-    const unsigned int max_iteration_count = 100;
-    unsigned int iteration_count = 0;
+    const unsigned int max_iterations = 100;
+
     double error = 1.0e16;
 
-    for (; iteration_count < max_iteration_count && error > tolerance;
-         ++iteration_count) {
+    for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
@@ -337,6 +336,7 @@ namespace icepack
 
     std::vector<double> h_values(n_q_points);
     std::vector<double> s_values(n_q_points);
+    std::vector<double> beta_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
@@ -351,6 +351,7 @@ namespace icepack
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+      h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
 
       u_fe_values[exv].get_function_symmetric_gradients(
         u0.get_coefficients(), strain_rate_values
@@ -358,25 +359,49 @@ namespace icepack
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
-        const double h = h_values[q];
+        const double H = h_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> Cq = constitutive_tensor(T, h, eps);
+        const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
 
           for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
+            const auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
 
-            cell_matrix(i, j) += (eps_phi_i * Cq * eps_phi_j) * dx;
+            cell_matrix(i, j) += (eps_phi_i * C * eps_phi_j) * dx;
           }
         }
+
+        // Determine whether the ice is floating at this quadrature point.
+        // This is... admittedly a little weird. Due to imprecise arithmetic,
+        // some grid points may be just barely above flotation when they should
+        // be at flotation. So we put in a little fudge factor.
+        // Ideally, the basal shear stress would be parameterized by some factor
+        // of the height above flotation/effective pressure/whatever, so the
+        // effect would be a continuous transition from grounded to floating,
+        // obviating the need for this silly hack.
+        const double flotation = (1 - rho_ice/rho_water) * H;
+        const double flotation_tolerance = 1.0e-4;
+        const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
+
+        // If so, add basal sliding to the local velocity matrix.
+        if (floating)
+          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            const auto phi_i = u_fe_values[exv].value(i, q);
+
+            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+              const auto phi_j = u_fe_values[exv].value(j, q);
+              cell_matrix(i, j) += (phi_i * phi_j) * beta_values[q] * dx;
+            }
+          }
       }
 
+      // Add the local stiffness matrix to the global stiffness matrix
       cell->get_dof_indices(local_dof_indices);
       vector_pde_skeleton.get_constraints().distribute_local_to_global(
         cell_matrix, local_dof_indices, A

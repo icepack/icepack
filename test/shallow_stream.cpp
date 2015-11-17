@@ -129,7 +129,7 @@ int main(int argc, char **argv)
     u.write("u.ucd", "u");
   }
 
-  const double dx = std::sqrt(length * width) / (1 << num_levels);
+  const double dx = 1.0 / (1 << num_levels);
   Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
