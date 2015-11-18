@@ -3,7 +3,8 @@ Finite element modeling of glaciers and ice sheets
 
 This library is for simulating the flow of glaciers and ice sheets using the finite element method.
 
-Icepack is currently in active development and is not yet ready for use.
+Icepack is not yet ready for use and should be considered pre-alpha quality.
+Features will break, frequently.
 
 Planned features:
 * multiple glacier models: shallow shelf, full Stokes, depth-averaged higher-order models
@@ -11,10 +12,11 @@ Planned features:
 * inverse methods for basal shear stress, ice viscosity
 
 
-Compilation & installation
-==========================
+## Compilation & installation
 
 You will first need a working deal.II installation and the environment variable `DEAL_II_DIR` must be set to the directory of your deal.II installation.
+For development purposes, I recommend disabling the use of Intel's Threading Building Blocks library when building deal.II by passing the flag `-DDEAL_II_WITH_THREADS:BOOL=False` to `cmake`.
+Using Intel TBB can cause valgrind to erroneously report memory leaks, and to generally confound debuggers.
 
 To build the icepack sources, run the following:
 ```
@@ -27,14 +29,13 @@ make
 Additionally, unit tests can be run by invoking `make test`.
 
 
-Dependencies
-============
+## Dependencies
 
 You will need the following packages installed in order to use icepack:
 
 * a C++11 compiler, e.g. clang 3.2+, GCC 4.7+, icc 12+
 * [CMake](http://www.cmake.org/) 2.8.11+. Both deal.II and icepacke use the CMake build system.
-* [deal.II](http://dealii.org/) 8.2.1+. General-purpose finite element library on which icepack is built.
+* [deal.II](http://dealii.org/) development branch. General-purpose finite element library on which icepack is built.
 * [GDAL](http://www.gdal.org/). Geospatial Data Abstraction Library, for reading geotif and other similar file formats.
 * lapack, blas
 
@@ -45,7 +46,7 @@ Although not strictly necessary, you will also probably want to have:
 * [parmetis](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview) Graph partitioning library, for parallel computations.
 * [valgrind](http://valgrind.org/) memory debugger
 
-Additionally, while the GCC compiler usually generates faster assembly code, we recommend using Clang for development purposes.
+While the GCC compiler usually generates faster assembly code, we recommend using Clang for development purposes.
 Icepack uses the deal.II library for finite element computations, which relies quite heavily on C++ templates.
 Clang gives far more helpful error messages for mistakes in code than GCC does, especially when debugging improper use of templates.
 Additionally, the clang memory and address sanitizers can find subtle bugs easily.
