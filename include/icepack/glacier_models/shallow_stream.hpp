@@ -18,8 +18,6 @@ namespace icepack
   class ShallowStream
   {
   public:
-    using Velocity = VectorField<2>;
-    using Thickness = Field<2>;
 
     /**
      * Construct a model object, which consists of the geometry and the order
@@ -57,22 +55,22 @@ namespace icepack
     /**
      * Compute the ice velocity from the thickness and friction coefficient.
      */
-    Velocity diagnostic_solve(
+    VectorField<2> diagnostic_solve(
       const Field<2>& surface,
-      const Thickness& thickness,
+      const Field<2>& thickness,
       const Field<2>& beta,
-      const Velocity& u0
+      const VectorField<2>& u0
     ) const;
 
     /**
      * Propagate the ice thickness forward in time using the current velocity
      * and accumulation rate.
      */
-    Thickness prognostic_solve(
+    Field<2> prognostic_solve(
       const double dt,
-      const Thickness& thickness,
+      const Field<2>& thickness,
       const Field<2>& accumulation,
-      const Velocity& u
+      const VectorField<2>& u
     ) const;
 
     /**
