@@ -129,7 +129,11 @@ int main(int argc, char **argv)
 
   VectorField<2> tau = ssa.driving_stress(s, h);
   VectorField<2> r = ssa.residual(s, h, beta, u_true, tau);
+  VectorField<2> r0 = ssa.residual(s, h, beta, u0, tau);
 
+  std::cout << tau.get_coefficients().linfty_norm() << ", "
+            << r0.get_coefficients().linfty_norm() << ", "
+            << r.get_coefficients().linfty_norm() << std::endl;
 
   /**
    * Test the diagnostic solve procedure

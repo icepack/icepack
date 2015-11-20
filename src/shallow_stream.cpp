@@ -179,6 +179,13 @@ namespace icepack
   }
 
 
+  SymmetricTensor<4, 2> constitutive_tensor(
+    const double temperature,
+    const double thickness,
+    const SymmetricTensor<2, 2> eps
+  );
+
+
   VectorField<2> ShallowStream::residual(
     const Field<2>& s,
     const Field<2>& h,
@@ -188,6 +195,90 @@ namespace icepack
   ) const
   {
     VectorField<2> r = f;
+
+    const auto& u_fe = vector_pde_skeleton.get_fe();
+    const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
+
+    const auto& h_fe = scalar_pde_skeleton.get_fe();
+
+    const unsigned int p = u_fe.tensor_degree();
+    const QGauss<2> quad(p);
+
+    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Vector exv(0);
+
+    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Scalar exs(0);
+
+    const unsigned int n_q_points = quad.size();
+    const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
+
+    std::vector<double> h_values(n_q_points);
+    std::vector<double> s_values(n_q_points);
+    std::vector<double> beta_values(n_q_points);
+    std::vector<Tensor<1, 2>> u_values(n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
+
+    Vector<double> cell_residual(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    auto cell = u_dof_handler.begin_active();
+    auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
+    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+      cell_residual = 0;
+      u_fe_values.reinit(cell);
+      h_fe_values.reinit(h_cell);
+
+      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+      h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
+
+      // Should probably only do this if we need it, i.e. ice is floating
+      u_fe_values[exv].get_function_values(u.get_coefficients(), u_values);
+
+      u_fe_values[exv].get_function_symmetric_gradients(
+        u.get_coefficients(), strain_rate_values
+      );
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = u_fe_values.JxW(q);
+        const double H = h_values[q];
+        const SymmetricTensor<2, 2> eps = strain_rate_values[q];
+
+        // TODO: use an actual temperature field
+        const double T = 263.15;
+
+        const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+          cell_residual(i) -= (eps_phi_i * C * eps) * dx;
+        }
+
+        const double flotation = (1 - rho_ice/rho_water) * H;
+        const double flotation_tolerance = 1.0e-4;
+        const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
+
+        if (floating)
+          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            const auto phi_i = u_fe_values[exv].value(i, q);
+            cell_residual(i) -= (phi_i * u_values[q]) * beta_values[q] * dx;
+          }
+      }
+
+      cell->get_dof_indices(local_dof_indices);
+      vector_pde_skeleton.get_constraints().distribute_local_to_global(
+        cell_residual, local_dof_indices, r.get_coefficients()
+      );
+    }
+
+    const unsigned int n_dofs = u_dof_handler.n_dofs();
+    std::vector<bool> boundary_dofs(n_dofs);
+    dealii::DoFTools::extract_boundary_dofs(
+      u_dof_handler, dealii::ComponentMask(), boundary_dofs
+    );
+    for (unsigned int i = 0; i < n_dofs; ++i)
+      if (boundary_dofs[i]) r.get_coefficients()(i) = 0;
 
     return std::move(r);
   }
