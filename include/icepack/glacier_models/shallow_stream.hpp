@@ -53,6 +53,18 @@ namespace icepack
     ) const;
 
     /**
+     * Compute the residual of a candidate solution to the diagnostic equation.
+     * This vector is used to solve the system by Newton's method.
+     */
+    VectorField<2> residual(
+      const Field<2>& surface,
+      const Field<2>& thickness,
+      const Field<2>& beta,
+      const VectorField<2>& u,
+      const VectorField<2>& tau_d
+    ) const;
+
+    /**
      * Compute the ice velocity from the thickness and friction coefficient.
      */
     VectorField<2> diagnostic_solve(

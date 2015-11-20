@@ -179,6 +179,20 @@ namespace icepack
   }
 
 
+  VectorField<2> ShallowStream::residual(
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u,
+    const VectorField<2>& f
+  ) const
+  {
+    VectorField<2> r = f;
+
+    return std::move(r);
+  }
+
+
   // Forward declarations for some helper functions
   void velocity_matrix(
     SparseMatrix<double>& A,

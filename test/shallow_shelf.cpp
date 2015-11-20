@@ -89,6 +89,10 @@ int main(int argc, char **argv)
     (strcmp(argv[1], "-v") == 0 ||
      strcmp(argv[1], "--verbose") == 0);
 
+  /**
+   * Create a triangulation on which to solve PDEs
+   */
+
   Triangulation<2> triangulation;
   const Point<2> p1(0.0, 0.0), p2(length, width);
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
@@ -105,6 +109,11 @@ int main(int argc, char **argv)
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
+
+  /**
+   * Create a model object and input data
+   */
+
   ShallowStream ssa(triangulation, 1);
 
   Field<2> s = ssa.interpolate(Surface());
@@ -112,6 +121,19 @@ int main(int argc, char **argv)
   Field<2> beta = ssa.interpolate(ZeroFunction<2>());
   VectorField<2> u_true = ssa.interpolate(Velocity());
   VectorField<2> u0 = ssa.interpolate(BoundaryVelocity());
+
+
+  /**
+   * Test computing the residual of a candidate velocity
+   */
+
+  VectorField<2> tau = ssa.driving_stress(s, h);
+  VectorField<2> r = ssa.residual(s, h, beta, u_true, tau);
+
+
+  /**
+   * Test the diagnostic solve procedure
+   */
 
   VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
 
