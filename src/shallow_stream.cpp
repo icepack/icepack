@@ -434,7 +434,8 @@ namespace icepack
   )
   {
     SolverControl solver_control(1000, 1.0e-12);
-    SolverCG<>    cg(solver_control);
+    solver_control.log_result(false); // silence solver progress output
+    SolverCG<> cg(solver_control);
 
     SparseILU<double> M;
     M.initialize(A);
