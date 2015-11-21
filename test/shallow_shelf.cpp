@@ -122,6 +122,10 @@ int main(int argc, char **argv)
   VectorField<2> u_true = ssa.interpolate(Velocity());
   VectorField<2> u0 = ssa.interpolate(BoundaryVelocity());
 
+  // Dimensionless mesh resolution; finite element solution is only
+  // O(dx^2) accurate.
+  const double dx = 1.0 / (1 << num_levels);
+
 
   /**
    * Test computing the residual of a candidate velocity
@@ -129,11 +133,12 @@ int main(int argc, char **argv)
 
   VectorField<2> tau = ssa.driving_stress(s, h);
   VectorField<2> r = ssa.residual(s, h, beta, u_true, tau);
-  VectorField<2> r0 = ssa.residual(s, h, beta, u0, tau);
+  const Vector<double>& Tau = tau.get_coefficients();
+  const Vector<double>& R = r.get_coefficients();
 
-  std::cout << tau.get_coefficients().linfty_norm() << ", "
-            << r0.get_coefficients().linfty_norm() << ", "
-            << r.get_coefficients().linfty_norm() << std::endl;
+  // Residual of the exact solution should be < dx^2.
+  Assert(R.l2_norm() / Tau.l2_norm() < dx*dx, ExcInternalError());
+
 
   /**
    * Test the diagnostic solve procedure
@@ -153,7 +158,6 @@ int main(int argc, char **argv)
     u.write("u.ucd", "u");
   }
 
-  const double dx = 1.0 / (1 << num_levels);
   Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
