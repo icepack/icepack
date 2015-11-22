@@ -175,7 +175,7 @@ namespace icepack
       );
     }
 
-    return std::move(tau);
+    return tau;
   }
 
 
@@ -281,7 +281,7 @@ namespace icepack
     for (unsigned int i = 0; i < n_dofs; ++i)
       if (boundary_dofs[i]) r.get_coefficients()(i) = 0;
 
-    return std::move(r);
+    return r;
   }
 
 
@@ -342,7 +342,7 @@ namespace icepack
       U_old = U;
     }
 
-    return std::move(u);
+    return u;
   }
 
 
@@ -358,7 +358,7 @@ namespace icepack
 
     /* TODO: write this */
 
-    return std::move(h);
+    return h;
   }
 
 
@@ -374,7 +374,7 @@ namespace icepack
 
     /* TODO: write this */
 
-    return std::move(q);
+    return q;
   }
 
 
