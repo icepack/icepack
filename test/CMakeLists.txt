@@ -5,6 +5,7 @@ set(test_list
   ice_thickness.cpp
   field.cpp
   field_dist.cpp
+  field_move.cpp
   shallow_shelf.cpp
   shallow_stream.cpp
 )

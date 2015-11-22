@@ -90,11 +90,10 @@ namespace icepack
       // supplied is compatible with the field type (scalar vs. vector)
     }
 
-    // Delete the copy constructor; we want to avoid copies unless the user
-    // asks for one explicitly.
+    // Delete the copy constructor. Only copy a FieldType if asked explicitly.
     FieldType(const FieldType<rank, dim>&) = delete;
 
-    // Copying fields explicitly is done using this method.
+    // Explicity copying of FieldType is done using this method.
     void copy_from(const FieldType<rank, dim>& phi)
     {
       // These are all dealii::SmartPointers to the object in question, so the
@@ -116,6 +115,20 @@ namespace icepack
       coefficients(std::move(phi.coefficients))
     {}
 
+    // Move assignment
+    FieldType<rank, dim>& operator=(FieldType<rank, dim>&& phi)
+    {
+      triangulation = phi.triangulation;
+      fe = phi.fe;
+      dof_handler = phi.dof_handler;
+
+      coefficients = std::move(phi.coefficients);
+
+      return *this;
+    }
+
+    // Destructor. FieldType doesn't directly own any heap-allocated memory,
+    // although the Vector member coefficients does, so the dtor is trivial.
     virtual ~FieldType()
     {}
 
