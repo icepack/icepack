@@ -68,12 +68,20 @@ namespace icepack
     using extractor_type = typename ExtractorType<rank>::type;
 
     // Constructors & destructors
+    FieldType()
+      :
+      triangulation(nullptr),
+      fe(nullptr),
+      dof_handler(nullptr),
+      coefficients(0)
+    {}
+
     FieldType(const Triangulation<dim>& _triangulation,
               const FiniteElement<dim>& _fe,
               const DoFHandler<dim>& _dof_handler)
       :
-      triangulation(_triangulation),
-      fe(_fe),
+      triangulation(&_triangulation),
+      fe(&_fe),
       dof_handler(&_dof_handler)
     {
       coefficients.reinit(dof_handler->n_dofs());
@@ -82,21 +90,29 @@ namespace icepack
       // supplied is compatible with the field type (scalar vs. vector)
     }
 
-    // Copy constructor
-    FieldType(const FieldType<rank, dim>& phi)
-      :
-      triangulation(phi.triangulation),
-      fe(phi.fe),
-      dof_handler(phi.dof_handler),
-      coefficients(phi.coefficients)
-    {}
+    // Delete the copy constructor; we want to avoid copies unless the user
+    // asks for one explicitly.
+    FieldType(const FieldType<rank, dim>&) = delete;
+
+    // Copying fields explicitly is done using this method.
+    void copy_from(const FieldType<rank, dim>& phi)
+    {
+      // These are all dealii::SmartPointers to the object in question, so the
+      // assignment just copies the address and not the actual object.
+      triangulation = phi.triangulation;
+      fe = phi.fe;
+      dof_handler = phi.dof_handler;
+
+      // This actually copies the vector.
+      coefficients = phi.coefficients;
+    }
 
     // Move constructor
     FieldType(FieldType<rank, dim>&& phi)
       :
       triangulation(phi.triangulation),
       fe(phi.fe),
-      dof_handler(std::move(phi.dof_handler)),
+      dof_handler(phi.dof_handler),
       coefficients(std::move(phi.coefficients))
     {}
 
@@ -117,7 +133,7 @@ namespace icepack
 
     const FiniteElement<dim>& get_fe() const
     {
-      return fe;
+      return *fe;
     }
 
     const DoFHandler<dim>& get_dof_handler() const
@@ -150,8 +166,8 @@ namespace icepack
     }
 
   protected:
-    const Triangulation<dim>& triangulation;
-    const FiniteElement<dim>& fe;
+    SmartPointer<const Triangulation<dim> > triangulation;
+    SmartPointer<const FiniteElement<dim> > fe;
     SmartPointer<const DoFHandler<dim> > dof_handler;
     Vector<double> coefficients;
   };

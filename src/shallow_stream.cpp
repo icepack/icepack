@@ -194,7 +194,8 @@ namespace icepack
     const VectorField<2>& f
   ) const
   {
-    VectorField<2> r = f;
+    VectorField<2> r;
+    r.copy_from(f);
 
     const auto& u_fe = vector_pde_skeleton.get_fe();
     const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
@@ -311,8 +312,9 @@ namespace icepack
   {
     SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
 
-    VectorField<2> u_old = u0;
-    VectorField<2> u = u0;
+    VectorField<2> u_old, u;
+    u_old.copy_from(u0);
+    u.copy_from(u0);
     auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
 
     VectorField<2> tau = driving_stress(s, h);
@@ -346,13 +348,17 @@ namespace icepack
 
   Field<2> ShallowStream::prognostic_solve(
     const double dt,
-    const Field<2>& h,
+    const Field<2>& h0,
     const Field<2>& a,
     const VectorField<2>& u
   ) const
   {
+    Field<2> h;
+    h.copy_from(h0);
+
     /* TODO: write this */
-    return h;
+
+    return std::move(h);
   }
 
 
@@ -363,8 +369,12 @@ namespace icepack
     const VectorField<2>& f
   ) const
   {
+    VectorField<2> q;
+    q.copy_from(f);
+
     /* TODO: write this */
-    return f;
+
+    return std::move(q);
   }
 
 
