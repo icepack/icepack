@@ -80,6 +80,22 @@ namespace icepack
 
 
     // Helper functions for making boundary value maps
+    std::map<dealii::types::global_dof_index, double>
+    zero_boundary_values(const unsigned int boundary_id = 0) const
+    {
+      std::map<dealii::types::global_dof_index, double> boundary_values;
+
+      dealii::VectorTools::interpolate_boundary_values(
+        dof_handler,
+        boundary_id,
+        dealii::ZeroFunction<dim>(fe.n_components()),
+        boundary_values
+      );
+
+      return std::move(boundary_values);
+    }
+
+
     template <int rank>
     std::map<dealii::types::global_dof_index, double>
     interpolate_boundary_values(const FieldType<rank, dim>& phi,
@@ -87,8 +103,6 @@ namespace icepack
     {
       const unsigned int n_components = std::pow(dim, rank);
       AssertDimension(fe.n_components(), n_components);
-
-      std::map<dealii::types::global_dof_index, double> boundary_values;
 
       // This perhaps requires some explanation.
       // Usually, one would take a deal.II Function object, interpolate it to
@@ -100,12 +114,7 @@ namespace icepack
       // In our case, however, we don't have a Function object for the boundary
       // values, just some FE field `phi`. Instead, we create the std::map by
       // interpolating 0 to the boundary...
-      dealii::VectorTools::interpolate_boundary_values(
-        dof_handler,
-        boundary_id,
-        dealii::ZeroFunction<dim>(n_components),
-        boundary_values
-      );
+      auto boundary_values = zero_boundary_values(boundary_id);
 
       // ...and, knowing the right degrees of freedom to fix for Dirichlet BCs,
       // we can get these directly from the coefficients of the input Field.
