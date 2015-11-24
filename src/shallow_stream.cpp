@@ -312,15 +312,18 @@ namespace icepack
   {
     SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
 
-    VectorField<2> u_old, u;
-    u_old.copy_from(u0);
+    VectorField<2> u;
     u.copy_from(u0);
-    auto boundary_values = vector_pde_skeleton.interpolate_boundary_values(u0);
+    auto boundary_values = vector_pde_skeleton.zero_boundary_values();
 
-    VectorField<2> tau = driving_stress(s, h);
-    Vector<double>& F = tau.get_coefficients();
+    const VectorField<2> tau = driving_stress(s, h);
+    const double tau_norm = norm(tau);
+
+    VectorField<2> r = residual(s, h, beta, u, tau);
+    Vector<double>& R = r.get_coefficients();
+
     Vector<double>& U = u.get_coefficients();
-    Vector<double>& U_old = u_old.get_coefficients();
+    Vector<double> dU(vector_pde_skeleton.get_dof_handler().n_dofs());
 
     // TODO: make these function parameters
     const double tolerance = 1.0e-10;
@@ -331,15 +334,18 @@ namespace icepack
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u);
-      dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
-      linear_solve(A, U, F, vector_pde_skeleton.get_constraints());
+      linear_solve(A, dU, R, vector_pde_skeleton.get_constraints());
+
+      // TODO: change this
+      double alpha = 0.1;
+      U.add(alpha, dU);
 
       // Compute the relative difference between the new and old solutions
-      error = dist(u, u_old) / norm(u_old);
-
-      U_old = U;
+      r = residual(s, h, beta, u, tau);
+      error = norm(r) / tau_norm;
     }
 
     return u;
@@ -414,8 +420,12 @@ namespace icepack
 
     const double tr = first_invariant(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
+    const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
+
     const double nu = h * viscosity(temperature, eps_e);
-    return 2 * nu * C;
+
+    // TODO: Check for errant factors of 2
+    return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
   }
 
 
