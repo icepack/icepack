@@ -2,11 +2,14 @@
 #ifndef ICEPACK_PDE_SKELETON_HPP
 #define ICEPACK_PDE_SKELETON_HPP
 
+#include <deal.II/base/quadrature_lib.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
+
+#include <icepack/field.hpp>
 
 namespace icepack
 {
@@ -59,6 +62,8 @@ namespace icepack
                 const FE& _fe)
       :
       fe(_fe),
+      quad(fe.tensor_degree()),
+      face_quad(fe.tensor_degree()),
       dof_handler(triangulation)
     {
       dof_handler.distribute_dofs(fe);
@@ -136,6 +141,16 @@ namespace icepack
       return dof_handler;
     }
 
+    const QGauss<dim>& get_quadrature() const
+    {
+      return quad;
+    }
+
+    const QGauss<dim-1>& get_face_quadrature() const
+    {
+      return face_quad;
+    }
+
     const SparsityPattern& get_sparsity_pattern() const
     {
       return sparsity;
@@ -148,6 +163,8 @@ namespace icepack
 
   protected:
     const FE fe;
+    const QGauss<dim> quad;
+    const QGauss<dim-1> face_quad;
     DoFHandler<dim> dof_handler;
     SparsityPattern sparsity;
     ConstraintMatrix constraints;
