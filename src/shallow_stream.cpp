@@ -308,10 +308,16 @@ namespace icepack
       );
     }
 
+
     const unsigned int n_dofs = u_dof_handler.n_dofs();
     std::vector<bool> boundary_dofs(n_dofs);
+
+    // TODO: stop using the magic number 0 for the part of the boundary with
+    // Dirichlet conditions; use an enum, preprocessor define, etc. so that
+    // it's more obvious what this is.
+    const std::set<dealii::types::boundary_id> boundary_ids = {0};
     dealii::DoFTools::extract_boundary_dofs(
-      u_dof_handler, dealii::ComponentMask(), boundary_dofs
+      u_dof_handler, dealii::ComponentMask(), boundary_dofs, boundary_ids
     );
     for (unsigned int i = 0; i < n_dofs; ++i)
       if (boundary_dofs[i]) r.get_coefficients()(i) = 0;
