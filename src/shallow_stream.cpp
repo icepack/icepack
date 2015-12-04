@@ -1,6 +1,5 @@
 
 #include <deal.II/base/symmetric_tensor.h>
-#include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/solver_cg.h>
@@ -132,9 +131,8 @@ namespace icepack
 
     // Find the polynomial degree of the finite element expansion and make
     // quadrature rules for cells and faces with sufficient accuracy
-    const unsigned int p = tau_fe.tensor_degree();
-    const QGauss<2> quad(p);
-    const QGauss<1> f_quad(p);
+    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
+    const QGauss<1>& f_quad = vector_pde_skeleton.get_face_quadrature();
 
     // Get FEValues objects and an extractor for the driving stress and the
     // thickness/surface elevation fields.
@@ -240,8 +238,7 @@ namespace icepack
 
     const auto& h_fe = scalar_pde_skeleton.get_fe();
 
-    const unsigned int p = u_fe.tensor_degree();
-    const QGauss<2> quad(p);
+    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -464,9 +461,8 @@ namespace icepack
 
     const auto& h_fe = scalar_pde_skeleton.get_fe();
 
-    const unsigned int p = u_fe.tensor_degree();
-    const QGauss<2> quad(p);
-    const QGauss<1> f_quad(p);
+    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
+    const QGauss<1>& f_quad = vector_pde_skeleton.get_face_quadrature();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
