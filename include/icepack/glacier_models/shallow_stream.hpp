@@ -108,8 +108,8 @@ namespace icepack
   protected:
     const Triangulation<2>& triangulation;
 
-    const ScalarPDESkeleton<2> scalar_pde_skeleton;
-    const VectorPDESkeleton<2> vector_pde_skeleton;
+    const ScalarPDESkeleton<2> scalar_pde;
+    const VectorPDESkeleton<2> vector_pde;
   };
 
 }

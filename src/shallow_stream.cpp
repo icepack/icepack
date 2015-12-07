@@ -81,8 +81,8 @@ namespace icepack
                                const unsigned int p)
     :
     triangulation(tria),
-    scalar_pde_skeleton(tria, FE_Q<2>(p)),
-    vector_pde_skeleton(tria, FESystem<2>(FE_Q<2>(p), 2))
+    scalar_pde(tria, FE_Q<2>(p)),
+    vector_pde(tria, FESystem<2>(FE_Q<2>(p), 2))
   {}
 
 
@@ -95,8 +95,8 @@ namespace icepack
   {
     return icepack::interpolate(
       triangulation,
-      scalar_pde_skeleton.get_fe(),
-      scalar_pde_skeleton.get_dof_handler(),
+      scalar_pde.get_fe(),
+      scalar_pde.get_dof_handler(),
       phi
     );
   }
@@ -106,8 +106,8 @@ namespace icepack
   {
     return icepack::interpolate(
       triangulation,
-      vector_pde_skeleton.get_fe(),
-      vector_pde_skeleton.get_dof_handler(),
+      vector_pde.get_fe(),
+      vector_pde.get_dof_handler(),
       f
     );
   }
@@ -122,17 +122,17 @@ namespace icepack
   ShallowStream::driving_stress(const Field<2>& s, const Field<2>& h) const
   {
     // Initialize the VectorField for the driving stress
-    const auto& tau_fe = vector_pde_skeleton.get_fe();
-    const auto& tau_dof_handler = vector_pde_skeleton.get_dof_handler();
+    const auto& tau_fe = vector_pde.get_fe();
+    const auto& tau_dof_handler = vector_pde.get_dof_handler();
     VectorField<2> tau(triangulation, tau_fe, tau_dof_handler);
 
     // Get the finite element & DoF handler for scalar fields
-    const auto& h_fe = scalar_pde_skeleton.get_fe();
+    const auto& h_fe = scalar_pde.get_fe();
 
     // Find the polynomial degree of the finite element expansion and make
     // quadrature rules for cells and faces with sufficient accuracy
-    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde_skeleton.get_face_quadrature();
+    const QGauss<2>& quad = vector_pde.get_quadrature();
+    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
 
     // Get FEValues objects and an extractor for the driving stress and the
     // thickness/surface elevation fields.
@@ -161,7 +161,7 @@ namespace icepack
     // Create cell iterators from the tau and h DoFHandlers; these will be
     // iterated jointly.
     auto cell = tau_dof_handler.begin_active();
-    auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
+    auto h_cell = scalar_pde.get_dof_handler().begin_active();
     for (; cell != tau_dof_handler.end(); ++cell, ++h_cell) {
       cell_rhs = 0;
       tau_fe_values.reinit(cell);
@@ -213,7 +213,7 @@ namespace icepack
         }
 
       cell->get_dof_indices(local_dof_indices);
-      vector_pde_skeleton.get_constraints().distribute_local_to_global(
+      vector_pde.get_constraints().distribute_local_to_global(
         cell_rhs, local_dof_indices, tau.get_coefficients()
       );
     }
@@ -233,12 +233,12 @@ namespace icepack
     VectorField<2> r;
     r.copy_from(f);
 
-    const auto& u_fe = vector_pde_skeleton.get_fe();
-    const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
+    const auto& u_fe = vector_pde.get_fe();
+    const auto& u_dof_handler = vector_pde.get_dof_handler();
 
-    const auto& h_fe = scalar_pde_skeleton.get_fe();
+    const auto& h_fe = scalar_pde.get_fe();
 
-    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
+    const QGauss<2>& quad = vector_pde.get_quadrature();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -259,7 +259,7 @@ namespace icepack
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = u_dof_handler.begin_active();
-    auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
+    auto h_cell = scalar_pde.get_dof_handler().begin_active();
     for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
       cell_residual = 0;
       u_fe_values.reinit(cell);
@@ -303,7 +303,7 @@ namespace icepack
       }
 
       cell->get_dof_indices(local_dof_indices);
-      vector_pde_skeleton.get_constraints().distribute_local_to_global(
+      vector_pde.get_constraints().distribute_local_to_global(
         cell_residual, local_dof_indices, r.get_coefficients()
       );
     }
@@ -329,8 +329,8 @@ namespace icepack
   // Forward declarations for some helper functions
   void velocity_matrix(
     SparseMatrix<double>& A,
-    const ScalarPDESkeleton<2>& scalar_pde_skeleton,
-    const VectorPDESkeleton<2>& vector_pde_skeleton,
+    const ScalarPDESkeleton<2>& scalar_pde,
+    const VectorPDESkeleton<2>& vector_pde,
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
@@ -351,11 +351,11 @@ namespace icepack
     const VectorField<2>& u0
   ) const
   {
-    SparseMatrix<double> A(vector_pde_skeleton.get_sparsity_pattern());
+    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
     VectorField<2> u;
     u.copy_from(u0);
-    auto boundary_values = vector_pde_skeleton.zero_boundary_values();
+    auto boundary_values = vector_pde.zero_boundary_values();
 
     const VectorField<2> tau = driving_stress(s, h);
     const double tau_norm = norm(tau);
@@ -364,7 +364,7 @@ namespace icepack
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
-    Vector<double> dU(vector_pde_skeleton.get_dof_handler().n_dofs());
+    Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
     // TODO: make these function parameters
     const double tolerance = 1.0e-10;
@@ -374,11 +374,11 @@ namespace icepack
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, scalar_pde_skeleton, vector_pde_skeleton, s, h, beta, u);
+      velocity_matrix(A, scalar_pde, vector_pde, s, h, beta, u);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
-      linear_solve(A, dU, R, vector_pde_skeleton.get_constraints());
+      linear_solve(A, dU, R, vector_pde.get_constraints());
 
       // TODO: change this
       double alpha = 0.1;
@@ -436,12 +436,12 @@ namespace icepack
 
   const ScalarPDESkeleton<2>& ShallowStream::get_scalar_pde_skeleton() const
   {
-    return scalar_pde_skeleton;
+    return scalar_pde;
   }
 
   const VectorPDESkeleton<2>& ShallowStream::get_vector_pde_skeleton() const
   {
-    return vector_pde_skeleton;
+    return vector_pde;
   }
 
 
@@ -452,8 +452,8 @@ namespace icepack
 
   void velocity_matrix (
     SparseMatrix<double>& A,
-    const ScalarPDESkeleton<2>& scalar_pde_skeleton,
-    const VectorPDESkeleton<2>& vector_pde_skeleton,
+    const ScalarPDESkeleton<2>& scalar_pde,
+    const VectorPDESkeleton<2>& vector_pde,
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
@@ -462,13 +462,13 @@ namespace icepack
   {
     A = 0;
 
-    const auto& u_fe = vector_pde_skeleton.get_fe();
-    const auto& u_dof_handler = vector_pde_skeleton.get_dof_handler();
+    const auto& u_fe = vector_pde.get_fe();
+    const auto& u_dof_handler = vector_pde.get_dof_handler();
 
-    const auto& h_fe = scalar_pde_skeleton.get_fe();
+    const auto& h_fe = scalar_pde.get_fe();
 
-    const QGauss<2>& quad = vector_pde_skeleton.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde_skeleton.get_face_quadrature();
+    const QGauss<2>& quad = vector_pde.get_quadrature();
+    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -488,7 +488,7 @@ namespace icepack
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = u_dof_handler.begin_active();
-    auto h_cell = scalar_pde_skeleton.get_dof_handler().begin_active();
+    auto h_cell = scalar_pde.get_dof_handler().begin_active();
     for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
       cell_matrix = 0;
       u_fe_values.reinit(cell);
@@ -548,7 +548,7 @@ namespace icepack
 
       // Add the local stiffness matrix to the global stiffness matrix
       cell->get_dof_indices(local_dof_indices);
-      vector_pde_skeleton.get_constraints().distribute_local_to_global(
+      vector_pde.get_constraints().distribute_local_to_global(
         cell_matrix, local_dof_indices, A
       );
     }
