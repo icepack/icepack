@@ -29,9 +29,9 @@ namespace icepack
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
 
-  /**
+  /* ================
    * Helper functions
-   */
+   * ================ */
 
   namespace CTensors
   {
@@ -65,12 +65,203 @@ namespace icepack
 
       const double nu = h * viscosity(temperature, eps_e);
 
-      // TODO: Check for errant factors of 2
       return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
     }
   }
 
 
+  /**
+   * Construct the matrix representing the linearization of the nonlinear
+   * shallow stream equations.
+   */
+  void velocity_matrix (
+    SparseMatrix<double>& A,
+    const ScalarPDESkeleton<2>& scalar_pde,
+    const VectorPDESkeleton<2>& vector_pde,
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u0
+  )
+  {
+    A = 0;
+
+    const auto& u_fe = vector_pde.get_fe();
+    const auto& u_dof_handler = vector_pde.get_dof_handler();
+
+    const auto& h_fe = scalar_pde.get_fe();
+
+    const QGauss<2>& quad = vector_pde.get_quadrature();
+    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
+
+    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Vector exv(0);
+
+    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Scalar exs(0);
+
+    const unsigned int n_q_points = quad.size();
+    const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
+
+    std::vector<double> h_values(n_q_points);
+    std::vector<double> s_values(n_q_points);
+    std::vector<double> beta_values(n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    auto cell = u_dof_handler.begin_active();
+    auto h_cell = scalar_pde.get_dof_handler().begin_active();
+    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+      cell_matrix = 0;
+      u_fe_values.reinit(cell);
+      h_fe_values.reinit(h_cell);
+
+      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+      h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
+
+      u_fe_values[exv].get_function_symmetric_gradients(
+        u0.get_coefficients(), strain_rate_values
+      );
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = u_fe_values.JxW(q);
+        const double H = h_values[q];
+        const SymmetricTensor<2, 2> eps = strain_rate_values[q];
+
+        // TODO: use an actual temperature field
+        const double T = 263.15;
+
+        const SymmetricTensor<4, 2> C = CTensors::linearized(T, H, eps);
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            const auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
+
+            cell_matrix(i, j) += (eps_phi_i * C * eps_phi_j) * dx;
+          }
+        }
+
+        // Determine whether the ice is floating at this quadrature point.
+        // This is... admittedly a little weird. Due to imprecise arithmetic,
+        // some grid points may be just barely above flotation when they should
+        // be at flotation. So we put in a little fudge factor.
+        // Ideally, the basal shear stress would be parameterized by some factor
+        // of the height above flotation/effective pressure/whatever, so the
+        // effect would be a continuous transition from grounded to floating,
+        // obviating the need for this silly hack.
+        const double flotation = (1 - rho_ice/rho_water) * H;
+        const double flotation_tolerance = 1.0e-4;
+        const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
+
+        // If so, add basal sliding to the local velocity matrix.
+        if (floating)
+          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            const auto phi_i = u_fe_values[exv].value(i, q);
+
+            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+              const auto phi_j = u_fe_values[exv].value(j, q);
+              cell_matrix(i, j) += (phi_i * phi_j) * beta_values[q] * dx;
+            }
+          }
+      }
+
+      // Add the local stiffness matrix to the global stiffness matrix
+      cell->get_dof_indices(local_dof_indices);
+      vector_pde.get_constraints().distribute_local_to_global(
+        cell_matrix, local_dof_indices, A
+      );
+    }
+
+    A.compress(dealii::VectorOperation::add);
+  }
+
+
+  /**
+   * Solve a symmetric, positive-definite linear system.
+   */
+  void linear_solve(
+    const SparseMatrix<double>& A,
+    Vector<double>& u,
+    const Vector<double>& f,
+    const ConstraintMatrix& constraints
+  )
+  {
+    SolverControl solver_control(1000, 1.0e-12);
+    solver_control.log_result(false); // silence solver progress output
+    SolverCG<> cg(solver_control);
+
+    SparseILU<double> M;
+    M.initialize(A);
+
+    cg.solve(A, u, f, M);
+
+    constraints.distribute(u);
+  }
+
+
+  /**
+   * Solve the diagnostic equations using Newton's method.
+   */
+  VectorField<2> newton_solve(
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u0,
+    const ShallowStream& shallow_stream,
+    const double tolerance,
+    const unsigned int max_iterations
+  )
+  {
+    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
+    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
+    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
+
+    VectorField<2> u;
+    u.copy_from(u0);
+    auto boundary_values = vector_pde.zero_boundary_values();
+
+    const VectorField<2> tau = shallow_stream.driving_stress(s, h);
+    const double tau_norm = norm(tau);
+
+    VectorField<2> r = shallow_stream.residual(s, h, beta, u, tau);
+    Vector<double>& R = r.get_coefficients();
+
+    Vector<double>& U = u.get_coefficients();
+    Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
+
+    double error = 1.0e16;
+
+    for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
+      // Fill the system matrix
+      velocity_matrix(A, scalar_pde, vector_pde, s, h, beta, u);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
+
+      // Solve the linear system with the updated matrix
+      linear_solve(A, dU, R, vector_pde.get_constraints());
+
+      // TODO: change this
+      double alpha = 0.5;
+      U.add(alpha, dU);
+
+      // Compute the relative difference between the new and old solutions
+      r = shallow_stream.residual(s, h, beta, u, tau);
+      error = norm(r) / tau_norm;
+    }
+
+    return u;
+
+  }
+
+
+
+  /* =================================
+   * Member functions of ShallowStream
+   * ================================= */
 
 
   /**
@@ -326,24 +517,6 @@ namespace icepack
   }
 
 
-  // Forward declarations for some helper functions
-  void velocity_matrix(
-    SparseMatrix<double>& A,
-    const ScalarPDESkeleton<2>& scalar_pde,
-    const VectorPDESkeleton<2>& vector_pde,
-    const Field<2>& s,
-    const Field<2>& h,
-    const Field<2>& beta,
-    const VectorField<2>& u0
-  );
-
-  void linear_solve(
-    const SparseMatrix<double>& A,
-    Vector<double>& u,
-    const Vector<double>& f,
-    const ConstraintMatrix& constraints
-  );
-
   VectorField<2> ShallowStream::diagnostic_solve(
     const Field<2>& s,
     const Field<2>& h,
@@ -351,45 +524,8 @@ namespace icepack
     const VectorField<2>& u0
   ) const
   {
-    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
-
-    VectorField<2> u;
-    u.copy_from(u0);
-    auto boundary_values = vector_pde.zero_boundary_values();
-
-    const VectorField<2> tau = driving_stress(s, h);
-    const double tau_norm = norm(tau);
-
-    VectorField<2> r = residual(s, h, beta, u, tau);
-    Vector<double>& R = r.get_coefficients();
-
-    Vector<double>& U = u.get_coefficients();
-    Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
-
-    // TODO: make these function parameters
-    const double tolerance = 1.0e-10;
-    const unsigned int max_iterations = 100;
-
-    double error = 1.0e16;
-
-    for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
-      // Fill the system matrix
-      velocity_matrix(A, scalar_pde, vector_pde, s, h, beta, u);
-      dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
-
-      // Solve the linear system with the updated matrix
-      linear_solve(A, dU, R, vector_pde.get_constraints());
-
-      // TODO: change this
-      double alpha = 0.1;
-      U.add(alpha, dU);
-
-      // Compute the relative difference between the new and old solutions
-      r = residual(s, h, beta, u, tau);
-      error = norm(r) / tau_norm;
-    }
-
-    return u;
+    // TODO: use Picard solver for a few iterations
+    return newton_solve(s, h, beta, u0, *this, 1.0e-10, 100);
   }
 
 
@@ -445,135 +581,5 @@ namespace icepack
   }
 
 
-
-  /**
-   * Helper functions
-   */
-
-  void velocity_matrix (
-    SparseMatrix<double>& A,
-    const ScalarPDESkeleton<2>& scalar_pde,
-    const VectorPDESkeleton<2>& vector_pde,
-    const Field<2>& s,
-    const Field<2>& h,
-    const Field<2>& beta,
-    const VectorField<2>& u0
-  )
-  {
-    A = 0;
-
-    const auto& u_fe = vector_pde.get_fe();
-    const auto& u_dof_handler = vector_pde.get_dof_handler();
-
-    const auto& h_fe = scalar_pde.get_fe();
-
-    const QGauss<2>& quad = vector_pde.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
-
-    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
-    const FEValuesExtractors::Vector exv(0);
-
-    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
-    const FEValuesExtractors::Scalar exs(0);
-
-    const unsigned int n_q_points = quad.size();
-    const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
-
-    std::vector<double> h_values(n_q_points);
-    std::vector<double> s_values(n_q_points);
-    std::vector<double> beta_values(n_q_points);
-    std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
-
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    auto cell = u_dof_handler.begin_active();
-    auto h_cell = scalar_pde.get_dof_handler().begin_active();
-    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
-      cell_matrix = 0;
-      u_fe_values.reinit(cell);
-      h_fe_values.reinit(h_cell);
-
-      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
-      h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
-      h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
-
-      u_fe_values[exv].get_function_symmetric_gradients(
-        u0.get_coefficients(), strain_rate_values
-      );
-
-      for (unsigned int q = 0; q < n_q_points; ++q) {
-        const double dx = u_fe_values.JxW(q);
-        const double H = h_values[q];
-        const SymmetricTensor<2, 2> eps = strain_rate_values[q];
-
-        // TODO: use an actual temperature field
-        const double T = 263.15;
-
-        const SymmetricTensor<4, 2> C = CTensors::linearized(T, H, eps);
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
-
-          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            const auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
-
-            cell_matrix(i, j) += (eps_phi_i * C * eps_phi_j) * dx;
-          }
-        }
-
-        // Determine whether the ice is floating at this quadrature point.
-        // This is... admittedly a little weird. Due to imprecise arithmetic,
-        // some grid points may be just barely above flotation when they should
-        // be at flotation. So we put in a little fudge factor.
-        // Ideally, the basal shear stress would be parameterized by some factor
-        // of the height above flotation/effective pressure/whatever, so the
-        // effect would be a continuous transition from grounded to floating,
-        // obviating the need for this silly hack.
-        const double flotation = (1 - rho_ice/rho_water) * H;
-        const double flotation_tolerance = 1.0e-4;
-        const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
-
-        // If so, add basal sliding to the local velocity matrix.
-        if (floating)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            const auto phi_i = u_fe_values[exv].value(i, q);
-
-            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-              const auto phi_j = u_fe_values[exv].value(j, q);
-              cell_matrix(i, j) += (phi_i * phi_j) * beta_values[q] * dx;
-            }
-          }
-      }
-
-      // Add the local stiffness matrix to the global stiffness matrix
-      cell->get_dof_indices(local_dof_indices);
-      vector_pde.get_constraints().distribute_local_to_global(
-        cell_matrix, local_dof_indices, A
-      );
-    }
-
-    A.compress(dealii::VectorOperation::add);
-  }
-
-
-  void linear_solve(
-    const SparseMatrix<double>& A,
-    Vector<double>& u,
-    const Vector<double>& f,
-    const ConstraintMatrix& constraints
-  )
-  {
-    SolverControl solver_control(1000, 1.0e-12);
-    solver_control.log_result(false); // silence solver progress output
-    SolverCG<> cg(solver_control);
-
-    SparseILU<double> M;
-    M.initialize(A);
-
-    cg.solve(A, u, f, M);
-
-    constraints.distribute(u);
-  }
 
 }
