@@ -41,20 +41,20 @@ namespace icepack
 
 
     SymmetricTensor<4, 2> nonlinear(
-      const double temperature,
+      const double T,
       const double h,
       const SymmetricTensor<2, 2> eps
     )
     {
       const double tr = first_invariant(eps);
       const double eps_e = sqrt((eps * eps + tr * tr)/2);
-      const double nu = h * viscosity(temperature, eps_e);
+      const double nu = h * viscosity(T, eps_e);
       return 2 * nu * C;
     }
 
 
     SymmetricTensor<4, 2> linearized(
-      const double temperature,
+      const double T,
       const double h,
       const SymmetricTensor<2, 2> eps
     )
@@ -63,7 +63,7 @@ namespace icepack
       const double eps_e = sqrt((eps * eps + tr * tr)/2);
       const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
 
-      const double nu = h * viscosity(temperature, eps_e);
+      const double nu = h * viscosity(T, eps_e);
 
       return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
     }
@@ -71,10 +71,11 @@ namespace icepack
 
 
   /**
-   * Construct the matrix representing the linearization of the nonlinear
-   * shallow stream equations.
+   * Construct the system matrix for the shallow stream equations.
    */
+  template <class ConstitutiveTensor>
   void velocity_matrix (
+    ConstitutiveTensor constitutive_tensor,
     SparseMatrix<double>& A,
     const ScalarPDESkeleton<2>& scalar_pde,
     const VectorPDESkeleton<2>& vector_pde,
@@ -134,7 +135,7 @@ namespace icepack
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> C = CTensors::linearized(T, H, eps);
+        const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -238,15 +239,12 @@ namespace icepack
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, scalar_pde, vector_pde, s, h, beta, u);
+      velocity_matrix(CTensors::linearized, A, scalar_pde, vector_pde, s, h, beta, u);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
       linear_solve(A, dU, R, vector_pde.get_constraints());
-
-      // TODO: change this
-      double alpha = 0.5;
-      U.add(alpha, dU);
+      U.add(1.0, dU);
 
       // Compute the relative difference between the new and old solutions
       r = shallow_stream.residual(s, h, beta, u, tau);
@@ -254,7 +252,52 @@ namespace icepack
     }
 
     return u;
+  }
 
+
+  /**
+   * Solve the diagnostic equations using Picard's method.
+   * The error tolerance specified is the relative change in the solution from
+   * one iteration to the next.
+   */
+  VectorField<2> picard_solve(
+    const Field<2>& s,
+    const Field<2>& h,
+    const Field<2>& beta,
+    const VectorField<2>& u0,
+    const ShallowStream& shallow_stream,
+    const double tolerance,
+    const unsigned int max_iterations
+  )
+  {
+    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
+    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
+    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
+
+    VectorField<2> u, u_old;
+    u_old.copy_from(u0);  u.copy_from(u0);
+    auto boundary_values = vector_pde.interpolate_boundary_values(u0);
+
+    VectorField<2> tau = shallow_stream.driving_stress(s, h);
+    Vector<double>& F = tau.get_coefficients();
+    Vector<double>& U = u.get_coefficients();
+    Vector<double>& U_old = u_old.get_coefficients();
+
+    double error = 1.0e16;
+    for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
+      // Fill the system matrix
+      velocity_matrix(CTensors::nonlinear, A, scalar_pde, vector_pde, s, h, beta, u);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
+
+      // Solve the linear system with the updated matrix
+      linear_solve(A, U, F, vector_pde.get_constraints());
+
+      // Compute the relative change in the solution
+      error = dist(u, u_old) / norm(u);
+      U_old = U;
+    }
+
+    return u;
   }
 
 
@@ -524,8 +567,8 @@ namespace icepack
     const VectorField<2>& u0
   ) const
   {
-    // TODO: use Picard solver for a few iterations
-    return newton_solve(s, h, beta, u0, *this, 1.0e-10, 100);
+    auto u = picard_solve(s, h, beta, u0, *this, 0.1, 5);
+    return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
   }
 
 
