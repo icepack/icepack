@@ -307,10 +307,6 @@ namespace icepack
    * ================================= */
 
 
-  /**
-   * Constructors & destructors
-   */
-
   ShallowStream::ShallowStream(const Triangulation<2>& tria,
                                const unsigned int p)
     :
@@ -320,7 +316,7 @@ namespace icepack
   {}
 
 
-  /**
+  /*
    * Interpolating observational data to finite element representation
    */
 
@@ -604,9 +600,6 @@ namespace icepack
   }
 
 
-  /**
-   * Accessors
-   */
 
   const Triangulation<2>& ShallowStream::get_triangulation() const
   {

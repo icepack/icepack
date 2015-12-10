@@ -1,9 +1,4 @@
 
-/**
- * Procedures for reading gridded data sets in a variety of formats and
- * building deal.II Function objects out of them
- */
-
 #ifndef READ_GRIDDED_DATA_HPP
 #define READ_GRIDDED_DATA_HPP
 
@@ -15,6 +10,9 @@
 namespace icepack
 {
 
+  /**
+   * Class for reading gridded data into a `dealii::Function` object
+   */
   class GridData :
     public dealii::Functions::InterpolatedTensorProductGridData<2>
   {

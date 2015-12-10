@@ -45,7 +45,11 @@ namespace icepack
 
 
     /**
-     * Compute the driving stress from the ice geometry.
+     * Compute the driving stress
+     \f[
+     \tau = -\rho gh\nabla s
+     \f]
+     * from the ice thickness \f$h\f$ and surface elevation \f$s\f$.
      */
     VectorField<2> driving_stress(
       const Field<2>& surface,
@@ -97,11 +101,10 @@ namespace icepack
     ) const;
 
 
-    /**
+    /*
      * Accessors
      */
     const Triangulation<2>& get_triangulation() const;
-
     const ScalarPDESkeleton<2>& get_scalar_pde_skeleton() const;
     const VectorPDESkeleton<2>& get_vector_pde_skeleton() const;
 

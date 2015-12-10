@@ -14,6 +14,7 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 
+
 namespace icepack
 {
   using dealii::Tensor;
@@ -197,10 +198,12 @@ namespace icepack
    * finite element interpolation as a Field or VectorField respectively.
    */
   template <int dim>
-  Field<dim> interpolate(const Triangulation<dim>& triangulation,
-                         const FiniteElement<dim>& finite_element,
-                         const DoFHandler<dim>& dof_handler,
-                         const Function<dim>& phi)
+  Field<dim> interpolate(
+    const Triangulation<dim>& triangulation,
+    const FiniteElement<dim>& finite_element,
+    const DoFHandler<dim>& dof_handler,
+    const Function<dim>& phi
+  )
   {
     Field<dim> psi(triangulation, finite_element, dof_handler);
 
@@ -214,11 +217,16 @@ namespace icepack
   }
 
 
+  /**
+   * Overload of `interpolate` for VectorField
+   */
   template <int dim>
-  VectorField<dim> interpolate(const Triangulation<dim>& triangulation,
-                               const FiniteElement<dim>& finite_element,
-                               const DoFHandler<dim>& dof_handler,
-                               const TensorFunction<1, dim>& phi)
+  VectorField<dim> interpolate(
+    const Triangulation<dim>& triangulation,
+    const FiniteElement<dim>& finite_element,
+    const DoFHandler<dim>& dof_handler,
+    const TensorFunction<1, dim>& phi
+  )
   {
     VectorField<dim> psi(triangulation, finite_element, dof_handler);
 
