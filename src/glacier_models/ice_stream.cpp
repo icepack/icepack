@@ -585,7 +585,7 @@ namespace icepack
   VectorField<2> IceStream::adjoint_solve(
     const Field<2>& h,
     const Field<2>& beta,
-    const Field<2>& u0,
+    const VectorField<2>& u0,
     const VectorField<2>& f
   ) const
   {

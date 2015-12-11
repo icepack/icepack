@@ -1,6 +1,6 @@
 
-#ifndef ICEPACK_SHALLOW_STREAM_HPP
-#define ICEPACK_SHALLOW_STREAM_HPP
+#ifndef ICEPACK_ICE_STREAM_HPP
+#define ICEPACK_ICE_STREAM_HPP
 
 #include <icepack/physical_constants.hpp>
 #include <icepack/field.hpp>
@@ -96,7 +96,7 @@ namespace icepack
     VectorField<2> adjoint_solve(
       const Field<2>& h,
       const Field<2>& beta,
-      const Field<2>& u0,
+      const VectorField<2>& u0,
       const VectorField<2>& f
     ) const;
 
