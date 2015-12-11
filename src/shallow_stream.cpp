@@ -75,17 +75,19 @@ namespace icepack
    */
   template <class ConstitutiveTensor>
   void velocity_matrix (
-    ConstitutiveTensor constitutive_tensor,
     SparseMatrix<double>& A,
-    const ScalarPDESkeleton<2>& scalar_pde,
-    const VectorPDESkeleton<2>& vector_pde,
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
-    const VectorField<2>& u0
+    const VectorField<2>& u0,
+    const ShallowStream& shallow_stream,
+    const ConstitutiveTensor constitutive_tensor
   )
   {
     A = 0;
+
+    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
+    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
 
     const auto& u_fe = vector_pde.get_fe();
     const auto& u_dof_handler = vector_pde.get_dof_handler();
@@ -93,7 +95,6 @@ namespace icepack
     const auto& h_fe = scalar_pde.get_fe();
 
     const QGauss<2>& quad = vector_pde.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -218,7 +219,6 @@ namespace icepack
     const unsigned int max_iterations
   )
   {
-    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
     const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
     SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
@@ -239,7 +239,7 @@ namespace icepack
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(CTensors::linearized, A, scalar_pde, vector_pde, s, h, beta, u);
+      velocity_matrix(A, s, h, beta, u, shallow_stream, CTensors::linearized);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -270,7 +270,6 @@ namespace icepack
     const unsigned int max_iterations
   )
   {
-    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
     const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
     SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
@@ -286,7 +285,7 @@ namespace icepack
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(CTensors::nonlinear, A, scalar_pde, vector_pde, s, h, beta, u);
+      velocity_matrix(A, s, h, beta, u, shallow_stream, CTensors::nonlinear);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
