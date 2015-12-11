@@ -3,45 +3,26 @@
 #define ICEPACK_ICE_STREAM_HPP
 
 #include <icepack/physical_constants.hpp>
-#include <icepack/field.hpp>
-#include <icepack/glacier_models/pde_skeleton.hpp>
+#include <icepack/glacier_models/depth_averaged_model.hpp>
 
-
-namespace icepack
-{
+namespace icepack {
 
   /**
    * This class solves the shallow stream model of glacier flow, appropriate
    * for ice streams and ice shelves which flow with little to no vertical
    * shear.
    */
-  class IceStream
+  class IceStream : public DepthAveragedModel
   {
   public:
 
     /**
-     * Construct a model object, which consists of the geometry and the order
-     * of the finite element expansion.
+     * Construct a model object for a given geometry and finite element basis.
      */
     IceStream(
       const Triangulation<2>& triangulation,
       const unsigned int polynomial_order
     );
-
-
-    /**
-     * Given some observed data, represented by a dealii::Function object,
-     * compute the finite element interpolation of the data using the finite
-     * element basis for this model.
-     */
-    Field<2> interpolate(const Function<2>& phi) const;
-
-    /**
-     * Given observed data for a vector field, represented by a dealii::
-     * TensorFunction object, compute the finite element interpolation of the
-     * data using the finite element basis for this model.
-     */
-    VectorField<2> interpolate(const TensorFunction<1, 2>& f) const;
 
 
     /**
@@ -99,20 +80,6 @@ namespace icepack
       const VectorField<2>& u0,
       const VectorField<2>& f
     ) const;
-
-
-    /*
-     * Accessors
-     */
-    const Triangulation<2>& get_triangulation() const;
-    const ScalarPDESkeleton<2>& get_scalar_pde_skeleton() const;
-    const VectorPDESkeleton<2>& get_vector_pde_skeleton() const;
-
-  protected:
-    const Triangulation<2>& triangulation;
-
-    const ScalarPDESkeleton<2> scalar_pde;
-    const VectorPDESkeleton<2> vector_pde;
   };
 
 }

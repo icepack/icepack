@@ -11,8 +11,8 @@
 
 #include <icepack/field.hpp>
 
-namespace icepack
-{
+namespace icepack {
+
   using dealii::Triangulation;
   using dealii::FE_Q;
   using dealii::FESystem;

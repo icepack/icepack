@@ -30,6 +30,7 @@ add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
   src/physical_constants.cpp
+  src/glacier_models/depth_averaged_model.cpp
   src/glacier_models/ice_stream.cpp)
 DEAL_II_SETUP_TARGET(icepack)
 target_link_libraries(icepack gdal)
