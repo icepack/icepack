@@ -1,7 +1,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-#include <icepack/glacier_models/shallow_stream.hpp>
+#include <icepack/glacier_models/ice_stream.hpp>
 
 using namespace dealii;
 using namespace icepack;
@@ -93,7 +93,7 @@ int main()
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
-  ShallowStream ssa(triangulation, 1);
+  IceStream ssa(triangulation, 1);
 
   const Field<2> s = ssa.interpolate(Surface());
   const Field<2> h = ssa.interpolate(Thickness());

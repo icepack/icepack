@@ -15,7 +15,7 @@ namespace icepack
    * for ice streams and ice shelves which flow with little to no vertical
    * shear.
    */
-  class ShallowStream
+  class IceStream
   {
   public:
 
@@ -23,7 +23,7 @@ namespace icepack
      * Construct a model object, which consists of the geometry and the order
      * of the finite element expansion.
      */
-    ShallowStream(
+    IceStream(
       const Triangulation<2>& triangulation,
       const unsigned int polynomial_order
     );

@@ -6,7 +6,7 @@
 #include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/numerics/matrix_tools.h>
 
-#include <icepack/glacier_models/shallow_stream.hpp>
+#include <icepack/glacier_models/ice_stream.hpp>
 
 
 namespace icepack
@@ -71,7 +71,7 @@ namespace icepack
 
 
   /**
-   * Construct the system matrix for the shallow stream equations.
+   * Construct the system matrix for the ice stream equations.
    */
   template <class ConstitutiveTensor>
   void velocity_matrix (
@@ -80,14 +80,14 @@ namespace icepack
     const Field<2>& h,
     const Field<2>& beta,
     const VectorField<2>& u0,
-    const ShallowStream& shallow_stream,
+    const IceStream& ice_stream,
     const ConstitutiveTensor constitutive_tensor
   )
   {
     A = 0;
 
-    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
-    const auto& scalar_pde = shallow_stream.get_scalar_pde_skeleton();
+    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
+    const auto& scalar_pde = ice_stream.get_scalar_pde_skeleton();
 
     const auto& u_fe = vector_pde.get_fe();
     const auto& u_dof_handler = vector_pde.get_dof_handler();
@@ -214,22 +214,22 @@ namespace icepack
     const Field<2>& h,
     const Field<2>& beta,
     const VectorField<2>& u0,
-    const ShallowStream& shallow_stream,
+    const IceStream& ice_stream,
     const double tolerance,
     const unsigned int max_iterations
   )
   {
-    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
+    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
     SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
     VectorField<2> u;
     u.copy_from(u0);
     auto boundary_values = vector_pde.zero_boundary_values();
 
-    const VectorField<2> tau = shallow_stream.driving_stress(s, h);
+    const VectorField<2> tau = ice_stream.driving_stress(s, h);
     const double tau_norm = norm(tau);
 
-    VectorField<2> r = shallow_stream.residual(s, h, beta, u, tau);
+    VectorField<2> r = ice_stream.residual(s, h, beta, u, tau);
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
@@ -239,7 +239,7 @@ namespace icepack
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, shallow_stream, CTensors::linearized);
+      velocity_matrix(A, s, h, beta, u, ice_stream, CTensors::linearized);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -247,7 +247,7 @@ namespace icepack
       U.add(1.0, dU);
 
       // Compute the relative difference between the new and old solutions
-      r = shallow_stream.residual(s, h, beta, u, tau);
+      r = ice_stream.residual(s, h, beta, u, tau);
       error = norm(r) / tau_norm;
     }
 
@@ -265,19 +265,19 @@ namespace icepack
     const Field<2>& h,
     const Field<2>& beta,
     const VectorField<2>& u0,
-    const ShallowStream& shallow_stream,
+    const IceStream& ice_stream,
     const double tolerance,
     const unsigned int max_iterations
   )
   {
-    const auto& vector_pde = shallow_stream.get_vector_pde_skeleton();
+    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
     SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
     VectorField<2> u, u_old;
     u_old.copy_from(u0);  u.copy_from(u0);
     auto boundary_values = vector_pde.interpolate_boundary_values(u0);
 
-    VectorField<2> tau = shallow_stream.driving_stress(s, h);
+    VectorField<2> tau = ice_stream.driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
@@ -285,7 +285,7 @@ namespace icepack
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, shallow_stream, CTensors::nonlinear);
+      velocity_matrix(A, s, h, beta, u, ice_stream, CTensors::nonlinear);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -302,12 +302,11 @@ namespace icepack
 
 
   /* =================================
-   * Member functions of ShallowStream
+   * Member functions of IceStream
    * ================================= */
 
 
-  ShallowStream::ShallowStream(const Triangulation<2>& tria,
-                               const unsigned int p)
+  IceStream::IceStream(const Triangulation<2>& tria, const unsigned int p)
     :
     triangulation(tria),
     scalar_pde(tria, FE_Q<2>(p)),
@@ -320,7 +319,7 @@ namespace icepack
    */
 
   Field<2>
-  ShallowStream::interpolate(const Function<2>& phi) const
+  IceStream::interpolate(const Function<2>& phi) const
   {
     return icepack::interpolate(
       triangulation,
@@ -331,7 +330,7 @@ namespace icepack
   }
 
   VectorField<2>
-  ShallowStream::interpolate(const TensorFunction<1, 2>& f) const
+  IceStream::interpolate(const TensorFunction<1, 2>& f) const
   {
     return icepack::interpolate(
       triangulation,
@@ -348,7 +347,7 @@ namespace icepack
    */
 
   VectorField<2>
-  ShallowStream::driving_stress(const Field<2>& s, const Field<2>& h) const
+  IceStream::driving_stress(const Field<2>& s, const Field<2>& h) const
   {
     // Initialize the VectorField for the driving stress
     const auto& tau_fe = vector_pde.get_fe();
@@ -451,7 +450,7 @@ namespace icepack
   }
 
 
-  VectorField<2> ShallowStream::residual(
+  VectorField<2> IceStream::residual(
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
@@ -555,7 +554,7 @@ namespace icepack
   }
 
 
-  VectorField<2> ShallowStream::diagnostic_solve(
+  VectorField<2> IceStream::diagnostic_solve(
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& beta,
@@ -567,7 +566,7 @@ namespace icepack
   }
 
 
-  Field<2> ShallowStream::prognostic_solve(
+  Field<2> IceStream::prognostic_solve(
     const double dt,
     const Field<2>& h0,
     const Field<2>& a,
@@ -583,7 +582,7 @@ namespace icepack
   }
 
 
-  VectorField<2> ShallowStream::adjoint_solve(
+  VectorField<2> IceStream::adjoint_solve(
     const Field<2>& h,
     const Field<2>& beta,
     const Field<2>& u0,
@@ -600,17 +599,17 @@ namespace icepack
 
 
 
-  const Triangulation<2>& ShallowStream::get_triangulation() const
+  const Triangulation<2>& IceStream::get_triangulation() const
   {
     return triangulation;
   }
 
-  const ScalarPDESkeleton<2>& ShallowStream::get_scalar_pde_skeleton() const
+  const ScalarPDESkeleton<2>& IceStream::get_scalar_pde_skeleton() const
   {
     return scalar_pde;
   }
 
-  const VectorPDESkeleton<2>& ShallowStream::get_vector_pde_skeleton() const
+  const VectorPDESkeleton<2>& IceStream::get_vector_pde_skeleton() const
   {
     return vector_pde;
   }

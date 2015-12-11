@@ -1,7 +1,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-#include <icepack/glacier_models/shallow_stream.hpp>
+#include <icepack/glacier_models/ice_stream.hpp>
 
 using namespace dealii;
 using namespace icepack;
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
    * Create a model object and input data
    */
 
-  ShallowStream ssa(triangulation, 1);
+  IceStream ssa(triangulation, 1);
 
   Field<2> s = ssa.interpolate(Surface());
   Field<2> h = ssa.interpolate(Thickness());
