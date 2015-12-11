@@ -1,6 +1,6 @@
 
 #include <icepack/ice_thickness.hpp>
-#include <icepack/physical_constants.hpp>
+#include <icepack/physics/constants.hpp>
 
 namespace icepack
 {

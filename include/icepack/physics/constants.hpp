@@ -1,6 +1,6 @@
 
-#ifndef PHYSICAL_CONSTANTS_HPP
-#define PHYSICAL_CONSTANTS_HPP
+#ifndef ICEPACK_CONSTANTS_HPP
+#define ICEPACK_CONSTANTS_HPP
 
 namespace icepack
 {
@@ -11,8 +11,6 @@ namespace icepack
   constexpr double rho_ice  = 917 / (year_in_sec * year_in_sec) * 1.0e-6;
   constexpr double rho_water = 1024 / (year_in_sec * year_in_sec) * 1.0e-6;
 
-  double rate_factor(const double temperature);
-  double viscosity(const double temperature, const double strain_rate);
 }
 
 #endif

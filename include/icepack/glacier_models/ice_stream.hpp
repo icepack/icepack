@@ -2,7 +2,6 @@
 #ifndef ICEPACK_ICE_STREAM_HPP
 #define ICEPACK_ICE_STREAM_HPP
 
-#include <icepack/physical_constants.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
 
 namespace icepack {

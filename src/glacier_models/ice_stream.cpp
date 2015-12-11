@@ -1,20 +1,16 @@
 
-#include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_ilu.h>
 #include <deal.II/numerics/matrix_tools.h>
 
+#include <icepack/physics/constants.hpp>
+#include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
 
 
-namespace icepack
-{
-  using dealii::SymmetricTensor;
-  using dealii::unit_symmetric_tensor;
-  using dealii::identity_tensor;
-  using dealii::outer_product;
+namespace icepack {
 
   using dealii::FullMatrix;
   using dealii::SparseMatrix;
@@ -32,42 +28,6 @@ namespace icepack
   /* ================
    * Helper functions
    * ================ */
-
-  namespace CTensors
-  {
-    const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
-    const SymmetricTensor<4, 2> II = identity_tensor<2>();
-    const SymmetricTensor<4, 2> C = II + outer_product(I, I);
-
-
-    SymmetricTensor<4, 2> nonlinear(
-      const double T,
-      const double h,
-      const SymmetricTensor<2, 2> eps
-    )
-    {
-      const double tr = first_invariant(eps);
-      const double eps_e = sqrt((eps * eps + tr * tr)/2);
-      const double nu = h * viscosity(T, eps_e);
-      return 2 * nu * C;
-    }
-
-
-    SymmetricTensor<4, 2> linearized(
-      const double T,
-      const double h,
-      const SymmetricTensor<2, 2> eps
-    )
-    {
-      const double tr = first_invariant(eps);
-      const double eps_e = sqrt((eps * eps + tr * tr)/2);
-      const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
-
-      const double nu = h * viscosity(T, eps_e);
-
-      return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
-    }
-  }
 
 
   /**
@@ -239,7 +199,7 @@ namespace icepack
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, CTensors::linearized);
+      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::linearized);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -285,7 +245,7 @@ namespace icepack
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, CTensors::nonlinear);
+      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::nonlinear);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -483,7 +443,7 @@ namespace icepack
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> C = CTensors::nonlinear(T, H, eps);
+        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, H, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);

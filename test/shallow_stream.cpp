@@ -1,6 +1,8 @@
 
 #include <deal.II/grid/grid_generator.h>
 
+#include <icepack/physics/constants.hpp>
+#include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
 
 using namespace dealii;
