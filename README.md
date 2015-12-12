@@ -19,12 +19,11 @@ For development purposes, I recommend disabling the use of Intel's Threading Bui
 Using Intel TBB can cause valgrind to erroneously report memory leaks, and to generally confound debuggers.
 
 To build the icepack sources, run the following:
-```
-mkdir <build>
-cd <build>
-cmake <path/to/icepack>
-make
-```
+
+    mkdir <build>
+    cd <build>
+    cmake <path/to/icepack>
+    make
 
 Additionally, unit tests can be run by invoking `make test`.
 

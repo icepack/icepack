@@ -14,9 +14,8 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 
+namespace icepack {
 
-namespace icepack
-{
   using dealii::Tensor;
   using dealii::Function;
   using dealii::TensorFunction;
@@ -77,9 +76,11 @@ namespace icepack
       coefficients(0)
     {}
 
-    FieldType(const Triangulation<dim>& _triangulation,
-              const FiniteElement<dim>& _fe,
-              const DoFHandler<dim>& _dof_handler)
+    FieldType(
+      const Triangulation<dim>& _triangulation,
+      const FiniteElement<dim>& _fe,
+      const DoFHandler<dim>& _dof_handler
+    )
       :
       triangulation(&_triangulation),
       fe(&_fe),
@@ -91,10 +92,15 @@ namespace icepack
       // supplied is compatible with the field type (scalar vs. vector)
     }
 
-    // Delete the copy constructor. Only copy a FieldType if asked explicitly.
+    /**
+     * Delete the copy constructor.
+     */
     FieldType(const FieldType<rank, dim>&) = delete;
 
-    // Explicity copying of FieldType is done using this method.
+    /**
+     * Explicitly copy a field; this replaces the functionality of the copy
+     * constructor.
+     */
     void copy_from(const FieldType<rank, dim>& phi)
     {
       // These are all dealii::SmartPointers to the object in question, so the
@@ -107,7 +113,15 @@ namespace icepack
       coefficients = phi.coefficients;
     }
 
-    // Move constructor
+    /**
+     * Move constructor. This allows fields to be returned from functions,
+     * so that one can write things like
+     *
+     *     Field<dim> u = solve_pde(kappa, f);
+     *
+     * without an expensive and unnecessary copy operation by using C++11
+     * move semantics.
+     */
     FieldType(FieldType<rank, dim>&& phi)
       :
       triangulation(phi.triangulation),
@@ -116,7 +130,16 @@ namespace icepack
       coefficients(std::move(phi.coefficients))
     {}
 
-    // Move assignment
+    /**
+     * Move assignment operator. Like the move constructor, this allows fields
+     * to be returned from functions, even after their declaration:
+     *
+     *     Field<dim> kappa = initial_guess();
+     *     Field<dim> u = solve_pde(kappa, f);
+     *     kappa = update_guess(u);
+     *
+     * This functionality is useful when solving nonlinear PDE iteratively.
+     */
     FieldType<rank, dim>& operator=(FieldType<rank, dim>&& phi)
     {
       triangulation = phi.triangulation;
@@ -134,31 +157,47 @@ namespace icepack
     {}
 
 
-    // Accessors to raw data
+    /**
+     * Return const access to the coefficients of the finite element expansion
+     * of the field.
+     */
     const Vector<double>& get_coefficients() const
     {
       return coefficients;
     }
 
+    /**
+     * Return non-const access to the coefficients of the field, e.g. so that a
+     * PDE solver can set or update the field values.
+     */
     Vector<double>& get_coefficients()
     {
       return coefficients;
     }
 
+    /**
+     * Return the `dealii::FiniteElement` object used to discretize the field.
+     */
     const FiniteElement<dim>& get_fe() const
     {
       return *fe;
     }
 
+    /**
+     * Return the degree-of-freedom handler for the field. This object can be
+     * used to iterate over all the degrees of freedom  of the field.
+     */
     const DoFHandler<dim>& get_dof_handler() const
     {
       return *dof_handler;
     }
 
 
-    // File I/O
-    bool write(const std::string& filename,
-               const std::string& field_name)
+    /**
+     * Write out the field to a file in the `.ucd` format. See `scripts/` for
+     * Python modules to read meshes and data in this format.
+     */
+    bool write(const std::string& filename, const std::string& field_name)
     {
       std::ofstream output(filename.c_str());
 
