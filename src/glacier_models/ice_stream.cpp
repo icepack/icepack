@@ -261,9 +261,9 @@ namespace icepack {
 
 
 
-  /* =================================
+  /* =============================
    * Member functions of IceStream
-   * ================================= */
+   * ============================= */
 
 
   IceStream::IceStream(const Triangulation<2>& tria, const unsigned int p)
