@@ -48,16 +48,13 @@ namespace icepack {
       const VectorField<2>& u0
     ) const;
 
-    /**
-     * Propagate the ice thickness forward in time using the current velocity
-     * and accumulation rate.
+    /*
+     * Field<2> prognostic_solve(...) const
+     *
+     * Prognostic solves for ice shelves are no different from that for any
+     * other depth-averaged glacier model, so we use the implementation defined
+     * in DepthAveragedModel.
      */
-    Field<2> prognostic_solve(
-      const double dt,
-      const Field<2>& thickness,
-      const Field<2>& accumulation,
-      const VectorField<2>& u
-    ) const;
 
     /**
      * Solve the linearization of the diagnostic equation around a velocity u0

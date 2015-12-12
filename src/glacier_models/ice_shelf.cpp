@@ -59,22 +59,6 @@ namespace icepack {
   }
 
 
-  Field<2> IceShelf::prognostic_solve(
-    const double dt,
-    const Field<2>& h0,
-    const Field<2>& a,
-    const VectorField<2>& u
-  ) const
-  {
-    Field<2> h;
-    h.copy_from(h0);
-
-    // TODO: write this
-
-    return h;
-  }
-
-
   VectorField<2> IceShelf::adjoint_solve(
     const Field<2>& h,
     const VectorField<2>& u0,

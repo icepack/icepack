@@ -18,8 +18,7 @@ namespace icepack {
    * Interpolating observational data to finite element representation
    */
 
-  Field<2>
-  DepthAveragedModel::interpolate(const Function<2>& phi) const
+  Field<2> DepthAveragedModel::interpolate(const Function<2>& phi) const
   {
     return icepack::interpolate(
       triangulation,
@@ -38,6 +37,22 @@ namespace icepack {
       vector_pde.get_dof_handler(),
       f
     );
+  }
+
+
+  Field<2> DepthAveragedModel::prognostic_solve(
+    const double dt,
+    const Field<2>& h0,
+    const Field<2>& a,
+    const VectorField<2>& u
+  ) const
+  {
+    Field<2> h;
+    h.copy_from(h0);
+
+    /* TODO: write this. */
+
+    return h;
   }
 
 

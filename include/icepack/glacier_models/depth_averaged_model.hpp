@@ -30,6 +30,18 @@ namespace icepack {
     VectorField<2> interpolate(const TensorFunction<1, 2>& phi) const;
 
 
+    /**
+     * Propagate the ice thickness forward in time using the current
+     * accumulation rate and depth-averaged velocity.
+     */
+    Field<2> prognostic_solve(
+      const double dt,
+      const Field<2>& thickness,
+      const Field<2>& accumulation,
+      const VectorField<2>& u
+    ) const;
+
+
     /*
      * Accessors
      */

@@ -59,11 +59,15 @@ namespace icepack {
     ) const;
 
     /**
-     * Propagate the ice thickness forward in time using the current velocity
-     * and accumulation rate.
+     * Propagate the ice thickness forward in time using the current
+     * accumulation rate, depth-averaged velocity and bed elevation.
+     * For ice streams, which may encompass both floating and grounded ice,
+     * we need to return both the updated thickness and surface elevation;
+     * to do so, we also require the bed elevation field.
      */
-    Field<2> prognostic_solve(
+    std::pair<Field<2>, Field<2> > prognostic_solve(
       const double dt,
+      const Field<2>& bed,
       const Field<2>& thickness,
       const Field<2>& accumulation,
       const VectorField<2>& u

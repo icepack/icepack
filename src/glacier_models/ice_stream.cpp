@@ -497,19 +497,28 @@ namespace icepack {
   }
 
 
-  Field<2> IceStream::prognostic_solve(
+  std::pair<Field<2>, Field<2> > IceStream::prognostic_solve(
     const double dt,
+    const Field<2>& b,
     const Field<2>& h0,
     const Field<2>& a,
     const VectorField<2>& u
   ) const
   {
-    Field<2> h;
-    h.copy_from(h0);
+    // Invoke the prognostic solve procedure defined by DepthAveragedModel
+    // in order to update the ice thickness.
+    Field<2> h = static_cast<const DepthAveragedModel&>(*this)
+      .prognostic_solve(dt, h0, a, u);
 
-    /* TODO: write this */
+    // Update the ice surface elevation using the known bed elevation and the
+    // updated thickness:
+    //     s(x) = min{b(x) + h(x), (1 - rho_i / rho_w) * h(x)}
+    Field<2> s;
+    s.copy_from(b);
+    // TODO: implement this
+    s.get_coefficients().add(1.0, h.get_coefficients());
 
-    return h;
+    return std::make_pair(std::move(h), std::move(s));
   }
 
 
