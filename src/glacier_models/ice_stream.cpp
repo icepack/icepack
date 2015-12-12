@@ -1,5 +1,4 @@
 
-#include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_ilu.h>
