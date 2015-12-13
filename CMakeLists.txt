@@ -30,6 +30,7 @@ add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
   src/physics/viscosity.cpp
+  src/numerics/linear_solve.cpp
   src/glacier_models/depth_averaged_model.cpp
   src/glacier_models/ice_shelf.cpp
   src/glacier_models/ice_stream.cpp)
