@@ -195,7 +195,7 @@ namespace icepack {
     for (; cell != tau_dof_handler.end(); ++cell, ++h_cell) {
       cell_rhs = 0;
       tau_fe_values.reinit(cell);
-      h_fe_values.reinit(cell);
+      h_fe_values.reinit(h_cell);
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
 

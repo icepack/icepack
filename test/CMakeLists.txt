@@ -6,6 +6,7 @@ set(test_list
   field.cpp
   field_dist.cpp
   field_move.cpp
+  ice_shelf.cpp
   shallow_shelf.cpp
   shallow_stream.cpp
 )
