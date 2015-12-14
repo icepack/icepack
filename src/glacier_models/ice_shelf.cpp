@@ -249,7 +249,6 @@ namespace icepack {
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
-    std::vector<Tensor<1, 2>> u_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     Vector<double> cell_residual(dofs_per_cell);
@@ -312,7 +311,7 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    return picard_solve(h, u0, *this, 0.001, 20);
+    return picard_solve(h, u0, *this, 1.0e-8, 100);
   }
 
 

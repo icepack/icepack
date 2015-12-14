@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     u.write("u.ucd", "u");
   }
 
-  //Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
+  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
 }
