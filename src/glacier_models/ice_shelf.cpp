@@ -100,6 +100,55 @@ namespace icepack {
 
 
   /**
+   * Solve the diagnostic equations using Newton's method.
+   * Note that this requires a sufficiently good initial guess, e.g. obtained
+   * from a few iterations of Picard's method.
+   */
+  VectorField<2> newton_solve(
+    const Field<2>& h,
+    const VectorField<2>& u0,
+    const IceShelf& ice_shelf,
+    const double tolerance,
+    const unsigned int max_iterations
+  )
+  {
+    const auto& vector_pde = ice_shelf.get_vector_pde_skeleton();
+    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
+
+    VectorField<2> u;
+    u.copy_from(u0);
+    auto boundary_values = vector_pde.zero_boundary_values();
+
+    const VectorField<2> tau = ice_shelf.driving_stress(h);
+    const double tau_norm = norm(tau);
+
+    VectorField<2> r = ice_shelf.residual(h, u, tau);
+    Vector<double>& R = r.get_coefficients();
+
+    Vector<double>& U = u.get_coefficients();
+    Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
+
+    double error = 1.0e16;
+
+    for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
+      // Fill the system matrix
+      velocity_matrix(A, h, u, ice_shelf, SSA::linearized);
+      dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
+
+      // Solve the linear system with the updated matrix
+      linear_solve(A, dU, R, vector_pde.get_constraints());
+      U.add(1.0, dU);
+
+      // Compute the relative difference between the new and old solutions
+      r = ice_shelf.residual(h, u, tau);
+      error = norm(r) / tau_norm;
+    }
+
+    return u;
+  }
+
+
+  /**
    * Solve the diagnostic equations using Picard's method.
    */
   VectorField<2> picard_solve(
@@ -311,7 +360,8 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    return picard_solve(h, u0, *this, 1.0e-8, 100);
+    auto u = picard_solve(h, u0, *this, 0.1, 5);
+    return newton_solve(h, u, *this, 1.0e-10, 100);
   }
 
 
