@@ -232,7 +232,76 @@ namespace icepack {
     VectorField<2> r;
     r.copy_from(f);
 
-    // TODO: write this
+    const auto& u_fe = vector_pde.get_fe();
+    const auto& u_dof_handler = vector_pde.get_dof_handler();
+
+    const auto& h_fe = scalar_pde.get_fe();
+
+    const QGauss<2>& quad = vector_pde.get_quadrature();
+
+    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Vector exv(0);
+
+    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Scalar exs(0);
+
+    const unsigned int n_q_points = quad.size();
+    const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
+
+    std::vector<double> h_values(n_q_points);
+    std::vector<Tensor<1, 2>> u_values(n_q_points);
+    std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
+
+    Vector<double> cell_residual(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    auto cell = u_dof_handler.begin_active();
+    auto h_cell = scalar_pde.get_dof_handler().begin_active();
+    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+      cell_residual = 0;
+      u_fe_values.reinit(cell);
+      h_fe_values.reinit(h_cell);
+
+      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      u_fe_values[exv].get_function_symmetric_gradients(
+        u.get_coefficients(), strain_rate_values
+      );
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = u_fe_values.JxW(q);
+        const double H = h_values[q];
+        const SymmetricTensor<2, 2> eps = strain_rate_values[q];
+
+        // TODO: use an actual temperature field
+        const double T = 263.15;
+
+        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, H, eps);
+
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+          cell_residual(i) -= (eps_phi_i * C * eps) * dx;
+        }
+      }
+
+      cell->get_dof_indices(local_dof_indices);
+      vector_pde.get_constraints().distribute_local_to_global(
+        cell_residual, local_dof_indices, r.get_coefficients()
+      );
+    }
+
+
+    const unsigned int n_dofs = u_dof_handler.n_dofs();
+    std::vector<bool> boundary_dofs(n_dofs);
+
+    // TODO: stop using the magic number 0 for the part of the boundary with
+    // Dirichlet conditions; use an enum, preprocessor define, etc. so that
+    // it's more obvious what this is.
+    const std::set<dealii::types::boundary_id> boundary_ids = {0};
+    dealii::DoFTools::extract_boundary_dofs(
+      u_dof_handler, dealii::ComponentMask(), boundary_dofs, boundary_ids
+    );
+    for (unsigned int i = 0; i < n_dofs; ++i)
+      if (boundary_dofs[i]) r.get_coefficients()(i) = 0;
 
     return r;
   }

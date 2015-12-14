@@ -121,12 +121,12 @@ int main(int argc, char **argv)
    */
 
   VectorField<2> tau = ice_shelf.driving_stress(h);
-  //VectorField<2> r = ice_shelf.residual(s, h, beta, u_true, tau);
+  VectorField<2> r = ice_shelf.residual(h, u_true, tau);
   const Vector<double>& Tau = tau.get_coefficients();
-  //const Vector<double>& R = r.get_coefficients();
+  const Vector<double>& R = r.get_coefficients();
 
   // Residual of the exact solution should be < dx^2.
-  //Assert(R.l2_norm() / Tau.l2_norm() < dx*dx, ExcInternalError());
+  Assert(R.l2_norm() / Tau.l2_norm() < dx*dx, ExcInternalError());
 
 
   /**
