@@ -12,6 +12,15 @@ namespace icepack {
   using dealii::Triangulation;
   using dealii::Function;
 
+  /**
+   * This class contains methods and data common to all depth-averaged models
+   * of glacier flow. For example, every depth-averaged model consists of a
+   * diagnostic equation, which dictates the depth-averaged velocity, and a
+   * prognostic equation, which dictates the evolution of the ice thickness
+   * field given a current velocity.
+   * DepthAveragedModel consists only of common components that other glacier
+   * models use; it is not useful on its own.
+   */
   class DepthAveragedModel
   {
   public:
@@ -45,19 +54,54 @@ namespace icepack {
     /*
      * Accessors
      */
+
+    /**
+     * Return a reference to the model geometry.
+     */
     const Triangulation<2>& get_triangulation() const;
+
+    /**
+     * Return a reference to the data for a scalar PDE with the given model and
+     * geometry, such as the prognostic equation.
+     */
     const ScalarPDESkeleton<2>& get_scalar_pde_skeleton() const;
+
+    /**
+     * Return a reference to the data for a vector PDE with the given model and
+     * geometry, such as the diagnostic equation.
+     */
     const VectorPDESkeleton<2>& get_vector_pde_skeleton() const;
 
   protected:
+    /**
+     * Construct a DepthAveragedModel for a given geometry and degree of the
+     * finite element basis functions. This constructor is not public; it is
+     * instead invoked in the constructor of child classes like `IceShelf` or
+     * `IceStream`.
+     */
     DepthAveragedModel(
       const Triangulation<2>& triangulation,
       const unsigned int polynomial_order
     );
 
+    /**
+     * The geometry for the model. This member is a reference to a
+     * `dealii::Triangulation` because the model does not own the geometry.
+     */
     const Triangulation<2>& triangulation;
 
+    /**
+     * The scalar PDE skeleton stores all of the data that will be shared by
+     * any scalar PDE over the given geometry regardless of its character or
+     * physical meaning, i.e. both the prognostic equation and the heat
+     * equation are built on the same scalar PDE skeleton even though they are
+     * distinct PDEs of different types.
+     */
     const ScalarPDESkeleton<2> scalar_pde;
+
+    /**
+     * Store all data shared by systems of PDE over the given geometry.
+     */
     const VectorPDESkeleton<2> vector_pde;
 
   private:

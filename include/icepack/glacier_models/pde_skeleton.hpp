@@ -22,7 +22,10 @@ namespace icepack {
   using dealii::UpdateFlags;
 
 
-  // Default update flags for FEValues objects.
+  /**
+   * Default update flags for `dealii::FEValues` objects when iterating over
+   * the degrees of freedom of a finite element field.
+   */
   namespace DefaultUpdateFlags
   {
     using dealii::update_values;
@@ -31,10 +34,16 @@ namespace icepack {
     using dealii::update_JxW_values;
     using dealii::update_normal_vectors;
 
+    /**
+     * Default update flags for finite element values on cells of the geometry
+     */
     const UpdateFlags flags =
       update_values            | update_gradients |
       update_quadrature_points | update_JxW_values;
 
+    /**
+     * Default update flags for finite element values on faces of the geometry
+     */
     const UpdateFlags face_flags =
       update_values         | update_quadrature_points |
       update_normal_vectors | update_JxW_values;
@@ -51,13 +60,19 @@ namespace icepack {
    * This class does *not* contain a sparse matrix; two PDEs which share the
    * same tensor rank (scalar, vector, etc.) and underlying geometry may have
    * different linear systems. Likewise, it does not store right-hand sides,
-   * solution vectors, etc.
+   * solution vectors, etc. Nonetheless, two distinct PDEs may share the same
+   * sparsity pattern or mapping from geometry to FE degrees of freedom.
    */
   template <int dim, class FE>
   class PDESkeleton
   {
   public:
-    // Constructors & destructors
+    /**
+     * Construct a PDE skeleton given the geometry and finite element basis;
+     * from this data, the PDE skeleton constructs all other necessary data to
+     * set up a PDE, e.g. degree-of-freedom handler, sparsity pattern,
+     * quadrature rules, constraints on hanging nodes.
+     */
     PDESkeleton(const Triangulation<dim>& triangulation,
                 const FE& _fe)
       :
@@ -78,13 +93,22 @@ namespace icepack {
       constraints.close();
     }
 
+
+    /**
+     * Destructor; releases memory stored by the degree-of-freedom handler.
+     */
     ~PDESkeleton()
     {
       dof_handler.clear();
     }
 
 
-    // Helper functions for making boundary value maps
+    /**
+     * In order to enforce Dirichlet boundary conditions, deal.II often uses a
+     * `std::map` of the Dirichlet boundary degrees of freedom to the boundary
+     * value. This function constructs a map for homogeneous Dirichlet
+     * conditions.
+     */
     std::map<dealii::types::global_dof_index, double>
     zero_boundary_values(const unsigned int boundary_id = 0) const
     {
@@ -101,10 +125,17 @@ namespace icepack {
     }
 
 
+    /**
+     * Construct a boundary-value `map` (see `zero_boundary_values`) from a
+     * field object, so that other fields can be made to have the same boundary
+     * values as the input field.
+     */
     template <int rank>
     std::map<dealii::types::global_dof_index, double>
-    interpolate_boundary_values(const FieldType<rank, dim>& phi,
-                                const unsigned int boundary_id = 0) const
+    interpolate_boundary_values(
+      const FieldType<rank, dim>& phi,
+      const unsigned int boundary_id = 0
+    ) const
     {
       const unsigned int n_components = std::pow(dim, rank);
       AssertDimension(fe.n_components(), n_components);
@@ -130,32 +161,55 @@ namespace icepack {
     }
 
 
-    // Accessors
+    /**
+     * Return the finite element object representing the basis functions used
+     * to discretize PDEs with this skeleton.
+     */
     const FE& get_fe() const
     {
       return fe;
     }
 
+    /**
+     * Return a reference to the degree-of-freedom handler for this skeleton.
+     */
     const DoFHandler<dim>& get_dof_handler() const
     {
       return dof_handler;
     }
 
+    /**
+     * Return the quadrature rule for integrating over cells of the underlying
+     * geometry, i.e. quads in 2D and hexes in 3D.
+     */
     const QGauss<dim>& get_quadrature() const
     {
       return quad;
     }
 
+    /**
+     * Return the quadrature rule for integrating over faces of the underlying
+     * geometry, i.e. lines in 2D and quads in 3D.
+     */
     const QGauss<dim-1>& get_face_quadrature() const
     {
       return face_quad;
     }
 
+    /**
+     * Return a reference to the sparsity pattern for a PDE with the current
+     * skeleton. Many sparse matrices can share the same sparsity pattern.
+     */
     const SparsityPattern& get_sparsity_pattern() const
     {
       return sparsity;
     }
 
+    /**
+     * Return a reference to the constraints on the degrees of freedom for this
+     * PDE, such as would occur through hanging nodes generated through adative
+     * mesh refinement.
+     */
     const ConstraintMatrix& get_constraints() const
     {
       return constraints;
@@ -165,6 +219,13 @@ namespace icepack {
     const FE fe;
     const QGauss<dim> quad;
     const QGauss<dim-1> face_quad;
+
+    /**
+     * Mapping of geometric primitives in the triangulation to finite element
+     * degrees of freedom. The PDE skeleton is the owner of the DoF handler;
+     * field objects representing the input data or solutions of PDEs with this
+     * skeleton will contain references to this DoF handler.
+     */
     DoFHandler<dim> dof_handler;
     SparsityPattern sparsity;
     ConstraintMatrix constraints;

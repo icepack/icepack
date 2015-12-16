@@ -56,18 +56,42 @@ namespace icepack {
 
 
   /**
-   * Base class for any physical field discretized by finite elements.
+   * This is a base class for any physical field discretized using a finite
+   * element expansion. It is used as the return and argument types of all
+   * glacier model objects (see `include/icepack/glacier_models`).
    */
   template <int rank, int dim>
   class FieldType
   {
   public:
     // Type aliases; these are for template magic.
+
+    /**
+     * The `value_type` for a scalar field is a real number, for a vector field
+     * a rank-1 tensor, and so on and so forth. The member class `tensor_type`
+     * of the `dealii::Tensor` class template is aliases the right value type,
+     * i.e. it reduces to `double` for rank 0.
+     */
     using value_type = typename Tensor<rank, dim>::tensor_type;
+
+    /**
+     * Same considerations as for `value_type` but for the gradient, i.e. the
+     * gradient type of a scalar field is rank-1 tensor, for a vector field
+     * rank-2 tensor, etc.
+     */
     using gradient_type = typename Tensor<rank + 1, dim>::tensor_type;
+
+    /**
+     * This typename aliases the right finite element values extractor for the
+     * given field type, i.e. scalar fields need `FEValuesExtractors::Scalar`,
+     * vector fields need `FEValuesExtractors::Vector`.
+     */
     using extractor_type = typename ExtractorType<rank>::type;
 
-    // Constructors & destructors
+
+    /**
+     * Default constructor for an empty field object with no geometry, FE, etc.
+     */
     FieldType()
       :
       triangulation(nullptr),
@@ -76,6 +100,16 @@ namespace icepack {
       coefficients(0)
     {}
 
+
+    /**
+     * Construct a field given the geometry, discretization and mapping of
+     * geometry to FE degrees of freedom. The field object does not own its
+     * `dealii::DoFHandler`, which may be shared among several fields;
+     * consequently, this data must be passed in to the constructor.
+     * Initializes the field to 0.
+     * You should not have to call this constructor in normal usage. Instead,
+     * use the `interpolate` member of the model object for the problem.
+     */
     FieldType(
       const Triangulation<dim>& _triangulation,
       const FiniteElement<dim>& _fe,
@@ -93,7 +127,8 @@ namespace icepack {
     }
 
     /**
-     * Delete the copy constructor.
+     * Delete the copy constructor; copying a field object should only be done
+     * if the user asks for it explicitly (see `copy_from`).
      */
     FieldType(const FieldType<rank, dim>&) = delete;
 
@@ -219,9 +254,33 @@ namespace icepack {
     }
 
   protected:
+    /**
+     * Reference to the model geometry.
+     * This is a `dealii::SmartPointer` instead of a normal C++ reference; this
+     * is to ensure that an exception is thrown if the triangulation object is
+     * destroyed before any client field objects are done with it.
+     * It does not implement any memory management (e.g. reference counting)
+     * or imply ownership.
+     */
     SmartPointer<const Triangulation<dim> > triangulation;
+
+    /**
+     * Reference to the finite element discretization for this field, e.g. a
+     * `dealii::FE_Q` object for a scalar field, a `dealii::FESystem` object
+     * for a vector field, etc.
+     */
     SmartPointer<const FiniteElement<dim> > fe;
+
+    /**
+     * Reference to the `dealii::DoFHandler` object for this geometry and FE
+     * discretization; stores the mapping of geometric objects in the
+     * triangulation (points, edges, etc.) to FE degrees of freedom.
+     */
     SmartPointer<const DoFHandler<dim> > dof_handler;
+
+    /**
+     * Coefficients of the finite element expansion of the field.
+     */
     Vector<double> coefficients;
   };
 
