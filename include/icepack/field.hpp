@@ -232,7 +232,7 @@ namespace icepack {
      * Write out the field to a file in the `.ucd` format. See `scripts/` for
      * Python modules to read meshes and data in this format.
      */
-    bool write(const std::string& filename, const std::string& field_name)
+    void write(const std::string& filename, const std::string& name) const
     {
       std::ofstream output(filename.c_str());
 
@@ -242,15 +242,13 @@ namespace icepack {
       std::vector<std::string> component_names;
       if (rank == 1)
         for (unsigned int k = 0; k < dim; ++k)
-          component_names.push_back(field_name + "_" + std::to_string(k+1));
+          component_names.push_back(name + "_" + std::to_string(k+1));
       else
-        component_names.push_back(field_name);
+        component_names.push_back(name);
 
       data_out.add_data_vector(coefficients, component_names);
       data_out.build_patches();
       data_out.write_ucd(output);
-
-      return true;
     }
 
   protected:
