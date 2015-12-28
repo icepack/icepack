@@ -77,8 +77,15 @@ public:
 };
 
 
-int main()
+int main(int argc, char ** argv)
 {
+  const bool verbose = argc == 2 &&
+    (strcmp(argv[1], "-v") == 0 ||
+     strcmp(argv[1], "--verbose") == 0);
+
+  /**
+   * Create a triangulation on which to solve PDEs
+   */
 
   Triangulation<2> triangulation;
   const Point<2> p1(0.0, 0.0), p2(length, width);
@@ -95,6 +102,11 @@ int main()
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
+
+  /**
+   * Create a model object and input data
+   */
+
   IceStream ssa(triangulation, 1);
 
   const Field<2> s = ssa.interpolate(Surface());
@@ -103,6 +115,10 @@ int main()
   const VectorField<2> u0 = ssa.interpolate(Velocity());
 
   const VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
+
+  if (verbose) {
+    u.write("u.ucd", "u");
+  }
 
   return 0;
 }

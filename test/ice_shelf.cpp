@@ -74,7 +74,7 @@ public:
 
 
 
-int main(int argc, char **argv)
+int main(int argc, char ** argv)
 {
   const bool verbose = argc == 2 &&
     (strcmp(argv[1], "-v") == 0 ||
@@ -134,6 +134,12 @@ int main(int argc, char **argv)
    */
 
   VectorField<2> u = ice_shelf.diagnostic_solve(h, u0);
+  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
+
+
+  /**
+   * Write out the solution to a file if running in verbose mode
+   */
 
   if (verbose) {
     std::cout << "Relative initial error: "
@@ -146,8 +152,6 @@ int main(int argc, char **argv)
     u_true.write("u_true.ucd", "u_true");
     u.write("u.ucd", "u");
   }
-
-  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
   return 0;
 }
