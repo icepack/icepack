@@ -89,38 +89,22 @@ namespace icepack {
 
         const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
 
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
-
-          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            const auto eps_phi_j = u_fe_values[exv].symmetric_gradient(j, q);
-
-            cell_matrix(i, j) += (eps_phi_i * C * eps_phi_j) * dx;
-          }
-        }
-
-        // Determine whether the ice is floating at this quadrature point.
-        // This is... admittedly a little weird. Due to imprecise arithmetic,
-        // some grid points may be just barely above flotation when they should
-        // be at flotation. So we put in a little fudge factor.
-        // Ideally, the basal shear stress would be parameterized by some factor
-        // of the height above flotation/effective pressure/whatever, so the
-        // effect would be a continuous transition from grounded to floating,
-        // obviating the need for this silly hack.
         const double flotation = (1 - rho_ice/rho_water) * H;
         const double flotation_tolerance = 1.0e-4;
-        const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
+        const bool floating = s_values[q] / flotation - 1.0 > flotation_tolerance;
+        const double K = beta_values[q] * floating;
 
-        // If so, add basal sliding to the local velocity matrix.
-        if (floating)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            const auto phi_i = u_fe_values[exv].value(i, q);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const auto eps_i = u_fe_values[exv].symmetric_gradient(i, q);
+          const auto phi_i = u_fe_values[exv].value(i, q);
 
-            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-              const auto phi_j = u_fe_values[exv].value(j, q);
-              cell_matrix(i, j) += (phi_i * phi_j) * beta_values[q] * dx;
-            }
+          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+            const auto eps_j = u_fe_values[exv].symmetric_gradient(j, q);
+            const auto phi_j = u_fe_values[exv].value(j, q);
+
+            cell_matrix(i, j) += (eps_i * C * eps_j + phi_i * K * phi_j) * dx;
           }
+        }
       }
 
       // Add the local stiffness matrix to the global stiffness matrix

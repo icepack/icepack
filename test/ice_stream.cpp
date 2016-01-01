@@ -19,7 +19,7 @@ const double width = 500;
 const double h0 = 500;
 const double delta_h = 100;
 
-const double height_above_flotation = 10.0;
+const double height_above_flotation = 0.0;
 
 
 class Surface : public Function<2>
