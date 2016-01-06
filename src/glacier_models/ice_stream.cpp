@@ -3,6 +3,7 @@
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
+#include <icepack/physics/basal_shear.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
 
