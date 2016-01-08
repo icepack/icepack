@@ -25,7 +25,7 @@ namespace icepack {
   /**
    * Construct the system matrix for the ice stream equations.
    */
-  template <class ConstitutiveTensor>
+  template <class ConstitutiveTensor, class BasalShear>
   void velocity_matrix (
     SparseMatrix<double>& A,
     const Field<2>& s,
@@ -33,7 +33,8 @@ namespace icepack {
     const Field<2>& beta,
     const VectorField<2>& u0,
     const IceStream& ice_stream,
-    const ConstitutiveTensor constitutive_tensor
+    const ConstitutiveTensor constitutive_tensor,
+    const BasalShear basal_shear
   )
   {
     A = 0;
@@ -60,6 +61,7 @@ namespace icepack {
     std::vector<double> h_values(n_q_points);
     std::vector<double> s_values(n_q_points);
     std::vector<double> beta_values(n_q_points);
+    std::vector<Tensor<1, 2>> u_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
@@ -76,6 +78,7 @@ namespace icepack {
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
       h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
 
+      u_fe_values[exv].get_function_values(u0.get_coefficients(), u_values);
       u_fe_values[exv].get_function_symmetric_gradients(
         u0.get_coefficients(), strain_rate_values
       );
@@ -93,7 +96,7 @@ namespace icepack {
         const double flotation = (1 - rho_ice/rho_water) * H;
         const double flotation_tolerance = 1.0e-4;
         const bool floating = s_values[q] / flotation - 1.0 > flotation_tolerance;
-        const double K = beta_values[q] * floating;
+        const auto K = floating * basal_shear(beta_values[q], u_values[q]);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -103,7 +106,7 @@ namespace icepack {
             const auto eps_j = u_fe_values[exv].symmetric_gradient(j, q);
             const auto phi_j = u_fe_values[exv].value(j, q);
 
-            cell_matrix(i, j) += (eps_i * C * eps_j + phi_i * K * phi_j) * dx;
+            cell_matrix(i, j) += (eps_i * C * eps_j + phi_i * (K * phi_j)) * dx;
           }
         }
       }
@@ -152,7 +155,8 @@ namespace icepack {
 
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::linearized);
+      const auto tau_b = basal_shear::linearized(1.0, 0.1, 100.0);
+      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::linearized, tau_b);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -198,7 +202,8 @@ namespace icepack {
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::nonlinear);
+      const auto tau_b = basal_shear::nonlinear(1.0, 0.1, 100.0);
+      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::nonlinear, tau_b);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
