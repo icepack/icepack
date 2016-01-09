@@ -19,34 +19,23 @@ namespace icepack {
   using dealii::DoFHandler;
   using dealii::SparsityPattern;
   using dealii::ConstraintMatrix;
-  using dealii::UpdateFlags;
-
 
   /**
    * Default update flags for `dealii::FEValues` objects when iterating over
    * the degrees of freedom of a finite element field.
    */
-  namespace DefaultUpdateFlags
-  {
-    using dealii::update_values;
-    using dealii::update_gradients;
-    using dealii::update_quadrature_points;
-    using dealii::update_JxW_values;
-    using dealii::update_normal_vectors;
+  namespace DefaultUpdateFlags {
+    using dealii::UpdateFlags;
 
     /**
      * Default update flags for finite element values on cells of the geometry
      */
-    const UpdateFlags flags =
-      update_values            | update_gradients |
-      update_quadrature_points | update_JxW_values;
+    extern const UpdateFlags flags;
 
     /**
      * Default update flags for finite element values on faces of the geometry
      */
-    const UpdateFlags face_flags =
-      update_values         | update_quadrature_points |
-      update_normal_vectors | update_JxW_values;
+    extern const UpdateFlags face_flags;
   }
 
 
