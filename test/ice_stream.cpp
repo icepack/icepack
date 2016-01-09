@@ -9,59 +9,69 @@ using namespace dealii;
 using namespace icepack;
 
 
-const double rho = rho_ice * (1 - rho_ice / rho_water);
-const double temp = 263.15;
-const double A = pow(rho * gravity / 4, 3) * rate_factor(temp);
-
-const double u0 = 100;
-const double length = 2000;
-const double width = 500;
-const double h0 = 500;
-const double delta_h = 100;
-
 const double height_above_flotation = 0.0;
 
 
 class Surface : public Function<2>
 {
 public:
-  Surface() {}
+  Surface(const double s0, const double delta_s, const double length)
+    :
+    s0(s0),
+    delta_s(delta_s),
+    length(length)
+  {}
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
-    return (1 - rho_ice / rho_water) *
-      (h0 - x[0] / length * delta_h) + height_above_flotation;
+    return s0 - delta_s * x[0] / length;
   }
+
+  const double s0, delta_s, length;
 };
 
 
 class Thickness : public Function<2>
 {
 public:
-  Thickness() {}
+  Thickness(const double h0, const double delta_h, const double length)
+    :
+    h0(h0),
+    delta_h(delta_h),
+    length(length)
+  {}
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
     return h0 - x[0] / length * delta_h;
   }
+
+  const double h0, delta_h, length;
 };
 
 
 class Velocity : public TensorFunction<1, 2>
 {
 public:
-  Velocity() {}
+  Velocity(const double u0, const double tau, const double gamma, const double length)
+    :
+    u0(u0),
+    tau(tau),
+    gamma(gamma),
+    length(length)
+  {}
 
   Tensor<1, 2> value(const Point<2>& x) const
   {
-    const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
-
     Tensor<1, 2> v;
-    v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
+    const double q = pow(1 - gamma * x[0] / length, 4);
+    v[0] = u0 + length / (4 * tau) * (1 - q);
     v[1] = 0.0;
 
     return v;
   }
+
+  const double u0, tau, gamma, length;
 };
 
 
@@ -87,6 +97,7 @@ int main(int argc, char ** argv)
    * Create a triangulation on which to solve PDEs
    */
 
+  const double length = 2000, width = 500;
   Triangulation<2> triangulation;
   const Point<2> p1(0.0, 0.0), p2(length, width);
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
@@ -109,12 +120,25 @@ int main(int argc, char ** argv)
 
   IceStream ssa(triangulation, 1);
 
-  const Field<2> s = ssa.interpolate(Surface());
-  const Field<2> h = ssa.interpolate(Thickness());
-  const Field<2> beta = ssa.interpolate(Beta());
-  const VectorField<2> u0 = ssa.interpolate(Velocity());
+  const double h0 = 500, delta_h = 100;
+  const Field<2> h = ssa.interpolate(Thickness(h0, delta_h, length));
 
-  const VectorField<2> u = ssa.diagnostic_solve(s, h, beta, u0);
+  const double rho = rho_ice * (1 - rho_ice / rho_water),
+    s0 = (1 - rho_ice/rho_water) * h0,
+    delta_s = (1 - rho_ice/rho_water) * delta_h;
+  const Field<2> s = ssa.interpolate(Surface(s0, delta_s, length));
+
+  const Field<2> beta = ssa.interpolate(Beta());
+
+
+  const double u0 = 100.0;
+  const double temp = 263.15;
+  const double A = pow(rho * gravity * h0 / 4, 3) * rate_factor(temp);
+  const double tau = delta_h / (h0 * A);
+  const double gamma = delta_h / h0;
+  const VectorField<2> v = ssa.interpolate(Velocity(u0, tau, gamma, length));
+
+  const VectorField<2> u = ssa.diagnostic_solve(s, h, beta, v);
 
   if (verbose) {
     u.write("u.ucd", "u");
