@@ -83,6 +83,21 @@ namespace icepack {
       const VectorField<2>& u0,
       const VectorField<2>& f
     ) const;
+
+    /**
+     * Bed sliding rheology exponent
+     */
+    const double m;
+
+    /**
+     * Bed sliding yield velocity
+     */
+    const double u0;
+
+    /**
+     * Bed sliding yield stress
+     */
+    const double tau0;
   };
 
 }

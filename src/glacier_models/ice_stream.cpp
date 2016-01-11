@@ -151,11 +151,12 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    double error = 1.0e16;
+    const auto tau_b =
+      basal_shear::linearized(ice_stream.m, ice_stream.tau0, ice_stream.u0);
 
+    double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      const auto tau_b = basal_shear::linearized(1.0, 0.1, 100.0);
       velocity_matrix(A, s, h, beta, u, ice_stream, SSA::linearized, tau_b);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
@@ -199,10 +200,12 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
+    const auto tau_b =
+      basal_shear::nonlinear(ice_stream.m, ice_stream.tau0, ice_stream.u0);
+
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      const auto tau_b = basal_shear::nonlinear(1.0, 0.1, 100.0);
       velocity_matrix(A, s, h, beta, u, ice_stream, SSA::nonlinear, tau_b);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
@@ -226,7 +229,10 @@ namespace icepack {
 
   IceStream::IceStream(const Triangulation<2>& tria, const unsigned int p)
     :
-    DepthAveragedModel(tria, p)
+    DepthAveragedModel(tria, p),
+    m(3.0),
+    u0(100.0),
+    tau0(0.1)
   {}
 
 
