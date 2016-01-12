@@ -43,7 +43,7 @@ namespace icepack {
       const double U = u.norm();
       const double C = tau0 * std::exp(beta) * std::pow(U/u0, 1/m - 1) / u0;
       const Tensor<1, 2> v = u/U;
-      return C * (I - (1.0/m - 1) * outer_product(v, v));
+      return C * (I + (1.0/m - 1) * outer_product(v, v));
     }
 
   }
