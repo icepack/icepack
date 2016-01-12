@@ -456,8 +456,9 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(s, h, beta, u0, *this, 0.1, 5);
-    return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
+    auto u = picard_solve(s, h, beta, u0, *this, 0.01, 50);
+    //return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
+    return u;
   }
 
 

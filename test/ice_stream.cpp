@@ -9,9 +9,6 @@ using namespace dealii;
 using namespace icepack;
 
 
-const double height_above_flotation = 0.0;
-
-
 class Surface : public Function<2>
 {
 public:
@@ -82,7 +79,7 @@ public:
 
   double value(const Point<2>&, const unsigned int = 0) const
   {
-    return 0.01;
+    return 8.0;
   }
 };
 
@@ -121,12 +118,15 @@ int main(int argc, char ** argv)
   IceStream ssa(triangulation, 1);
 
   const double h0 = 500, delta_h = 100;
-  const Field<2> h = ssa.interpolate(Thickness(h0, delta_h, length));
+  const Thickness thickness(h0, delta_h, length);
+  const Field<2> h = ssa.interpolate(thickness);
 
+  const double height_above_flotation = 50.0;
   const double rho = rho_ice * (1 - rho_ice / rho_water),
-    s0 = (1 - rho_ice/rho_water) * h0,
-    delta_s = (1 - rho_ice/rho_water) * delta_h;
-  const Field<2> s = ssa.interpolate(Surface(s0, delta_s, length));
+    s0 = (1 - rho_ice/rho_water) * h0 + height_above_flotation,
+    delta_s = (1 - rho_ice/rho_water) * delta_h + height_above_flotation;
+  const Surface surface(s0, delta_s, length);
+  const Field<2> s = ssa.interpolate(surface);
 
   const Field<2> beta = ssa.interpolate(Beta());
 
