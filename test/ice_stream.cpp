@@ -79,7 +79,7 @@ public:
 
   double value(const Point<2>&, const unsigned int = 0) const
   {
-    return 8.0;
+    return 0.5;
   }
 };
 
