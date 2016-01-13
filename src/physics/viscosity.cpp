@@ -58,7 +58,7 @@ namespace icepack {
       const SymmetricTensor<2, 2> eps
     )
     {
-      const double tr = first_invariant(eps);
+      const double tr = trace(eps);
       const double eps_e = sqrt((eps * eps + tr * tr)/2);
       const double nu = h * viscosity(T, eps_e);
       return 2 * nu * C;
@@ -71,7 +71,7 @@ namespace icepack {
       const SymmetricTensor<2, 2> eps
     )
     {
-      const double tr = first_invariant(eps);
+      const double tr = trace(eps);
       const double eps_e = sqrt((eps * eps + tr * tr)/2);
       const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
 
