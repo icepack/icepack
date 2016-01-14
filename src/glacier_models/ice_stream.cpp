@@ -369,6 +369,8 @@ namespace icepack {
     FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Scalar exs(0);
 
+    const auto basal_shear = basal_shear::nonlinear(m, tau0, u0);
+
     const unsigned int n_q_points = quad.size();
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
@@ -392,38 +394,33 @@ namespace icepack {
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
       h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
 
-      // Should probably only do this if we need it, i.e. ice is floating
       u_fe_values[exv].get_function_values(u.get_coefficients(), u_values);
-
       u_fe_values[exv].get_function_symmetric_gradients(
         u.get_coefficients(), strain_rate_values
       );
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
-        const double H = h_values[q];
+        const double h = h_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
+        const Tensor<1, 2> u = u_values[q];
 
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, H, eps);
+        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, h, eps);
 
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
-          cell_residual(i) -= (eps_phi_i * C * eps) * dx;
-        }
-
-        const double flotation = (1 - rho_ice/rho_water) * H;
+        const double flotation = (1 - rho_ice/rho_water) * h;
         const double flotation_tolerance = 1.0e-4;
         const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
-
-        if (floating)
-          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            const auto phi_i = u_fe_values[exv].value(i, q);
-            cell_residual(i) -= (phi_i * u_values[q]) * beta_values[q] * dx;
-          }
-      }
+        const double K = floating * basal_shear(beta_values[q], u_values[q]);
+ 
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+          const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
+          const auto phi_i = u_fe_values[exv].value(i, q);
+          cell_residual(i) -= (eps_phi_i * C * eps + phi_i * K * u) * dx;
+        }
+     }
 
       cell->get_dof_indices(local_dof_indices);
       vector_pde.get_constraints().distribute_local_to_global(
@@ -456,9 +453,8 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(s, h, beta, u0, *this, 0.01, 50);
-    //return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
-    return u;
+    auto u = picard_solve(s, h, beta, u0, *this, 0.1, 5);
+    return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
   }
 
 
