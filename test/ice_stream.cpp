@@ -9,6 +9,9 @@ using namespace dealii;
 using namespace icepack;
 
 
+const double temp = 263.15;
+
+
 class Surface : public Function<2>
 {
 public:
@@ -72,15 +75,75 @@ public:
 };
 
 
+/**
+ * This function is the x-x component of the membrane stress divergence for the
+ * given ice velocity and thickness. For the math, see my thesis.
+ */
+class MembraneStressDivergence : public Function<2>
+{
+public:
+  MembraneStressDivergence(const Velocity& v, const Thickness& h)
+    :
+    v(v),
+    h(h)
+  {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    const double B = std::pow(rate_factor(temp), -1.0/3);
+    const double q = v.gamma * h.h0 + h.delta_h * (1 - v.gamma * x[0] / v.length);
+    return -2 * B / v.length * std::pow(v.gamma / v.tau, 1.0/3) * q;
+  }
+
+  const Velocity& v;
+  const Thickness& h;
+};
+
+
+class DrivingStress : public Function<2>
+{
+public:
+  DrivingStress(const Thickness& h, const Surface& s)
+    :
+    h(h),
+    s(s)
+  {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    const double grad_s = -s.delta_s / s.length;
+    return -rho_ice * gravity * h.value(x) * grad_s;
+  }
+
+  const Thickness& h;
+  const Surface& s;
+};
+
+
 class Beta : public Function<2>
 {
 public:
-  Beta() {}
+  Beta(const double m, const Velocity& v, const Thickness& h, const Surface& s)
+    :
+    m(m),
+    v(v),
+    h(h),
+    s(s),
+    M(v, h),
+    tau_d(h, s)
+  {}
 
-  double value(const Point<2>&, const unsigned int = 0) const
+  double value(const Point<2>& x, const unsigned int = 0) const
   {
-    return 0.5;
+    return (M.value(x) + tau_d.value(x)) / std::pow(v.value(x)[0], 1.0/m);
   }
+
+  const double m;
+  const Velocity& v;
+  const Thickness& h;
+  const Surface& s;
+  const MembraneStressDivergence M;
+  const DrivingStress tau_d;
 };
 
 
@@ -128,15 +191,15 @@ int main(int argc, char ** argv)
   const Surface surface(s0, delta_s, length);
   const Field<2> s = ssa.interpolate(surface);
 
-  const Field<2> beta = ssa.interpolate(Beta());
-
-
   const double u0 = 100.0;
-  const double temp = 263.15;
   const double A = pow(rho * gravity * h0 / 4, 3) * rate_factor(temp);
   const double tau = delta_h / (h0 * A);
   const double gamma = delta_h / h0;
-  const VectorField<2> v = ssa.interpolate(Velocity(u0, tau, gamma, length));
+  const Velocity velocity(u0, tau, gamma, length);
+  const VectorField<2> v = ssa.interpolate(velocity);
+
+  const Beta _beta(3.0, velocity, thickness, surface);
+  const Field<2> beta = ssa.interpolate(_beta);
 
   const VectorField<2> u = ssa.diagnostic_solve(s, h, beta, v);
 
