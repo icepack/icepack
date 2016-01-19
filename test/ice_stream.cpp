@@ -5,12 +5,12 @@
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
 
+using std::pow;
 using namespace dealii;
 using namespace icepack;
 
 
 const double temp = 263.15;
-
 
 class Surface : public Function<2>
 {
@@ -53,10 +53,10 @@ public:
 class Velocity : public TensorFunction<1, 2>
 {
 public:
-  Velocity(const double u0, const double tau, const double gamma, const double length)
+  Velocity(const double u0, const double alpha, const double gamma, const double length)
     :
     u0(u0),
-    tau(tau),
+    alpha(alpha),
     gamma(gamma),
     length(length)
   {}
@@ -65,13 +65,13 @@ public:
   {
     Tensor<1, 2> v;
     const double q = pow(1 - gamma * x[0] / length, 4);
-    v[0] = u0 + length / (4 * tau) * (1 - q);
+    v[0] = u0 + length / (4 * alpha) * (1 - q);
     v[1] = 0.0;
 
     return v;
   }
 
-  const double u0, tau, gamma, length;
+  const double u0, alpha, gamma, length;
 };
 
 
@@ -90,9 +90,10 @@ public:
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
-    const double B = std::pow(rate_factor(temp), -1.0/3);
-    const double q = v.gamma * h.h0 + h.delta_h * (1 - v.gamma * x[0] / v.length);
-    return -2 * B / v.length * std::pow(v.gamma / v.tau, 1.0/3) * q;
+    const double B = pow(rate_factor(temp), -1.0/3);
+    const double dh_dx = -h.delta_h / h.length;
+    const double q = (1 - v.gamma * x[0] / v.length) * dh_dx - v.gamma / v.length * h.value(x);
+    return 2 * B * pow(v.gamma / v.alpha, 1.0/3) * q;
   }
 
   const Velocity& v;
@@ -126,6 +127,10 @@ public:
   Beta(const double m, const Velocity& v, const Thickness& h, const Surface& s)
     :
     m(m),
+
+    // TODO get these from somewhere sensible
+    u0(100.0),
+    tau0(0.1),
     v(v),
     h(h),
     s(s),
@@ -135,10 +140,14 @@ public:
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
-    return (M.value(x) + tau_d.value(x)) / std::pow(v.value(x)[0], 1.0/m);
+    const double C = (M.value(x) + tau_d.value(x)) / pow(v.value(x)[0], 1.0/m);
+    const double beta = std::log(C / tau0 * pow(u0, 1.0/m));
+    return beta;
   }
 
   const double m;
+  const double u0;
+  const double tau0;
   const Velocity& v;
   const Thickness& h;
   const Surface& s;
@@ -172,39 +181,65 @@ int main(int argc, char ** argv)
 
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
+  const double dx = 1.0 / (1 << num_levels);
 
 
   /**
    * Create a model object and input data
    */
 
-  IceStream ssa(triangulation, 1);
+  IceStream ice_stream(triangulation, 1);
 
   const double h0 = 500, delta_h = 100;
   const Thickness thickness(h0, delta_h, length);
-  const Field<2> h = ssa.interpolate(thickness);
+  const Field<2> h = ice_stream.interpolate(thickness);
 
   const double height_above_flotation = 50.0;
   const double rho = rho_ice * (1 - rho_ice / rho_water),
     s0 = (1 - rho_ice/rho_water) * h0 + height_above_flotation,
     delta_s = (1 - rho_ice/rho_water) * delta_h + height_above_flotation;
   const Surface surface(s0, delta_s, length);
-  const Field<2> s = ssa.interpolate(surface);
+  const Field<2> s = ice_stream.interpolate(surface);
 
   const double u0 = 100.0;
   const double A = pow(rho * gravity * h0 / 4, 3) * rate_factor(temp);
-  const double tau = delta_h / (h0 * A);
+  const double alpha = delta_h / (h0 * A);
   const double gamma = delta_h / h0;
-  const Velocity velocity(u0, tau, gamma, length);
-  const VectorField<2> v = ssa.interpolate(velocity);
+
+  const Velocity velocity(u0, alpha, gamma, length);
+  const VectorField<2> u_true = ice_stream.interpolate(velocity);
 
   const Beta _beta(3.0, velocity, thickness, surface);
-  const Field<2> beta = ssa.interpolate(_beta);
+  const Field<2> beta = ice_stream.interpolate(_beta);
 
-  const VectorField<2> u = ssa.diagnostic_solve(s, h, beta, v);
+  /**
+   * Test computing the model residual
+   */
+
+  const VectorField<2> tau = ice_stream.driving_stress(s, h);
+  const VectorField<2> r = ice_stream.residual(s, h, beta, u_true, tau);
+  const Vector<double>& Tau = tau.get_coefficients();
+  const Vector<double>& R = r.get_coefficients();
+
+  // Residual of the exact solution should be < dx^2.
+  Assert(R.l2_norm() / Tau.l2_norm() < dx * dx, ExcInternalError());
+
+
+  /**
+   * Test the diagnostic solve procedure
+   */
+
+  const VectorField<2> u = ice_stream.diagnostic_solve(s, h, beta, u_true);
+  Assert(dist(u, u_true)/norm(u_true) < dx * dx, ExcInternalError());
+
+
+  /**
+   * Write out the solution to a file if running in verbose mode
+   */
 
   if (verbose) {
     u.write("u.ucd", "u");
+    u_true.write("u0.ucd", "u0");
   }
 
   return 0;

@@ -100,6 +100,10 @@ int main(int argc, char ** argv)
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
+  // Dimensionless mesh resolution; finite element solution is only
+  // O(dx^2) accurate.
+  const double dx = 1.0 / (1 << num_levels);
+
 
   /**
    * Create a model object and input data
@@ -111,17 +115,14 @@ int main(int argc, char ** argv)
   VectorField<2> u_true = ice_shelf.interpolate(Velocity());
   VectorField<2> u0 = ice_shelf.interpolate(BoundaryVelocity());
 
-  // Dimensionless mesh resolution; finite element solution is only
-  // O(dx^2) accurate.
-  const double dx = 1.0 / (1 << num_levels);
 
 
   /**
    * Test computing the residual of a candidate velocity
    */
 
-  VectorField<2> tau = ice_shelf.driving_stress(h);
-  VectorField<2> r = ice_shelf.residual(h, u_true, tau);
+  const VectorField<2> tau = ice_shelf.driving_stress(h);
+  const VectorField<2> r = ice_shelf.residual(h, u_true, tau);
   const Vector<double>& Tau = tau.get_coefficients();
   const Vector<double>& R = r.get_coefficients();
 
@@ -133,7 +134,7 @@ int main(int argc, char ** argv)
    * Test the diagnostic solve procedure
    */
 
-  VectorField<2> u = ice_shelf.diagnostic_solve(h, u0);
+  const VectorField<2> u = ice_shelf.diagnostic_solve(h, u0);
   Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
 
