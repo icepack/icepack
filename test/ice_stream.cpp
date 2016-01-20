@@ -124,13 +124,18 @@ public:
 class Beta : public Function<2>
 {
 public:
-  Beta(const double m, const Velocity& v, const Thickness& h, const Surface& s)
+  Beta(
+    const double m,
+    const double u0,
+    const double tau0,
+    const Velocity& v,
+    const Thickness& h,
+    const Surface& s
+  )
     :
     m(m),
-
-    // TODO get these from somewhere sensible
-    u0(100.0),
-    tau0(0.1),
+    u0(u0),
+    tau0(tau0),
     v(v),
     h(h),
     s(s),
@@ -145,9 +150,7 @@ public:
     return beta;
   }
 
-  const double m;
-  const double u0;
-  const double tau0;
+  const double m, u0, tau0;
   const Velocity& v;
   const Thickness& h;
   const Surface& s;
@@ -209,7 +212,9 @@ int main(int argc, char ** argv)
   const Velocity velocity(u0, alpha, gamma, length);
   const VectorField<2> u_true = ice_stream.interpolate(velocity);
 
-  const Beta _beta(3.0, velocity, thickness, surface);
+  const Beta _beta(
+    ice_stream.m, ice_stream.u0, ice_stream.tau0, velocity, thickness, surface
+  );
   const Field<2> beta = ice_stream.interpolate(_beta);
 
   /**
