@@ -75,6 +75,46 @@ public:
 };
 
 
+class InitialVelocity : public TensorFunction<1, 2>
+{
+public:
+  InitialVelocity(
+    const double u0,
+    const double alpha,
+    const double gamma,
+    const double length,
+    const double width
+  )
+    :
+    u0(u0),
+    alpha(alpha),
+    gamma(gamma),
+    length(length),
+    width(width)
+  {}
+
+  Tensor<1, 2> value(const Point<2>& x) const
+  {
+    Tensor<1, 2> v;
+    const double q = pow(1 - gamma * x[0] / length, 4);
+    v[0] = u0 + length / (4 * alpha) * (1 - q);
+    v[1] = 0.0;
+
+    // Fudge factor so this isn't the same as the exact solution
+    const double px = x[0] / length;
+    const double ax = px * (1 - px);
+    const double py = x[1] / width;
+    const double ay = py * (1 - py);
+    v[1] += ax * ay * (0.5 - py) * 500.0;
+    v[0] += ax * ay * 500.0;
+
+    return v;
+  }
+
+  const double u0, alpha, gamma, length, width;
+};
+
+
 /**
  * This function is the x-x component of the membrane stress divergence for the
  * given ice velocity and thickness. For the math, see my thesis.
@@ -212,6 +252,9 @@ int main(int argc, char ** argv)
   const Velocity velocity(u0, alpha, gamma, length);
   const VectorField<2> u_true = ice_stream.interpolate(velocity);
 
+  const VectorField<2> u_init =
+    ice_stream.interpolate(InitialVelocity(u0, alpha, gamma, length, width));
+
   const Beta _beta(
     ice_stream.m, ice_stream.u0, ice_stream.tau0, velocity, thickness, surface
   );
@@ -234,7 +277,7 @@ int main(int argc, char ** argv)
    * Test the diagnostic solve procedure
    */
 
-  const VectorField<2> u = ice_stream.diagnostic_solve(s, h, beta, u_true);
+  const VectorField<2> u = ice_stream.diagnostic_solve(s, h, beta, u_init);
   Assert(dist(u, u_true)/norm(u_true) < dx * dx, ExcInternalError());
 
 
