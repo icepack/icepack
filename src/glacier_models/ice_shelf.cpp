@@ -2,7 +2,6 @@
 #include <deal.II/numerics/matrix_tools.h>
 
 #include <icepack/physics/constants.hpp>
-#include <icepack/physics/viscosity.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
 
@@ -128,11 +127,14 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    double error = 1.0e16;
+    const auto constitutive_tensor =
+      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
+      { return ice_shelf.constitutive_tensor.linearized(T, h, eps); };
 
+    double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, u, ice_shelf, SSA::linearized);
+      velocity_matrix(A, h, u, ice_shelf, constitutive_tensor);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -171,10 +173,14 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
+    const auto constitutive_tensor =
+      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
+      { return ice_shelf.constitutive_tensor.nonlinear(T, h, eps); };
+
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, u, ice_shelf, SSA::nonlinear);
+      velocity_matrix(A, h, u, ice_shelf, constitutive_tensor);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -323,7 +329,8 @@ namespace icepack {
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, H, eps);
+        const SymmetricTensor<4, 2> C =
+          constitutive_tensor.nonlinear(T, H, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);

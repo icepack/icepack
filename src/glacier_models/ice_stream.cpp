@@ -2,10 +2,8 @@
 #include <deal.II/numerics/matrix_tools.h>
 
 #include <icepack/physics/constants.hpp>
-#include <icepack/physics/viscosity.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
-
 
 namespace icepack {
 
@@ -25,7 +23,7 @@ namespace icepack {
    * Make some default BasalShear function objects
    */
   namespace {
-    namespace DefaultBasalShearParams {
+    namespace DefaultPhysicalParams {
       const double m = 3.0, tau0 = 0.1, u0 = 100.0;
     }
   }
@@ -160,7 +158,11 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    const auto linearized_basal_shear =
+    const auto constitutive_tensor =
+      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
+      { return ice_stream.constitutive_tensor.linearized(T, h, eps); };
+
+    const auto basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
       { return ice_stream.basal_shear.linearized(beta, u); };
 
@@ -168,7 +170,7 @@ namespace icepack {
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(
-        A, s, h, beta, u, ice_stream, SSA::linearized, linearized_basal_shear
+        A, s, h, beta, u, ice_stream, constitutive_tensor, basal_shear
       );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
@@ -212,7 +214,11 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
-    const auto nonlinear_basal_shear =
+    const auto constitutive_tensor =
+      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
+      { return ice_stream.constitutive_tensor.nonlinear(T, h, eps); };
+
+    const auto basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
       { return ice_stream.basal_shear.nonlinear(beta, u); };
 
@@ -220,7 +226,7 @@ namespace icepack {
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(
-        A, s, h, beta, u, ice_stream, SSA::nonlinear, nonlinear_basal_shear
+        A, s, h, beta, u, ice_stream, constitutive_tensor, basal_shear
       );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
@@ -246,9 +252,9 @@ namespace icepack {
     :
     DepthAveragedModel(tria, p),
     basal_shear(
-      DefaultBasalShearParams::m,
-      DefaultBasalShearParams::u0,
-      DefaultBasalShearParams::tau0
+      DefaultPhysicalParams::m,
+      DefaultPhysicalParams::u0,
+      DefaultPhysicalParams::tau0
     )
   {}
 
@@ -423,7 +429,8 @@ namespace icepack {
         // TODO: use an actual temperature field
         const double T = 263.15;
 
-        const SymmetricTensor<4, 2> C = SSA::nonlinear(T, h, eps);
+        const SymmetricTensor<4, 2> C =
+          constitutive_tensor.nonlinear(T, h, eps);
 
         const double flotation = (1 - rho_ice/rho_water) * h;
         const double flotation_tolerance = 1.0e-4;

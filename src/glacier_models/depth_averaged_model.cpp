@@ -3,11 +3,19 @@
 
 namespace icepack {
 
+  namespace DefaultPhysicalParams {
+    /**
+     * Glen's flow law exponent
+     */
+    const double n = 3.0;
+  }
+
   DepthAveragedModel::DepthAveragedModel(
     const Triangulation<2>& tria,
     const unsigned int p
   )
     :
+    constitutive_tensor(DefaultPhysicalParams::n),
     triangulation(tria),
     scalar_pde(tria, FE_Q<2>(p)),
     vector_pde(tria, FESystem<2>(FE_Q<2>(p), 2))

@@ -44,42 +44,42 @@ namespace icepack {
    * the rank-4 tensor that relates the stress tensor to the strain rate tensor
    */
 
-  namespace SSA {
+  namespace {
+    const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
+    const SymmetricTensor<4, 2> II = identity_tensor<2>();
+    const SymmetricTensor<4, 2> C = II + outer_product(I, I);
+  }
 
-    namespace {
-      const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
-      const SymmetricTensor<4, 2> II = identity_tensor<2>();
-      const SymmetricTensor<4, 2> C = II + outer_product(I, I);
-    }
+  ConstitutiveTensor::ConstitutiveTensor(const double n)
+    :
+    n(n)
+  {}
 
-    SymmetricTensor<4, 2> nonlinear(
-      const double T,
-      const double h,
-      const SymmetricTensor<2, 2> eps
-    )
-    {
-      const double tr = trace(eps);
-      const double eps_e = sqrt((eps * eps + tr * tr)/2);
-      const double nu = h * viscosity(T, eps_e);
-      return 2 * nu * C;
-    }
+  SymmetricTensor<4, 2> ConstitutiveTensor::nonlinear(
+    const double T,
+    const double h,
+    const SymmetricTensor<2, 2> eps
+  ) const
+  {
+    const double tr = trace(eps);
+    const double eps_e = sqrt((eps * eps + tr * tr)/2);
+    const double nu = h * viscosity(T, eps_e);
+    return 2 * nu * C;
+  }
 
+  SymmetricTensor<4, 2> ConstitutiveTensor::linearized(
+    const double T,
+    const double h,
+    const SymmetricTensor<2, 2> eps
+  ) const
+  {
+    const double tr = trace(eps);
+    const double eps_e = sqrt((eps * eps + tr * tr)/2);
+    const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
 
-    SymmetricTensor<4, 2> linearized(
-      const double T,
-      const double h,
-      const SymmetricTensor<2, 2> eps
-    )
-    {
-      const double tr = trace(eps);
-      const double eps_e = sqrt((eps * eps + tr * tr)/2);
-      const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
+    const double nu = h * viscosity(T, eps_e);
 
-      const double nu = h * viscosity(T, eps_e);
-
-      return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
-    }
-
+    return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
   }
 
 }

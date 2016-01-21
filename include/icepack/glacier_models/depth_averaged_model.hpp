@@ -6,6 +6,7 @@
 #include <deal.II/grid/tria.h>
 
 #include <icepack/glacier_models/pde_skeleton.hpp>
+#include <icepack/physics/viscosity.hpp>
 
 namespace icepack {
 
@@ -71,6 +72,11 @@ namespace icepack {
      * geometry, such as the diagnostic equation.
      */
     const VectorPDESkeleton<2>& get_vector_pde_skeleton() const;
+
+    /**
+     * Function object for computing the constitutive tensor
+     */
+    const ConstitutiveTensor constitutive_tensor;
 
   protected:
     /**
