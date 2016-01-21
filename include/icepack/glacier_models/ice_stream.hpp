@@ -3,6 +3,7 @@
 #define ICEPACK_ICE_STREAM_HPP
 
 #include <icepack/glacier_models/depth_averaged_model.hpp>
+#include <icepack/physics/basal_shear.hpp>
 
 namespace icepack {
 
@@ -85,19 +86,9 @@ namespace icepack {
     ) const;
 
     /**
-     * Bed sliding rheology exponent
+     * Function object for computing the basal friction coefficient
      */
-    const double m;
-
-    /**
-     * Bed sliding yield velocity
-     */
-    const double u0;
-
-    /**
-     * Bed sliding yield stress
-     */
-    const double tau0;
+    const BasalShear basal_shear;
   };
 
 }

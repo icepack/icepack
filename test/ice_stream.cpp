@@ -256,7 +256,12 @@ int main(int argc, char ** argv)
     ice_stream.interpolate(InitialVelocity(u0, alpha, gamma, length, width));
 
   const Beta _beta(
-    ice_stream.m, ice_stream.u0, ice_stream.tau0, velocity, thickness, surface
+    ice_stream.basal_shear.m,
+    ice_stream.basal_shear.u0,
+    ice_stream.basal_shear.tau0,
+    velocity,
+    thickness,
+    surface
   );
   const Field<2> beta = ice_stream.interpolate(_beta);
 

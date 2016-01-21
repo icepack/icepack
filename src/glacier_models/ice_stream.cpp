@@ -3,7 +3,6 @@
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
-#include <icepack/physics/basal_shear.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
 
@@ -26,8 +25,9 @@ namespace icepack {
    * Make some default BasalShear function objects
    */
   namespace {
-    const double m = 3.0, tau0 = 0.1, u0 = 100.0;
-    const BasalShear basal_shear(m, tau0, u0);
+    namespace DefaultBasalShearParams {
+      const double m = 3.0, tau0 = 0.1, u0 = 100.0;
+    }
   }
 
 
@@ -162,7 +162,7 @@ namespace icepack {
 
     const auto linearized_basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
-      { return basal_shear.linearized(beta, u); };
+      { return ice_stream.basal_shear.linearized(beta, u); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
@@ -214,7 +214,7 @@ namespace icepack {
 
     const auto nonlinear_basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
-      { return basal_shear.nonlinear(beta, u); };
+      { return ice_stream.basal_shear.nonlinear(beta, u); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
@@ -245,9 +245,11 @@ namespace icepack {
   IceStream::IceStream(const Triangulation<2>& tria, const unsigned int p)
     :
     DepthAveragedModel(tria, p),
-    m(3.0),
-    u0(100.0),
-    tau0(0.1)
+    basal_shear(
+      DefaultBasalShearParams::m,
+      DefaultBasalShearParams::u0,
+      DefaultBasalShearParams::tau0
+    )
   {}
 
 
