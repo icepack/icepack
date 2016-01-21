@@ -10,30 +10,17 @@ namespace icepack {
   using dealii::Tensor;
   using dealii::SymmetricTensor;
 
-  namespace basal_shear {
+  struct BasalShear
+  {
+    BasalShear(const double m, const double tau0, const double u0);
 
-    struct nonlinear
-    {
-      nonlinear(const double m, const double tau0, const double u0);
+    double nonlinear(const double beta, const Tensor<1, 2>& u) const;
 
-      double operator()(const double beta, const Tensor<1, 2>& u) const;
+    SymmetricTensor<2, 2>
+    linearized(const double beta, const Tensor<1, 2>& u) const;
 
-    private:
-      const double m, tau0, u0;
-    };
-
-    struct linearized
-    {
-      linearized(const double m, const double tau0, const double u0);
-
-      SymmetricTensor<2, 2>
-      operator()(const double beta, const Tensor<1, 2>& u) const;
-
-    private:
-      const double m, tau0, u0;
-    };
-
-  }
+    const double m, tau0, u0;
+  };
 
 }
 

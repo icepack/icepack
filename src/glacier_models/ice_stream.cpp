@@ -23,6 +23,15 @@ namespace icepack {
    * ================ */
 
   /**
+   * Make some default BasalShear function objects
+   */
+  namespace {
+    const double m = 3.0, tau0 = 0.1, u0 = 100.0;
+    const BasalShear basal_shear(m, tau0, u0);
+  }
+
+
+  /**
    * Construct the system matrix for the ice stream equations.
    */
   template <class ConstitutiveTensor, class BasalShear>
@@ -151,13 +160,16 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    const auto tau_b =
-      basal_shear::linearized(ice_stream.m, ice_stream.tau0, ice_stream.u0);
+    const auto linearized_basal_shear =
+      [&](const double beta, const Tensor<1, 2>& u)
+      { return basal_shear.linearized(beta, u); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::linearized, tau_b);
+      velocity_matrix(
+        A, s, h, beta, u, ice_stream, SSA::linearized, linearized_basal_shear
+      );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -200,13 +212,16 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
-    const auto tau_b =
-      basal_shear::nonlinear(ice_stream.m, ice_stream.tau0, ice_stream.u0);
+    const auto nonlinear_basal_shear =
+      [&](const double beta, const Tensor<1, 2>& u)
+      { return basal_shear.nonlinear(beta, u); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, s, h, beta, u, ice_stream, SSA::nonlinear, tau_b);
+      velocity_matrix(
+        A, s, h, beta, u, ice_stream, SSA::nonlinear, nonlinear_basal_shear
+      );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -369,8 +384,6 @@ namespace icepack {
     FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Scalar exs(0);
 
-    const auto basal_shear = basal_shear::nonlinear(m, tau0, u0);
-
     const unsigned int n_q_points = quad.size();
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
@@ -413,8 +426,9 @@ namespace icepack {
         const double flotation = (1 - rho_ice/rho_water) * h;
         const double flotation_tolerance = 1.0e-4;
         const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
-        const double K = floating * basal_shear(beta_values[q], u_values[q]);
- 
+        const double K =
+          floating * basal_shear.nonlinear(beta_values[q], u_values[q]);
+
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
           const auto phi_i = u_fe_values[exv].value(i, q);
