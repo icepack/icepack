@@ -9,7 +9,18 @@ namespace icepack {
   using dealii::SymmetricTensor;
 
   double rate_factor(const double temperature);
-  double viscosity(const double temperature, const double strain_rate);
+
+
+  struct Viscosity
+  {
+    Viscosity(const double n);
+
+    double
+    operator()(const double temperature, const double strain_rate) const;
+
+    const double n;
+  };
+
 
   struct ConstitutiveTensor
   {
@@ -27,7 +38,7 @@ namespace icepack {
       const SymmetricTensor<2, 2> strain_rate
     ) const;
 
-    const double n;
+    const Viscosity viscosity;
   };
 
 }

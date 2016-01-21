@@ -31,10 +31,18 @@ namespace icepack {
     return A0 * std::exp(-Q / (ideal_gas * temperature));
   }
 
-  double viscosity(const double temperature, const double strain_rate)
+
+  Viscosity::Viscosity(const double n)
+    :
+    n(n)
+  {}
+
+  double Viscosity::operator()(
+    const double temperature, const double strain_rate
+  ) const
   {
     const double A = rate_factor(temperature);
-    return std::pow(A * strain_rate * strain_rate, -1.0/3) / 2;
+    return std::pow(A * strain_rate * strain_rate, -1.0/n) / 2;
   }
 
 
@@ -52,7 +60,7 @@ namespace icepack {
 
   ConstitutiveTensor::ConstitutiveTensor(const double n)
     :
-    n(n)
+    viscosity(n)
   {}
 
   SymmetricTensor<4, 2> ConstitutiveTensor::nonlinear(
@@ -73,13 +81,14 @@ namespace icepack {
     const SymmetricTensor<2, 2> eps
   ) const
   {
+    const double n = viscosity.n;
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
 
     const double nu = h * viscosity(T, eps_e);
 
-    return 2 * nu * (C - outer_product(gamma, gamma)/3.0);
+    return 2 * nu * (C + (1-n)/(2*n) * outer_product(gamma, gamma));
   }
 
 }
