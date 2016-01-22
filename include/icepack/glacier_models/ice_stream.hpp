@@ -81,6 +81,7 @@ namespace icepack {
      * with a given VectorField as right-hand side
      */
     VectorField<2> adjoint_solve(
+      const Field<2>& surface,
       const Field<2>& thickness,
       const Field<2>& temperature,
       const Field<2>& beta,
