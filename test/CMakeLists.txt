@@ -8,6 +8,7 @@ set(test_list
   field_move.cpp
   ice_shelf.cpp
   ice_stream.cpp
+  ice_shelf_adjoint.cpp
 )
 
 

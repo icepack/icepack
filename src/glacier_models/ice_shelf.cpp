@@ -381,15 +381,34 @@ namespace icepack {
     const Field<2>& h,
     const Field<2>& theta,
     const VectorField<2>& u0,
-    const VectorField<2>& f
+    const VectorField<2>& rhs
   ) const
   {
-    VectorField<2> q;
-    q.copy_from(f);
+    const auto& vector_pde = get_vector_pde_skeleton();
+    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
 
-    // TODO: write this
+    VectorField<2> lambda;
+    lambda.copy_from(rhs);
+    const auto boundary_values = vector_pde.zero_boundary_values();
 
-    return q;
+    VectorField<2> f;
+    f.copy_from(rhs);
+
+    Vector<double>& Lambda = lambda.get_coefficients();
+    Vector<double>& F = f.get_coefficients();
+
+    const auto constitutive_tensor =
+      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
+      { return this->constitutive_tensor.linearized(T, h, eps); };
+
+    velocity_matrix(A, h, theta, u0, *this, constitutive_tensor);
+    dealii::MatrixTools::apply_boundary_values(
+      boundary_values, A, Lambda, F, false
+    );
+
+    linear_solve(A, Lambda, F, vector_pde.get_constraints());
+
+    return lambda;
   }
 
 
