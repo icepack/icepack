@@ -50,6 +50,18 @@ public:
 };
 
 
+class Temperature : public Function<2>
+{
+public:
+  Temperature() {}
+
+  double value(const Point<2>&, const unsigned int = 0) const
+  {
+    return temp;
+  }
+};
+
+
 class Velocity : public TensorFunction<1, 2>
 {
 public:
@@ -244,6 +256,8 @@ int main(int argc, char ** argv)
   const Surface surface(s0, delta_s, length);
   const Field<2> s = ice_stream.interpolate(surface);
 
+  const Field<2> theta = ice_stream.interpolate(Temperature());
+
   const double u0 = 100.0;
   const double A = pow(rho * gravity * h0 / 4, 3) * rate_factor(temp);
   const double alpha = delta_h / (h0 * A);
@@ -270,7 +284,7 @@ int main(int argc, char ** argv)
    */
 
   const VectorField<2> tau = ice_stream.driving_stress(s, h);
-  const VectorField<2> r = ice_stream.residual(s, h, beta, u_true, tau);
+  const VectorField<2> r = ice_stream.residual(s, h, theta, beta, u_true, tau);
   const Vector<double>& Tau = tau.get_coefficients();
   const Vector<double>& R = r.get_coefficients();
 
@@ -282,7 +296,8 @@ int main(int argc, char ** argv)
    * Test the diagnostic solve procedure
    */
 
-  const VectorField<2> u = ice_stream.diagnostic_solve(s, h, beta, u_init);
+  const VectorField<2> u =
+    ice_stream.diagnostic_solve(s, h, theta, beta, u_init);
   Assert(dist(u, u_true)/norm(u_true) < dx * dx, ExcInternalError());
 
 

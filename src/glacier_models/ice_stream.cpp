@@ -37,6 +37,7 @@ namespace icepack {
     SparseMatrix<double>& A,
     const Field<2>& s,
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
     const IceStream& ice_stream,
@@ -67,6 +68,7 @@ namespace icepack {
 
     std::vector<double> h_values(n_q_points);
     std::vector<double> s_values(n_q_points);
+    std::vector<double> theta_values(n_q_points);
     std::vector<double> beta_values(n_q_points);
     std::vector<Tensor<1, 2>> u_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
@@ -83,6 +85,7 @@ namespace icepack {
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+      h_fe_values[exs].get_function_values(theta.get_coefficients(), theta_values);
       h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
 
       u_fe_values[exv].get_function_values(u0.get_coefficients(), u_values);
@@ -93,10 +96,8 @@ namespace icepack {
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
         const double H = h_values[q];
+        const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
-
-        // TODO: use an actual temperature field
-        const double T = 263.15;
 
         const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
 
@@ -135,6 +136,7 @@ namespace icepack {
   VectorField<2> newton_solve(
     const Field<2>& s,
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
     const IceStream& ice_stream,
@@ -152,7 +154,7 @@ namespace icepack {
     const VectorField<2> tau = ice_stream.driving_stress(s, h);
     const double tau_norm = norm(tau);
 
-    VectorField<2> r = ice_stream.residual(s, h, beta, u, tau);
+    VectorField<2> r = ice_stream.residual(s, h, theta, beta, u, tau);
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
@@ -170,7 +172,7 @@ namespace icepack {
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(
-        A, s, h, beta, u, ice_stream, constitutive_tensor, basal_shear
+        A, s, h, theta, beta, u, ice_stream, constitutive_tensor, basal_shear
       );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
@@ -179,7 +181,7 @@ namespace icepack {
       U.add(1.0, dU);
 
       // Compute the relative difference between the new and old solutions
-      r = ice_stream.residual(s, h, beta, u, tau);
+      r = ice_stream.residual(s, h, theta, beta, u, tau);
       error = norm(r) / tau_norm;
     }
 
@@ -195,6 +197,7 @@ namespace icepack {
   VectorField<2> picard_solve(
     const Field<2>& s,
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
     const IceStream& ice_stream,
@@ -226,7 +229,7 @@ namespace icepack {
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix(
-        A, s, h, beta, u, ice_stream, constitutive_tensor, basal_shear
+        A, s, h, theta, beta, u, ice_stream, constitutive_tensor, basal_shear
       );
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
@@ -371,6 +374,7 @@ namespace icepack {
   VectorField<2> IceStream::residual(
     const Field<2>& s,
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u,
     const VectorField<2>& f
@@ -397,6 +401,7 @@ namespace icepack {
 
     std::vector<double> h_values(n_q_points);
     std::vector<double> s_values(n_q_points);
+    std::vector<double> theta_values(n_q_points);
     std::vector<double> beta_values(n_q_points);
     std::vector<Tensor<1, 2>> u_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
@@ -413,6 +418,7 @@ namespace icepack {
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
+      h_fe_values[exs].get_function_values(theta.get_coefficients(), theta_values);
       h_fe_values[exs].get_function_values(beta.get_coefficients(), beta_values);
 
       u_fe_values[exv].get_function_values(u.get_coefficients(), u_values);
@@ -423,11 +429,9 @@ namespace icepack {
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
         const double h = h_values[q];
+        const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
         const Tensor<1, 2> u = u_values[q];
-
-        // TODO: use an actual temperature field
-        const double T = 263.15;
 
         const SymmetricTensor<4, 2> C =
           constitutive_tensor.nonlinear(T, h, eps);
@@ -472,12 +476,13 @@ namespace icepack {
   VectorField<2> IceStream::diagnostic_solve(
     const Field<2>& s,
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(s, h, beta, u0, *this, 0.1, 5);
-    return newton_solve(s, h, beta, u, *this, 1.0e-10, 100);
+    auto u = picard_solve(s, h, theta, beta, u0, *this, 0.1, 5);
+    return newton_solve(s, h, theta, beta, u, *this, 1.0e-10, 100);
   }
 
 
@@ -508,6 +513,7 @@ namespace icepack {
 
   VectorField<2> IceStream::adjoint_solve(
     const Field<2>& h,
+    const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
     const VectorField<2>& f
