@@ -30,6 +30,17 @@ public:
   }
 };
 
+class Temperature : public Function<2>
+{
+public:
+  Temperature() {}
+
+  double value(const Point<2>&, const unsigned int = 0) const
+  {
+    return temp;
+  }
+};
+
 class Velocity : public TensorFunction<1, 2>
 {
 public:
@@ -112,9 +123,9 @@ int main(int argc, char ** argv)
   IceShelf ice_shelf(triangulation, 1);
 
   Field<2> h = ice_shelf.interpolate(Thickness());
+  Field<2> theta = ice_shelf.interpolate(Temperature());
   VectorField<2> u_true = ice_shelf.interpolate(Velocity());
   VectorField<2> u0 = ice_shelf.interpolate(BoundaryVelocity());
-
 
 
   /**
@@ -122,7 +133,7 @@ int main(int argc, char ** argv)
    */
 
   const VectorField<2> tau = ice_shelf.driving_stress(h);
-  const VectorField<2> r = ice_shelf.residual(h, u_true, tau);
+  const VectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
   const Vector<double>& Tau = tau.get_coefficients();
   const Vector<double>& R = r.get_coefficients();
 
@@ -134,7 +145,7 @@ int main(int argc, char ** argv)
    * Test the diagnostic solve procedure
    */
 
-  const VectorField<2> u = ice_shelf.diagnostic_solve(h, u0);
+  const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
   Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
 

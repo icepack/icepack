@@ -25,6 +25,7 @@ namespace icepack {
   void velocity_matrix(
     SparseMatrix<double>& A,
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u0,
     const IceShelf& ice_shelf,
     const ConstitutiveTensor constitutive_tensor
@@ -52,6 +53,7 @@ namespace icepack {
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
+    std::vector<double> theta_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
@@ -65,6 +67,7 @@ namespace icepack {
       h_fe_values.reinit(h_cell);
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(theta.get_coefficients(), theta_values);
       u_fe_values[exv].get_function_symmetric_gradients(
         u0.get_coefficients(), strain_rate_values
       );
@@ -72,11 +75,12 @@ namespace icepack {
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
         const double H = h_values[q];
+        const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
-        // TODO: use an actual temperature field
-        const double T = 263.13;
-
+        // TODO I've been using the convention of thickness then temperature in
+        // the argument ordering, whereas this is the opposite. Should change
+        // the ordering.
         const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
@@ -105,6 +109,7 @@ namespace icepack {
    */
   VectorField<2> newton_solve(
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u0,
     const IceShelf& ice_shelf,
     const double tolerance,
@@ -121,7 +126,7 @@ namespace icepack {
     const VectorField<2> tau = ice_shelf.driving_stress(h);
     const double tau_norm = norm(tau);
 
-    VectorField<2> r = ice_shelf.residual(h, u, tau);
+    VectorField<2> r = ice_shelf.residual(h, theta, u, tau);
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
@@ -134,7 +139,7 @@ namespace icepack {
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, u, ice_shelf, constitutive_tensor);
+      velocity_matrix(A, h, theta, u, ice_shelf, constitutive_tensor);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -142,7 +147,7 @@ namespace icepack {
       U.add(1.0, dU);
 
       // Compute the relative difference between the new and old solutions
-      r = ice_shelf.residual(h, u, tau);
+      r = ice_shelf.residual(h, theta, u, tau);
       error = norm(r) / tau_norm;
     }
 
@@ -155,6 +160,7 @@ namespace icepack {
    */
   VectorField<2> picard_solve(
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u0,
     const IceShelf& ice_shelf,
     const double tolerance,
@@ -180,7 +186,7 @@ namespace icepack {
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, u, ice_shelf, constitutive_tensor);
+      velocity_matrix(A, h, theta, u, ice_shelf, constitutive_tensor);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -260,13 +266,10 @@ namespace icepack {
         const double dx = tau_fe_values.JxW(q);
         const double H = h_values[q];
 
-        // NOTE: check +/- signs
         const double tau_q = 0.5 * Rho * H * H;
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           cell_rhs(i) += tau_q * tau_fe_values[exv].divergence(i, q) * dx;
       }
-
-      // NOTE: do we no longer need boundary integrals?
 
       cell->get_dof_indices(local_dof_indices);
       vector_pde.get_constraints().distribute_local_to_global(
@@ -280,6 +283,7 @@ namespace icepack {
 
   VectorField<2> IceShelf::residual(
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u,
     const VectorField<2>& f
   ) const
@@ -304,6 +308,7 @@ namespace icepack {
     const unsigned int dofs_per_cell = u_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
+    std::vector<double> theta_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     Vector<double> cell_residual(dofs_per_cell);
@@ -317,6 +322,7 @@ namespace icepack {
       h_fe_values.reinit(h_cell);
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(theta.get_coefficients(), theta_values);
       u_fe_values[exv].get_function_symmetric_gradients(
         u.get_coefficients(), strain_rate_values
       );
@@ -324,10 +330,8 @@ namespace icepack {
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
         const double H = h_values[q];
+        const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
-
-        // TODO: use an actual temperature field
-        const double T = 263.15;
 
         const SymmetricTensor<4, 2> C =
           constitutive_tensor.nonlinear(T, H, eps);
@@ -364,16 +368,18 @@ namespace icepack {
 
   VectorField<2> IceShelf::diagnostic_solve(
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(h, u0, *this, 0.1, 5);
-    return newton_solve(h, u, *this, 1.0e-10, 100);
+    auto u = picard_solve(h, theta, u0, *this, 0.1, 5);
+    return newton_solve(h, theta, u, *this, 1.0e-10, 100);
   }
 
 
   VectorField<2> IceShelf::adjoint_solve(
     const Field<2>& h,
+    const Field<2>& theta,
     const VectorField<2>& u0,
     const VectorField<2>& f
   ) const

@@ -36,15 +36,17 @@ namespace icepack {
      */
     VectorField<2> residual(
       const Field<2>& thickness,
+      const Field<2>& temperature,
       const VectorField<2>& u,
       const VectorField<2>& tau_d
     ) const;
 
     /**
-     * Compute the ice velocity from the thickness.
+     * Compute the ice velocity from the thickness and temperature
      */
     VectorField<2> diagnostic_solve(
       const Field<2>& thickness,
+      const Field<2>& temperature,
       const VectorField<2>& u0
     ) const;
 
@@ -61,7 +63,8 @@ namespace icepack {
      * with a given VectorField as right-hand side
      */
     VectorField<2> adjoint_solve(
-      const Field<2>& h,
+      const Field<2>& thickness,
+      const Field<2>& temperature,
       const VectorField<2>& u0,
       const VectorField<2>& f
     ) const;
