@@ -99,7 +99,7 @@ namespace icepack {
         const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
-        const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
+        const SymmetricTensor<4, 2> C = constitutive_tensor(H, T, eps);
 
         const double flotation = (1 - rho_ice/rho_water) * H;
         const double flotation_tolerance = 1.0e-4;
@@ -161,8 +161,8 @@ namespace icepack {
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return ice_stream.constitutive_tensor.linearized(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return ice_stream.constitutive_tensor.linearized(H, T, eps); };
 
     const auto basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
@@ -218,8 +218,8 @@ namespace icepack {
     Vector<double>& U_old = u_old.get_coefficients();
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return ice_stream.constitutive_tensor.nonlinear(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return ice_stream.constitutive_tensor.nonlinear(H, T, eps); };
 
     const auto basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)
@@ -428,15 +428,15 @@ namespace icepack {
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = u_fe_values.JxW(q);
-        const double h = h_values[q];
+        const double H = h_values[q];
         const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
         const Tensor<1, 2> u = u_values[q];
 
         const SymmetricTensor<4, 2> C =
-          constitutive_tensor.nonlinear(T, h, eps);
+          constitutive_tensor.nonlinear(H, T, eps);
 
-        const double flotation = (1 - rho_ice/rho_water) * h;
+        const double flotation = (1 - rho_ice/rho_water) * H;
         const double flotation_tolerance = 1.0e-4;
         const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
         const double K =
@@ -534,8 +534,8 @@ namespace icepack {
     Vector<double>& F = f.get_coefficients();
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return this->constitutive_tensor.linearized(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return this->constitutive_tensor.linearized(H, T, eps); };
 
     const auto basal_shear =
       [&](const double beta, const Tensor<1, 2>& u)

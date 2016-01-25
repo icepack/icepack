@@ -64,8 +64,8 @@ namespace icepack {
   {}
 
   SymmetricTensor<4, 2> ConstitutiveTensor::nonlinear(
-    const double T,
     const double h,
+    const double T,
     const SymmetricTensor<2, 2> eps
   ) const
   {
@@ -76,8 +76,8 @@ namespace icepack {
   }
 
   SymmetricTensor<4, 2> ConstitutiveTensor::linearized(
-    const double T,
     const double h,
+    const double T,
     const SymmetricTensor<2, 2> eps
   ) const
   {

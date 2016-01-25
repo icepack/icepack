@@ -81,7 +81,7 @@ namespace icepack {
         // TODO I've been using the convention of thickness then temperature in
         // the argument ordering, whereas this is the opposite. Should change
         // the ordering.
-        const SymmetricTensor<4, 2> C = constitutive_tensor(T, H, eps);
+        const SymmetricTensor<4, 2> C = constitutive_tensor(H, T, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -133,8 +133,8 @@ namespace icepack {
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return ice_shelf.constitutive_tensor.linearized(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return ice_shelf.constitutive_tensor.linearized(H, T, eps); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
@@ -180,8 +180,8 @@ namespace icepack {
     Vector<double>& U_old = u_old.get_coefficients();
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return ice_shelf.constitutive_tensor.nonlinear(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return ice_shelf.constitutive_tensor.nonlinear(H, T, eps); };
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
@@ -334,7 +334,7 @@ namespace icepack {
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
         const SymmetricTensor<4, 2> C =
-          constitutive_tensor.nonlinear(T, H, eps);
+          constitutive_tensor.nonlinear(H, T, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -398,8 +398,8 @@ namespace icepack {
     Vector<double>& F = f.get_coefficients();
 
     const auto constitutive_tensor =
-      [&](const double T, const double h, const SymmetricTensor<2, 2>& eps)
-      { return this->constitutive_tensor.linearized(T, h, eps); };
+      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
+      { return this->constitutive_tensor.linearized(H, T, eps); };
 
     velocity_matrix(A, h, theta, u0, *this, constitutive_tensor);
     dealii::MatrixTools::apply_boundary_values(
