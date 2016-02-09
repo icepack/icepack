@@ -1,4 +1,5 @@
 
+#include <icepack/util/tensor_function_utils.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
 
 namespace icepack {
@@ -45,6 +46,16 @@ namespace icepack {
       vector_pde.get_dof_handler(),
       f
     );
+  }
+
+
+  VectorField<2> DepthAveragedModel::interpolate(
+    const Function<2>& phi0,
+    const Function<2>& phi1
+  ) const
+  {
+    const auto phi = util::TensorFunctionFromScalarFunctions<2>(phi0, phi1);
+    return interpolate(phi);
   }
 
 

@@ -26,18 +26,27 @@ namespace icepack {
   {
   public:
     /**
-     * Given some observed data, represented by a dealii::Function object,
+     * Given some observed data, represented by a `dealii::Function object``,
      * compute the finite element interpolation of the data using the basis
      * for this model.
      */
     Field<2> interpolate(const Function<2>& phi) const;
 
     /**
-     * Given observed vector data, represented by a dealii::TensorFunction
+     * Given observed vector data, represented by a `dealii::TensorFunction`
      * object, compute the finite element interpolation of the data using
      * the basis for this model.
      */
     VectorField<2> interpolate(const TensorFunction<1, 2>& phi) const;
+
+
+    /**
+     * Given two observed scalar fields, represented by `dealii::Function`
+     * objects, compute a finite element-discretized vector field with these
+     * functions as coordinates
+     */
+    VectorField<2>
+    interpolate(const Function<2>& phi0, const Function<2>& phi1) const;
 
 
     /**
