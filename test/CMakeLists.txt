@@ -1,5 +1,6 @@
 
 set(test_list
+  tensor_function_utils.cpp
   read_arc.cpp
   read_geotiff.cpp
   ice_thickness.cpp

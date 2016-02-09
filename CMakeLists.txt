@@ -29,6 +29,7 @@ set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 add_library(icepack
   src/read_gridded_data.cpp
   src/ice_thickness.cpp
+  src/util/tensor_function_utils.cpp
   src/physics/viscosity.cpp
   src/physics/basal_shear.cpp
   src/numerics/linear_solve.cpp
