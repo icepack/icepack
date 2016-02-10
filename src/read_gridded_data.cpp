@@ -18,22 +18,13 @@ namespace icepack
   GridData::GridData(const std::array<std::vector<double>, 2>& coordinate_values,
                      const Table<2, double>& data_values)
     :
-    InterpolatedTensorProductGridData<2>(coordinate_values, data_values)
-  {
-    xrange[0] = coordinate_values[0][0];
-    yrange[0] = coordinate_values[1][0];
-
-    xrange[1] = coordinate_values[0].back();
-    yrange[1] = coordinate_values[1].back();
-  }
+    InterpolatedTensorProductGridData<2>(coordinate_values, data_values),
+    xrange{{coordinate_values[0][0], coordinate_values[0].back()}},
+    yrange{{coordinate_values[1][0], coordinate_values[1].back()}}
+  {}
 
 
   GridData readArcAsciiGrid(const std::string& filename)
-  /**
-   * Read a gridded data set stored in the ESRI Arc/Info ASCII grid format. See
-   *   http://en.wikipedia.org/wiki/Esri_grid
-   * for format specification and more info.
-   */
   {
     unsigned int nx, ny;
     double x0, y0, dx, dy, missing;
@@ -64,6 +55,11 @@ namespace icepack
   }
 
 
+  /**
+   * Parse the grid size and resolution information contained in the file
+   *     <filename>.geodat
+   * This is a helper function for readGeoDat (below).
+   */
   static void readGeoDatInfo(const std::string& filename,
                              unsigned int& nx,
                              unsigned int& ny,
@@ -71,11 +67,6 @@ namespace icepack
                              double& dy,
                              double& xo,
                              double& yo)
-  /**
-   * Parse the grid size and resolution information contained in the file
-   *     <filename>.geodat
-   * This is a helper function for readGeoDat (below).
-   */
   {
     std::ifstream geoDatInfoFile(filename + ".geodat");
     std::string line;
@@ -97,10 +88,6 @@ namespace icepack
 
 
   GridData readGeoDat(const std::string& filename)
-  /**
-   * Read gridded data from the format used in IR Joughin's ice velocity
-   * and elevation data sets from the National Snow and Ice Data Center
-   */
   {
     unsigned int nx, ny;
     double dx, dy, xo, yo;

@@ -58,10 +58,10 @@ int main (int argc, char **argv)
   generateExampleArcAsciiGrid(filename);
   GridData example_data = readArcAsciiGrid(filename);
 
-  double xmin = example_data.xmin(),
-         xmax = example_data.xmax(),
-         ymin = example_data.ymin(),
-         ymax = example_data.ymax();
+  double xmin = example_data.xrange[0],
+         xmax = example_data.xrange[1],
+         ymin = example_data.yrange[0],
+         ymax = example_data.yrange[1];
 
   if (xmin != xo or xmax != xo + (nx - 1) * dx or
       ymin != yo or ymax != yo + (ny - 1) * dy)
