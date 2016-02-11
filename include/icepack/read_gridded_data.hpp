@@ -7,14 +7,13 @@
 #include <string>
 
 
-namespace icepack
-{
+namespace icepack {
+  using dealii::Functions::InterpolatedTensorProductGridData;
 
   /**
    * Class for reading gridded data into a `dealii::Function` object
    */
-  class GridData :
-    public dealii::Functions::InterpolatedTensorProductGridData<2>
+  class GridData : public InterpolatedTensorProductGridData<2>
   {
   public:
     /**
@@ -24,8 +23,11 @@ namespace icepack
      * functions defined below to read various common data formats into a
      * GridData object.
      */
-    GridData(const std::array<std::vector<double>, 2>& coodinate_values,
-             const dealii::Table<2, double>&           data_values);
+    GridData(
+      const std::array<std::vector<double>, 2>& coodinate_values,
+      const dealii::Table<2, double>& data_values,
+      const double missing
+    );
 
     /**
      * Horizontal extent of the gridded data
@@ -36,6 +38,11 @@ namespace icepack
      * Vertical extent of the gridded data
      */
     const std::array<double, 2> yrange;
+
+    /**
+     * Value to indicate missing data
+     */
+    const double missing;
   };
 
 

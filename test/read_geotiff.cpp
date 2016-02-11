@@ -20,34 +20,26 @@ constexpr double dx = 1.0, dy = -1.0;
 bool generateExampleGeoTIFF(const std::string& filename)
 {
   const char format[] = "GTiff";
-  GDALDriver *driver = GetGDALDriverManager()->GetDriverByName(format);
-  if (not driver)
-  {
+  GDALDriver * driver = GetGDALDriverManager()->GetDriverByName(format);
+  if (not driver) {
     std::cout << "Unable to get geotif GDAL driver!" << std::endl;
     return false;
   }
 
-  char **options = 0;
-  GDALDataset *data = driver->Create(filename.c_str(),
-                                     nx,
-                                     ny,
-                                     1,
-                                     GDT_Float64,
-                                     options);
+  char ** options = 0;
+  GDALDataset * data =
+    driver->Create(filename.c_str(), nx, ny, 1, GDT_Float64, options);
 
   double geoTransform[6] = { xo, dx, 0, yo - (ny - 1) * dy, 0, dy };
 
   OGRSpatialReference oSRS;
   char *SRS_WKT = 0;
-  GDALRasterBand *band;
-  double raster[nx * ny];
 
+  double raster[nx * ny];
   double x, y;
-  for (unsigned int i = 0; i < ny; ++i)
-  {
+  for (unsigned int i = 0; i < ny; ++i) {
     y = yo - i * dy;
-    for (unsigned int j = 0; j < nx; ++j)
-    {
+    for (unsigned int j = 0; j < nx; ++j) {
       x = xo + j * dx;
       raster[nx * (ny - i - 1) + j] = 1 + x * y;
     }
@@ -61,7 +53,7 @@ bool generateExampleGeoTIFF(const std::string& filename)
   data->SetProjection(SRS_WKT);
   CPLFree(SRS_WKT);
 
-  band = data->GetRasterBand(1);
+  GDALRasterBand * band = data->GetRasterBand(1);
   band->RasterIO(GF_Write, 0, 0, nx, ny, raster, nx, ny, GDT_Float64, 0, 0);
   GDALClose((GDALDatasetH) data);
 

@@ -15,12 +15,16 @@ using dealii::Functions::InterpolatedTensorProductGridData;
 namespace icepack
 {
 
-  GridData::GridData(const std::array<std::vector<double>, 2>& coordinate_values,
-                     const Table<2, double>& data_values)
+  GridData::GridData(
+    const std::array<std::vector<double>, 2>& coordinate_values,
+    const Table<2, double>& data_values,
+    const double missing
+  )
     :
     InterpolatedTensorProductGridData<2>(coordinate_values, data_values),
     xrange{{coordinate_values[0][0], coordinate_values[0].back()}},
-    yrange{{coordinate_values[1][0], coordinate_values[1].back()}}
+    yrange{{coordinate_values[1][0], coordinate_values[1].back()}},
+    missing(missing)
   {}
 
 
@@ -30,10 +34,10 @@ namespace icepack
     double x0, y0, dx, dy, missing;
     std::string dummy;
 
-    std::ifstream fid(filename);
-    fid >> dummy >> nx >> dummy >> ny;
-    fid >> dummy >> x0 >> dummy >> y0;
-    fid >> dummy >> dx >> dummy >> missing;
+    std::ifstream file_stream(filename);
+    file_stream >> dummy >> nx >> dummy >> ny;
+    file_stream >> dummy >> x0 >> dummy >> y0;
+    file_stream >> dummy >> dx >> dummy >> missing;
     dy = dx;
 
     std::vector<double> x(nx);
@@ -47,11 +51,11 @@ namespace icepack
 
     for (unsigned int i = 0; i < ny; ++i)
       for (unsigned int j = 0; j < nx; ++j)
-        fid >> table[j][ny - i - 1];
+        file_stream >> table[j][ny - i - 1];
 
-    fid.close();
+    file_stream.close();
 
-    return GridData (coordinate_values, table);
+    return GridData(coordinate_values, table, missing);
   }
 
 
@@ -60,13 +64,15 @@ namespace icepack
    *     <filename>.geodat
    * This is a helper function for readGeoDat (below).
    */
-  static void readGeoDatInfo(const std::string& filename,
-                             unsigned int& nx,
-                             unsigned int& ny,
-                             double& dx,
-                             double& dy,
-                             double& xo,
-                             double& yo)
+  static void readGeoDatInfo(
+    const std::string& filename,
+    unsigned int& nx,
+    unsigned int& ny,
+    double& dx,
+    double& dy,
+    double& xo,
+    double& yo
+  )
   {
     std::ifstream geoDatInfoFile(filename + ".geodat");
     std::string line;
@@ -93,21 +99,21 @@ namespace icepack
     double dx, dy, xo, yo;
     readGeoDatInfo(filename, nx, ny, dx, dy, xo, yo);
 
-    std::ifstream geoDatFile(filename, std::ios::in | std::ios::binary);
+    std::ifstream geodat_file(filename, std::ios::in | std::ios::binary);
 
     float q;
     unsigned char temp[sizeof(float)];
     std::vector<float> vals;
 
-    while (not geoDatFile.eof()) {
+    while (not geodat_file.eof()) {
       // If a float isn't 4 bytes on your system, then may God have
       // mercy on your soul.
-      geoDatFile.read(reinterpret_cast<char*>(temp), sizeof(float));
+      geodat_file.read(reinterpret_cast<char*>(temp), sizeof(float));
       q = ntohx(reinterpret_cast<float&>(temp));
       vals.push_back(q);
     }
 
-    geoDatFile.close();
+    geodat_file.close();
 
     std::vector<double> x(nx);
     std::vector<double> y(ny);
@@ -122,7 +128,8 @@ namespace icepack
       for (unsigned int j = 0; j < nx; ++j)
         table[j][i] = vals[ny * j + i];
 
-    return GridData(coordinate_values, table);
+    const double missing = -2.0e9;
+    return GridData(coordinate_values, table, missing);
   }
 
 
@@ -143,6 +150,7 @@ namespace icepack
     double yo = geoTransform[3];
 
     GDALRasterBand *band = data->GetRasterBand(1);
+    const double missing = band->GetNoDataValue();
 
     // Bro, do you even know how to C++?
     double *scanline = (double *) CPLMalloc(sizeof(double) * nx);
@@ -167,7 +175,7 @@ namespace icepack
 
     std::array<std::vector<double>, 2> coordinate_values = {{x, y}};
 
-    return GridData(coordinate_values, table);
+    return GridData(coordinate_values, table, missing);
   }
 
 }
