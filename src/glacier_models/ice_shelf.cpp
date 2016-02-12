@@ -10,7 +10,6 @@ namespace icepack {
   using dealii::FullMatrix;
 
   using dealii::FEValues;
-  using dealii::FEFaceValues;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
 
@@ -226,23 +225,18 @@ namespace icepack {
     const auto& h_fe = scalar_pde.get_fe();
 
     const QGauss<2>& quad = vector_pde.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
 
     FEValues<2> tau_fe_values(tau_fe, quad, DefaultUpdateFlags::flags);
-    FEFaceValues<2> tau_fe_face_values(tau_fe, f_quad, DefaultUpdateFlags::face_flags);
     const FEValuesExtractors::Vector exv(0);
 
     FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
-    FEFaceValues<2> h_fe_face_values(h_fe, f_quad, DefaultUpdateFlags::face_flags);
     const FEValuesExtractors::Scalar exs(0);
 
-    // Initialize storage for cell- and face-local data
+    // Initialize storage for cell-local data
     const unsigned int n_q_points = quad.size();
-    const unsigned int n_face_q_points = f_quad.size();
     const unsigned int dofs_per_cell = tau_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
-    std::vector<double> h_face_values(n_face_q_points);
 
     Vector<double> cell_rhs(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);

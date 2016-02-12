@@ -62,8 +62,7 @@ namespace icepack {
      * set up a PDE, e.g. degree-of-freedom handler, sparsity pattern,
      * quadrature rules, constraints on hanging nodes.
      */
-    PDESkeleton(const Triangulation<dim>& triangulation,
-                const FE& _fe)
+    PDESkeleton(const Triangulation<dim>& triangulation, const FE& _fe)
       :
       fe(_fe),
       quad(fe.tensor_degree()),
