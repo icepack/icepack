@@ -32,7 +32,6 @@ add_library(icepack
   src/util/tensor_function_utils.cpp
   src/physics/viscosity.cpp
   src/physics/basal_shear.cpp
-  src/numerics/linear_solve.cpp
   src/glacier_models/pde_skeleton.cpp
   src/glacier_models/depth_averaged_model.cpp
   src/glacier_models/ice_shelf.cpp
