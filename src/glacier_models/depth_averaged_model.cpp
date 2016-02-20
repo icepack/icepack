@@ -1,4 +1,6 @@
 
+#include <deal.II/base/exceptions.h>
+
 #include <icepack/util/tensor_function_utils.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
 
@@ -70,6 +72,8 @@ namespace icepack {
     h.copy_from(h0);
 
     /* TODO: write this. */
+    // Throw an error since this isn't implemented.
+    Assert(false, dealii::ExcInternalError());
 
     return h;
   }

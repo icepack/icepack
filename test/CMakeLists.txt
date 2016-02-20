@@ -10,6 +10,7 @@ set(test_list
   ice_shelf.cpp
   ice_stream.cpp
   ice_shelf_adjoint.cpp
+  ice_shelf_prognostic.cpp
 )
 
 
