@@ -1,23 +1,19 @@
 
-set(test_list
-  tensor_function_utils.cpp
-  read_arc.cpp
-  read_geotiff.cpp
-  ice_thickness.cpp
-  field.cpp
-  field_dist.cpp
-  field_move.cpp
-  ice_shelf.cpp
-  ice_stream.cpp
-  ice_shelf_adjoint.cpp
-  ice_shelf_prognostic.cpp
-)
+function(icepack_test)
+  foreach(test ${ARGV})
+    add_executable(${test} ${test}.cpp)
+    DEAL_II_SETUP_TARGET(${test})
+    target_link_libraries(${test} icepack)
+    add_test(${test} ${test})
+  endforeach(test)
+endfunction(icepack_test)
 
+icepack_test(
+  tensor_function_utils
+  read_arc
+  read_geotiff
+  ice_thickness)
 
-foreach(test ${test_list})
-  string(REPLACE ".cpp" "" test ${test})
-  add_executable(${test} ${PROJECT_SOURCE_DIR}/test/${test}.cpp)
-  DEAL_II_SETUP_TARGET(${test})
-  target_link_libraries(${test} icepack)
-  add_test(${test} ${test})
-endforeach(test)
+add_subdirectory(field)
+add_subdirectory(ice_shelf)
+add_subdirectory(ice_stream)

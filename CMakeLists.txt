@@ -21,23 +21,10 @@ project(icepack)
 
 enable_testing()
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
-add_subdirectory("${CMAKE_SOURCE_DIR}/test")
-
 set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 
-add_library(icepack
-  src/read_gridded_data.cpp
-  src/ice_thickness.cpp
-  src/util/tensor_function_utils.cpp
-  src/physics/viscosity.cpp
-  src/physics/basal_shear.cpp
-  src/glacier_models/pde_skeleton.cpp
-  src/glacier_models/depth_averaged_model.cpp
-  src/glacier_models/ice_shelf.cpp
-  src/glacier_models/ice_stream.cpp)
-DEAL_II_SETUP_TARGET(icepack)
-target_link_libraries(icepack gdal)
+include_directories("${PROJECT_SOURCE_DIR}/include")
+add_subdirectory("${CMAKE_SOURCE_DIR}/src")
+add_subdirectory("${CMAKE_SOURCE_DIR}/test")
 
-install (TARGETS icepack DESTINATION lib)
-install (DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
