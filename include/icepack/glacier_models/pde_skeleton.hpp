@@ -8,6 +8,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 
 #include <icepack/field.hpp>
 
@@ -71,14 +72,13 @@ namespace icepack {
     {
       dof_handler.distribute_dofs(fe);
 
-      const unsigned int nn = dof_handler.n_dofs();
-      sparsity.reinit(nn, nn, dof_handler.max_couplings_between_dofs());
-      dealii::DoFTools::make_sparsity_pattern(dof_handler, sparsity);
-      sparsity.compress();
-
       constraints.clear();
       dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
       constraints.close();
+
+      dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs());
+      dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints, false);
+      sparsity.copy_from(dsp);
     }
 
 

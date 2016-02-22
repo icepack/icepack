@@ -30,7 +30,7 @@ namespace icepack {
     const ConstraintMatrix& constraints
   )
   {
-    SolverControl solver_control(1000, 1.0e-12);
+    SolverControl solver_control(1000, 1.0e-10);
     // TODO make choice of logging an argument
     solver_control.log_result(false);
     Solver solver(solver_control);
