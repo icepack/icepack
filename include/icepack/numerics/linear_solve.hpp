@@ -19,8 +19,8 @@ namespace icepack {
   using dealii::SparseILU;
 
   /**
-   * Solve a symmetric, positive-definite linear system using sparse ILU and
-   * the conjugate gradient method.
+   * Solve a linear system using sparse ILU and some Krylov subspace method,
+   * which defaults to conjugate gradients.
    */
   template <class Solver = SolverCG<> >
   void linear_solve(
@@ -30,7 +30,13 @@ namespace icepack {
     const ConstraintMatrix& constraints
   )
   {
+    // TODO make this more sensible, i.e. make use of the number of unknowns
+    // and the norm of `f` in deciding the convergence criterion. Also take
+    // function arguments for deciding some of this, we may not need very
+    // accurate linear solves for the Picard solves that precede the final
+    // Newton solve.
     SolverControl solver_control(1000, 1.0e-10);
+
     // TODO make choice of logging an argument
     solver_control.log_result(false);
     Solver solver(solver_control);
