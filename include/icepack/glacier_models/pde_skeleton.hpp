@@ -109,7 +109,7 @@ namespace icepack {
         boundary_values
       );
 
-      return std::move(boundary_values);
+      return boundary_values;
     }
 
 
@@ -145,7 +145,7 @@ namespace icepack {
       const Vector<double>& Phi = phi.get_coefficients();
       for (auto& p: boundary_values) p.second = Phi(p.first);
 
-      return std::move(boundary_values);
+      return boundary_values;
     }
 
 
