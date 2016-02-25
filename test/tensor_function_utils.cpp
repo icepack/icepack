@@ -18,6 +18,8 @@ template <int dim>
 class F : public Function<dim>
 {
 public:
+  F() : Function<dim>() {}
+
   double value(const Point<dim>& x, const unsigned int = 0) const
   {
     return x[0] * x[1];
@@ -29,6 +31,8 @@ template <int dim>
 class G : public Function<dim>
 {
 public:
+  G() : Function<dim>() {}
+
   double value(const Point<dim>& x, const unsigned int = 0) const
   {
     return x[0]*x[0] - x[1]*x[1];
