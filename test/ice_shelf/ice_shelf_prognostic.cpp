@@ -129,18 +129,16 @@ int main(int argc, char ** argv)
   const Point<2> x(width/2, length - 0.25);
   const double dt = mesh_size / Velocity().value(x)[0] / 2;
 
-  const double final_time = 1.0;
-  const size_t num_time_steps = (size_t)(final_time / dt);
-
-  Field<2> h;
-  h.copy_from(h0);
-  for (size_t k = 0; k < num_time_steps; ++k)
-    h = ice_shelf.prognostic_solve(dt, h, a, u);
+  Field<2> h = ice_shelf.prognostic_solve(dt, h0, a, u);
 
   if (verbose) {
     h0.write("h0.ucd", "h0");
     h.write("h.ucd", "h");
+    u.write("u.ucd", "u");
+    a.write("a.ucd", "a");
   }
+
+  Assert(dist(h, h0) / norm(h0) < dx, ExcInternalError());
 
   return 0;
 }

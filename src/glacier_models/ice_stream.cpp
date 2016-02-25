@@ -8,7 +8,6 @@
 namespace icepack {
 
   using dealii::FullMatrix;
-
   using dealii::FEValues;
   using dealii::FEFaceValues;
   using dealii::GeometryInfo;
