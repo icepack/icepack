@@ -66,8 +66,8 @@ namespace icepack {
     PDESkeleton(const Triangulation<dim>& triangulation, const FE& _fe)
       :
       fe(_fe),
-      quad(fe.tensor_degree()),
-      face_quad(fe.tensor_degree()),
+      quad(fe.tensor_degree() + 1),
+      face_quad(fe.tensor_degree() + 1),
       dof_handler(triangulation)
     {
       dof_handler.distribute_dofs(fe);
