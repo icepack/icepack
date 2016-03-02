@@ -71,17 +71,15 @@ namespace icepack {
   /**
    * Helper function for prognostic solve
    */
-  void advection_matrix(
-    SparseMatrix<double>& A,
-    const double dt,
-    const VectorField<2>& u,
-    const DepthAveragedModel& glacier_model
-  )
+  Field<2> DepthAveragedModel::dh_dt(
+    const Field<2>& h0,
+    const Field<2>& a,
+    const VectorField<2>& u
+  ) const
   {
-    A = 0;
-
-    const auto& vector_pde = glacier_model.get_vector_pde_skeleton();
-    const auto& scalar_pde = glacier_model.get_scalar_pde_skeleton();
+    Field<2> dh;
+    dh.copy_from(h0);
+    dh.get_coefficients() = 0.0;
 
     const auto& h_fe = scalar_pde.get_fe();
     const auto& h_dof_handler = scalar_pde.get_dof_handler();
@@ -103,74 +101,69 @@ namespace icepack {
     const unsigned int n_face_q_points = f_quad.size();
     const unsigned int dofs_per_cell = h_fe.dofs_per_cell;
 
+    std::vector<double> a_values(n_q_points);
+    std::vector<double> h_values(n_q_points);
+    std::vector<double> h_face_values(n_face_q_points);
     std::vector<Tensor<1, 2> > u_values(n_q_points);
     std::vector<Tensor<1, 2> > u_face_values(n_face_q_points);
 
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    Vector<double> cell_dh(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = h_dof_handler.begin_active();
     auto u_cell = vector_pde.get_dof_handler().begin_active();
     for (; cell != h_dof_handler.end(); ++cell, ++u_cell) {
-      cell_matrix = 0;
+      cell_dh = 0;
       h_fe_values.reinit(cell);
       u_fe_values.reinit(u_cell);
 
+      h_fe_values[exs].get_function_values(h0.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(a.get_coefficients(), a_values);
       u_fe_values[exv].get_function_values(u.get_coefficients(), u_values);
 
-      // Add up contributions from the current cell
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = h_fe_values.JxW(q);
+        const double A = a_values[q];
+        const double H = h_values[q];
         const Tensor<1, 2> U = u_values[q];
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const double phi_i = h_fe_values[exs].value(i, q);
           const Tensor<1, 2> d_phi_i = h_fe_values[exs].gradient(i, q);
 
-          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-            const double phi_j = h_fe_values[exs].value(j, q);
-
-            cell_matrix(i, j) +=
-              (phi_i * phi_j - dt * (d_phi_i * U) * phi_j) * dx;
-          }
+          cell_dh(i) += (phi_i * A + d_phi_i * U * H) * dx;
         }
       }
 
-      // Add up contributions from faces on the outflow boundary
       for (unsigned int face_number = 0;
            face_number < GeometryInfo<2>::faces_per_cell; ++face_number)
-        if (cell->face(face_number)->at_boundary()
-            and
-            cell->face(face_number)->boundary_id() == 1) {
+        if (cell->face(face_number)->at_boundary()) {
           h_fe_face_values.reinit(cell, face_number);
           u_fe_face_values.reinit(u_cell, face_number);
 
+          h_fe_face_values[exs].get_function_values(h0.get_coefficients(), h_face_values);
           u_fe_face_values[exv].get_function_values(u.get_coefficients(), u_face_values);
 
           for (unsigned int q = 0; q < n_face_q_points; ++q) {
             const double dl = h_fe_face_values.JxW(q);
+            const double H = h_face_values[q];
             const Tensor<1, 2> U = u_face_values[q];
             const Tensor<1, 2> n = h_fe_face_values.normal_vector(q);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
               const double phi_i = h_fe_face_values[exs].value(i, q);
-
-              for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                const double phi_j = h_fe_face_values[exs].value(j, q);
-
-                cell_matrix(i, j) += dt * (phi_i * (U * n) * phi_j) * dl;
-              }
+              cell_dh(i) -= phi_i * H * (U * n) * dl;
             }
           }
         }
 
       cell->get_dof_indices(local_dof_indices);
-      vector_pde.get_constraints().distribute_local_to_global(
-        cell_matrix, local_dof_indices, A
+      scalar_pde.get_constraints().distribute_local_to_global(
+        cell_dh, local_dof_indices, dh.get_coefficients()
       );
     }
 
-    A.compress(dealii::VectorOperation::add);
+    return dh;
   }
 
 
@@ -181,30 +174,28 @@ namespace icepack {
     const VectorField<2>& u
   ) const
   {
+    // Can avoid this. Make dh_dt, multiply it by dt, add h0 at the end
     Field<2> h;
     h.copy_from(h0);
-    Vector<double>& H = h.get_coefficients();
 
-    Field<2> rhs;
-    rhs.copy_from(h0);
-    Vector<double>& R = rhs.get_coefficients();
-    R.add(dt, a.get_coefficients());
+    Field<2> h_dot = dh_dt(h0, a, u);
+    Vector<double>& dH_dt = h_dot.get_coefficients();
+    Vector<double> F(dH_dt);
 
     // TODO store the mass matrix somewhere
     SparseMatrix<double> B(scalar_pde.get_sparsity_pattern());
     dealii::MatrixCreator::create_mass_matrix(
       scalar_pde.get_dof_handler(), scalar_pde.get_quadrature(), B
     );
-    Vector<double> F(R.size());
-    B.vmult(F, R);
 
-    auto boundary_values = scalar_pde.interpolate_boundary_values(h0);
+    // TODO use filtered matrix
+    auto boundary_values = scalar_pde.zero_boundary_values();
+    dealii::MatrixTools::apply_boundary_values(
+      boundary_values, B, dH_dt, F, false
+    );
 
-    SparseMatrix<double> A(scalar_pde.get_sparsity_pattern());
-    advection_matrix(A, dt, u, *this);
-    dealii::MatrixTools::apply_boundary_values(boundary_values, A, H, F, false);
-
-    linear_solve<SolverBicgstab<> >(A, H, F, scalar_pde.get_constraints());
+    linear_solve(B, dH_dt, F, scalar_pde.get_constraints());
+    h.get_coefficients().add(dt, dH_dt);
 
     return h;
   }

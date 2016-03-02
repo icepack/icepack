@@ -29,7 +29,18 @@ public:
   {
     return h0 - delta_h/length * x[0];
   }
-};
+} thickness;
+
+class DhDx : public Function<2>
+{
+public:
+  DhDx() {}
+
+  double value(const Point<2>&, const unsigned int = 0) const
+  {
+    return -delta_h/length;
+  }
+} dh_dx;
 
 class Temperature : public Function<2>
 {
@@ -40,7 +51,7 @@ public:
   {
     return temp;
   }
-};
+} temperature;
 
 class Velocity : public TensorFunction<1, 2>
 {
@@ -57,8 +68,19 @@ public:
 
     return v;
   }
-};
+} velocity;
 
+class DuDx : public Function<2>
+{
+public:
+  DuDx() {}
+
+  double value(const Point<2>& x, const unsigned int = 0) const
+  {
+    const double q = 1 - delta_h / h0 * x[0] / length;
+    return A * pow(h0 * q, 3);
+  }
+} du_dx;
 
 /**
  * an accumulation field for which the linear ice ramp is a steady state
@@ -66,24 +88,14 @@ public:
 class Accumulation : public Function<2>
 {
 public:
-  Accumulation()
-    :
-    h(Thickness()),
-    u(Velocity())
-  {}
+  Accumulation() {}
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
-    const double q = 1 - delta_h / h0 * x[0] / length;
-    const double du_dx = A * pow(q, 3);
-    const double dh_dx = -delta_h / length;
-
-    return h.value(x) * du_dx + u.value(x)[0] * dh_dx;
+    return thickness.value(x) * du_dx.value(x)
+      + velocity.value(x)[0] * dh_dx.value(x);
   }
-
-  const Thickness h;
-  const Velocity u;
-};
+} accumulation;
 
 
 int main(int argc, char ** argv)
@@ -120,10 +132,10 @@ int main(int argc, char ** argv)
 
   IceShelf ice_shelf(tria, 1);
 
-  Field<2> h0 = ice_shelf.interpolate(Thickness());
-  Field<2> theta = ice_shelf.interpolate(Temperature());
-  Field<2> a = ice_shelf.interpolate(Accumulation());
-  VectorField<2> u = ice_shelf.interpolate(Velocity());
+  Field<2> h0 = ice_shelf.interpolate(thickness);
+  Field<2> theta = ice_shelf.interpolate(temperature);
+  Field<2> a = ice_shelf.interpolate(accumulation);
+  VectorField<2> u = ice_shelf.interpolate(velocity);
 
   const double mesh_size = dealii::GridTools::minimal_cell_diameter(tria);
   const Point<2> x(width/2, length - 0.25);

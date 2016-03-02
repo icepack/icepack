@@ -49,6 +49,18 @@ namespace icepack {
     interpolate(const Function<2>& phi0, const Function<2>& phi1) const;
 
 
+    // TODO add warning about how we use an overly diffusive approximation
+    /**
+     * Compute the rate of change of the ice thickness using the current
+     * accumulation rate and depth-averaged velocity.
+     */
+    Field<2> dh_dt(
+      const Field<2>& thickness,
+      const Field<2>& accumulation,
+      const VectorField<2>& u
+    ) const;
+
+
     /**
      * Propagate the ice thickness forward in time using the current
      * accumulation rate and depth-averaged velocity.
