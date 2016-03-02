@@ -1,5 +1,6 @@
 
 #include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <icepack/util/tensor_function_utils.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
@@ -103,9 +104,16 @@ namespace icepack {
 
     std::vector<double> a_values(n_q_points);
     std::vector<double> h_values(n_q_points);
+    std::vector<Tensor<1, 2> > dh_values(n_q_points);
     std::vector<double> h_face_values(n_face_q_points);
+    std::vector<Tensor<1, 2> > dh_face_values(n_face_q_points);
     std::vector<Tensor<1, 2> > u_values(n_q_points);
     std::vector<Tensor<1, 2> > u_face_values(n_face_q_points);
+
+    // Compute a natural time scale for this grid and velocity
+    const double u_max = u.get_coefficients().linfty_norm();
+    const double dx_min = dealii::GridTools::minimal_cell_diameter(triangulation);
+    const double tau = dx_min / u_max;
 
     Vector<double> cell_dh(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
@@ -118,6 +126,7 @@ namespace icepack {
       u_fe_values.reinit(u_cell);
 
       h_fe_values[exs].get_function_values(h0.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_gradients(h0.get_coefficients(), dh_values);
       h_fe_values[exs].get_function_values(a.get_coefficients(), a_values);
       u_fe_values[exv].get_function_values(u.get_coefficients(), u_values);
 
@@ -125,13 +134,17 @@ namespace icepack {
         const double dx = h_fe_values.JxW(q);
         const double A = a_values[q];
         const double H = h_values[q];
+        const Tensor<1, 2> dH = dh_values[q];
         const Tensor<1, 2> U = u_values[q];
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const double phi_i = h_fe_values[exs].value(i, q);
           const Tensor<1, 2> d_phi_i = h_fe_values[exs].gradient(i, q);
 
-          cell_dh(i) += (phi_i * A + d_phi_i * U * H) * dx;
+          const Tensor<1, 2> a_flux = H * U;
+          const Tensor<1, 2> d_flux = -tau * (U * dH) * U;
+
+          cell_dh(i) += (phi_i * A + d_phi_i * (a_flux + d_flux)) * dx;
         }
       }
 
@@ -147,12 +160,17 @@ namespace icepack {
           for (unsigned int q = 0; q < n_face_q_points; ++q) {
             const double dl = h_fe_face_values.JxW(q);
             const double H = h_face_values[q];
+            const Tensor<1, 2> dH = dh_face_values[q];
             const Tensor<1, 2> U = u_face_values[q];
             const Tensor<1, 2> n = h_fe_face_values.normal_vector(q);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
               const double phi_i = h_fe_face_values[exs].value(i, q);
-              cell_dh(i) -= phi_i * H * (U * n) * dl;
+
+              const Tensor<1, 2> a_flux = H * U;
+              const Tensor<1, 2> d_flux = -tau * (U * dH) * U;
+
+              cell_dh(i) -= phi_i * (a_flux + d_flux) * n * dl;
             }
           }
         }
