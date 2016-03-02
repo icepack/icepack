@@ -142,12 +142,14 @@ int main(int argc, char ** argv)
   const double dt = mesh_size / Velocity().value(x)[0] / 2;
 
   Field<2> h = ice_shelf.prognostic_solve(dt, h0, a, u);
+  Field<2> dh_dt = ice_shelf.dh_dt(h0, a, u);
 
   if (verbose) {
     h0.write("h0.ucd", "h0");
     h.write("h.ucd", "h");
     u.write("u.ucd", "u");
     a.write("a.ucd", "a");
+    dh_dt.write("dh_dt.ucd", "dh_dt");
   }
 
   Assert(dist(h, h0) / norm(h0) < dx, ExcInternalError());
