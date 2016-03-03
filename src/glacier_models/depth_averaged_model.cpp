@@ -113,7 +113,11 @@ namespace icepack {
     // Compute a natural time scale for this grid and velocity
     const double u_max = u.get_coefficients().linfty_norm();
     const double dx_min = dealii::GridTools::minimal_cell_diameter(triangulation);
-    const double tau = dx_min / u_max;
+
+    // TODO check the factor of 4.0. This should probably be the minimal length
+    // of one of the triangulation edges but deal.II only gives us the cell
+    // diameter, which is an overestimate by sqrt(2) even for a square cell.
+    const double tau = dx_min / u_max / 4.0;
 
     Vector<double> cell_dh(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);

@@ -139,7 +139,7 @@ int main(int argc, char ** argv)
 
   const double mesh_size = dealii::GridTools::minimal_cell_diameter(tria);
   const Point<2> x(width/2, length - 0.25);
-  const double dt = mesh_size / Velocity().value(x)[0] / 10;
+  const double dt = mesh_size / Velocity().value(x)[0] / 2;
 
   Field<2> h;
   h.copy_from(h0);
