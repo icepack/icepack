@@ -21,6 +21,6 @@ namespace icepack {
 
   // Explicitly instantiate the PDE skeleton template classes for dimension 2,
   // which we'll need in the core library code anyway.
-  template class PDESkeleton<2, FE_Q<2> >;
-  template class PDESkeleton<2, FESystem<2> >;
+  template class PDESkeleton<0, 2>;
+  template class PDESkeleton<1, 2>;
 }

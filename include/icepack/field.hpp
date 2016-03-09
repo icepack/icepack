@@ -36,8 +36,7 @@ namespace icepack {
 
 
   // This is for template magic, nothing to see here, move along folks...
-  namespace
-  {
+  namespace {
     template <int rank> struct ExtractorType
     {
       using type = dealii::FEValuesExtractors::Tensor<rank>;

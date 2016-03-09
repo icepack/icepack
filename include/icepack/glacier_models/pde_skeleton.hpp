@@ -41,6 +41,33 @@ namespace icepack {
 
 
   /**
+   * The halls of the asylum echo with the anguished cries of those who sought
+   * to understand the lunacy that follows.
+   */
+  namespace {
+    template <int rank, int dim> struct SkeletonFE;
+
+    template <int dim> struct SkeletonFE<0, dim>
+    {
+      using FE = FE_Q<dim>;
+      static FE fe(const size_t p)
+      {
+        return FE(p);
+      }
+    };
+
+    template <int dim> struct SkeletonFE<1, dim>
+    {
+      using FE = FESystem<2>;
+      static FE fe(const size_t p)
+      {
+        return FE(FE_Q<dim>(p), dim);
+      }
+    };
+  }
+
+
+  /**
    * This is a utility class for setting up partial differential equations.
    * Every PDE is defined over some geometry; has some finite element basis;
    * has a mapping from geometric primitives to degrees of freedom in the FE
@@ -53,19 +80,21 @@ namespace icepack {
    * solution vectors, etc. Nonetheless, two distinct PDEs may share the same
    * sparsity pattern or mapping from geometry to FE degrees of freedom.
    */
-  template <int dim, class FE>
+  template <int rank, int dim>
   class PDESkeleton
   {
   public:
+    using FE = typename SkeletonFE<rank, dim>::FE;
+
     /**
      * Construct a PDE skeleton given the geometry and finite element basis;
      * from this data, the PDE skeleton constructs all other necessary data to
      * set up a PDE, e.g. degree-of-freedom handler, sparsity pattern,
      * quadrature rules, constraints on hanging nodes.
      */
-    PDESkeleton(const Triangulation<dim>& triangulation, const FE& _fe)
+    PDESkeleton(const Triangulation<dim>& triangulation, const size_t p)
       :
-      fe(_fe),
+      fe(SkeletonFE<rank, dim>::fe(p)),
       quad(fe.tensor_degree() + 1),
       face_quad(fe.tensor_degree() + 1),
       dof_handler(triangulation)
@@ -118,7 +147,6 @@ namespace icepack {
      * field object, so that other fields can be made to have the same boundary
      * values as the input field.
      */
-    template <int rank>
     std::map<dealii::types::global_dof_index, double>
     interpolate_boundary_values(
       const FieldType<rank, dim>& phi,
@@ -221,10 +249,10 @@ namespace icepack {
 
 
   template <int dim>
-  using ScalarPDESkeleton = PDESkeleton<dim, FE_Q<dim> >;
+  using ScalarPDESkeleton = PDESkeleton<0, dim>;
 
   template <int dim>
-  using VectorPDESkeleton = PDESkeleton<dim, FESystem<dim> >;
+  using VectorPDESkeleton = PDESkeleton<1, dim>;
 
 }
 

@@ -28,8 +28,8 @@ namespace icepack {
     :
     constitutive_tensor(DefaultPhysicalParams::n),
     triangulation(tria),
-    scalar_pde(tria, FE_Q<2>(p)),
-    vector_pde(tria, FESystem<2>(FE_Q<2>(p), 2))
+    scalar_pde(tria, p),
+    vector_pde(tria, p)
   {}
 
 
