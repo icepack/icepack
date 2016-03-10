@@ -11,12 +11,12 @@ namespace icepack {
   double rate_factor(const double temperature);
 
 
-  struct Viscosity
+  struct Rheology
   {
-    Viscosity(const double n);
+    Rheology(const double n);
 
     double
-    operator()(const double temperature, const double strain_rate) const;
+    operator()(const double temperature) const;
 
     const double n;
   };
@@ -57,7 +57,7 @@ namespace icepack {
     /**
      * Parameterization for how the ice rheology depends on temperature
      */
-    const Viscosity viscosity;
+    const Rheology rheology;
   };
 
 }

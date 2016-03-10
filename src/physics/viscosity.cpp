@@ -32,17 +32,15 @@ namespace icepack {
   }
 
 
-  Viscosity::Viscosity(const double n)
+  Rheology::Rheology(const double n)
     :
     n(n)
   {}
 
-  double Viscosity::operator()(
-    const double temperature, const double strain_rate
-  ) const
+  double Rheology::operator()(const double temperature) const
   {
     const double A = rate_factor(temperature);
-    return std::pow(A * strain_rate * strain_rate, -1.0/n) / 2;
+    return std::pow(A, -1.0/n) / 2;
   }
 
 
@@ -60,7 +58,7 @@ namespace icepack {
 
   ConstitutiveTensor::ConstitutiveTensor(const double n)
     :
-    viscosity(n)
+    rheology(n)
   {}
 
   SymmetricTensor<4, 2> ConstitutiveTensor::nonlinear(
@@ -69,9 +67,10 @@ namespace icepack {
     const SymmetricTensor<2, 2> eps
   ) const
   {
+    const double n = rheology.n;
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
-    const double nu = h * viscosity(T, eps_e);
+    const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
     return 2 * nu * C;
   }
 
@@ -81,13 +80,11 @@ namespace icepack {
     const SymmetricTensor<2, 2> eps
   ) const
   {
-    const double n = viscosity.n;
+    const double n = rheology.n;
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
-
-    const double nu = h * viscosity(T, eps_e);
-
+    const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
     return 2 * nu * (C + (1-n)/(2*n) * outer_product(gamma, gamma));
   }
 
