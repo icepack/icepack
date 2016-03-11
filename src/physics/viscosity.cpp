@@ -53,7 +53,7 @@ namespace icepack {
   namespace {
     const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
     const SymmetricTensor<4, 2> II = identity_tensor<2>();
-    const SymmetricTensor<4, 2> C = II + outer_product(I, I);
+    const SymmetricTensor<4, 2> CC = II + outer_product(I, I);
   }
 
   ConstitutiveTensor::ConstitutiveTensor(const double n)
@@ -61,7 +61,8 @@ namespace icepack {
     rheology(n)
   {}
 
-  SymmetricTensor<4, 2> ConstitutiveTensor::nonlinear(
+  template <>
+  SymmetricTensor<4, 2> ConstitutiveTensor::C<nonlinear>(
     const double h,
     const double T,
     const SymmetricTensor<2, 2> eps
@@ -71,10 +72,11 @@ namespace icepack {
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
-    return 2 * nu * C;
+    return 2 * nu * CC;
   }
 
-  SymmetricTensor<4, 2> ConstitutiveTensor::linearized(
+  template <>
+  SymmetricTensor<4, 2> ConstitutiveTensor::C<linearized>(
     const double h,
     const double T,
     const SymmetricTensor<2, 2> eps
@@ -85,7 +87,7 @@ namespace icepack {
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
     const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
-    return 2 * nu * (C + (1-n)/(2*n) * outer_product(gamma, gamma));
+    return 2 * nu * (CC + (1-n)/(2*n) * outer_product(gamma, gamma));
   }
 
 }

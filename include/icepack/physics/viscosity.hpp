@@ -4,6 +4,8 @@
 
 #include <deal.II/base/symmetric_tensor.h>
 
+#include <icepack/physics/linearity.hpp>
+
 namespace icepack {
 
   using dealii::SymmetricTensor;
@@ -38,17 +40,8 @@ namespace icepack {
      * Calculate the consitutive tensor including the nonlinear dependence on
      * the ice strain rate.
      */
-    SymmetricTensor<4, 2> nonlinear(
-      const double thickness,
-      const double temperature,
-      const SymmetricTensor<2, 2> strain_rate
-    ) const;
-
-    /**
-     * Calculate the constitutive tensor for the linearization of the ice flow
-     * equations, including the "effective anisotropy".
-     */
-    SymmetricTensor<4, 2> linearized(
+    template <Linearity linearity>
+    SymmetricTensor<4, 2> C(
       const double thickness,
       const double temperature,
       const SymmetricTensor<2, 2> strain_rate

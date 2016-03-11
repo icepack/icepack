@@ -5,6 +5,8 @@
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/symmetric_tensor.h>
 
+#include <icepack/physics/linearity.hpp>
+
 namespace icepack {
 
   using dealii::Tensor;
@@ -22,16 +24,10 @@ namespace icepack {
     BasalShear(const double m, const double tau0, const double u0);
 
     /**
-     * Compute the full nonlinear basal friction coefficient
+     * Compute the basal friction coefficient or its linearization
      */
-    double nonlinear(const double beta, const Tensor<1, 2>& u) const;
-
-    /**
-     * Compute the linearization of the basal friction coefficient around a
-     * particular velocity
-     */
-    SymmetricTensor<2, 2>
-    linearized(const double beta, const Tensor<1, 2>& u) const;
+    template <Linearity linearity>
+    SymmetricTensor<2, 2> K(const double beta, const Tensor<1, 2>& u) const;
 
     /**
      * Sliding rheology exponent

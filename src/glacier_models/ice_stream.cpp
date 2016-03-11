@@ -31,7 +31,7 @@ namespace icepack {
   /**
    * Construct the system matrix for the ice stream equations.
    */
-  template <class ConstitutiveTensor, class BasalShear>
+  template <Linearity linearity>
   void velocity_matrix (
     SparseMatrix<double>& A,
     const Field<2>& s,
@@ -39,9 +39,7 @@ namespace icepack {
     const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
-    const IceStream& ice_stream,
-    const ConstitutiveTensor constitutive_tensor,
-    const BasalShear basal_shear
+    const IceStream& ice_stream
   )
   {
     A = 0;
@@ -96,14 +94,17 @@ namespace icepack {
         const double dx = u_fe_values.JxW(q);
         const double H = h_values[q];
         const double T = theta_values[q];
+        const Tensor<1, 2> U = u_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
-        const SymmetricTensor<4, 2> C = constitutive_tensor(H, T, eps);
+        const SymmetricTensor<4, 2> C =
+          ice_stream.constitutive_tensor.C<linearity>(H, T, eps);
 
         const double flotation = (1 - rho_ice/rho_water) * H;
-        const double flotation_tolerance = 1.0e-4;
-        const bool floating = s_values[q] / flotation - 1.0 > flotation_tolerance;
-        const auto K = floating * basal_shear(beta_values[q], u_values[q]);
+        const double floating_tol = 1.0e-4;
+        const bool floating = s_values[q] / flotation - 1.0 > floating_tol;
+        const auto K =
+          floating * ice_stream.basal_shear.K<linearity>(beta_values[q], U);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -159,20 +160,10 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return ice_stream.constitutive_tensor.linearized(H, T, eps); };
-
-    const auto basal_shear =
-      [&](const double beta, const Tensor<1, 2>& u)
-      { return ice_stream.basal_shear.linearized(beta, u); };
-
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(
-        A, s, h, theta, beta, u, ice_stream, constitutive_tensor, basal_shear
-      );
+      velocity_matrix<linearized>(A, s, h, theta, beta, u, ice_stream);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -216,20 +207,10 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return ice_stream.constitutive_tensor.nonlinear(H, T, eps); };
-
-    const auto basal_shear =
-      [&](const double beta, const Tensor<1, 2>& u)
-      { return ice_stream.basal_shear.nonlinear(beta, u); };
-
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(
-        A, s, h, theta, beta, u, ice_stream, constitutive_tensor, basal_shear
-      );
+      velocity_matrix<nonlinear>(A, s, h, theta, beta, u, ice_stream);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -429,22 +410,22 @@ namespace icepack {
         const double dx = u_fe_values.JxW(q);
         const double H = h_values[q];
         const double T = theta_values[q];
+        const Tensor<1, 2> U = u_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
-        const Tensor<1, 2> u = u_values[q];
 
         const SymmetricTensor<4, 2> C =
-          constitutive_tensor.nonlinear(H, T, eps);
+          constitutive_tensor.C<nonlinear>(H, T, eps);
 
         const double flotation = (1 - rho_ice/rho_water) * H;
         const double flotation_tolerance = 1.0e-4;
         const bool floating = s_values[q]/flotation - 1.0 > flotation_tolerance;
-        const double K =
-          floating * basal_shear.nonlinear(beta_values[q], u_values[q]);
+        const auto K =
+          floating * basal_shear.K<nonlinear>(beta_values[q], U);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
           const auto phi_i = u_fe_values[exv].value(i, q);
-          cell_residual(i) -= (eps_phi_i * C * eps + phi_i * K * u) * dx;
+          cell_residual(i) -= (eps_phi_i * C * eps + phi_i * (K * U)) * dx;
         }
      }
 
@@ -532,17 +513,7 @@ namespace icepack {
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return this->constitutive_tensor.linearized(H, T, eps); };
-
-    const auto basal_shear =
-      [&](const double beta, const Tensor<1, 2>& u)
-      { return this->basal_shear.linearized(beta, u); };
-
-    velocity_matrix(
-      A, s, h, theta, beta, u0, *this, constitutive_tensor, basal_shear
-    );
+    velocity_matrix<linearized>(A, s, h, theta, beta, u0, *this);
     dealii::MatrixTools::apply_boundary_values(
       boundary_values, A, Lambda, F, false
     );

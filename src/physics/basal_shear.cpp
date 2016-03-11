@@ -20,15 +20,17 @@ namespace icepack {
     u0(u0)
   {}
 
-  double
-  BasalShear::nonlinear(const double beta, const Tensor<1, 2>& u) const
+  template <>
+  SymmetricTensor<2, 2>
+  BasalShear::K<nonlinear>(const double beta, const Tensor<1, 2>& u) const
   {
     const double U = u.norm();
-    return tau0 * std::exp(beta) * std::pow(U/u0, 1/m - 1) / u0;
+    return tau0 * std::exp(beta) * std::pow(U/u0, 1/m - 1) / u0 * I;
   }
 
+  template <>
   SymmetricTensor<2, 2>
-  BasalShear::linearized(const double beta, const Tensor<1, 2>& u) const
+  BasalShear::K<linearized>(const double beta, const Tensor<1, 2>& u) const
   {
     const double U = u.norm();
     const double C = tau0 * std::exp(beta) * std::pow(U/u0, 1/m - 1) / u0;

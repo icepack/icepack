@@ -20,14 +20,13 @@ namespace icepack {
   /**
    * Construct the system matrix for the diagnostic equations
    */
-  template <class ConstitutiveTensor>
+  template <Linearity linearity>
   void velocity_matrix(
     SparseMatrix<double>& A,
     const Field<2>& h,
     const Field<2>& theta,
     const VectorField<2>& u0,
-    const IceShelf& ice_shelf,
-    const ConstitutiveTensor constitutive_tensor
+    const IceShelf& ice_shelf
   )
   {
     A = 0;
@@ -76,11 +75,8 @@ namespace icepack {
         const double H = h_values[q];
         const double T = theta_values[q];
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
-
-        // TODO I've been using the convention of thickness then temperature in
-        // the argument ordering, whereas this is the opposite. Should change
-        // the ordering.
-        const SymmetricTensor<4, 2> C = constitutive_tensor(H, T, eps);
+        const SymmetricTensor<4, 2> C =
+          ice_shelf.constitutive_tensor.C<linearity>(H, T, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -131,14 +127,10 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return ice_shelf.constitutive_tensor.linearized(H, T, eps); };
-
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, theta, u, ice_shelf, constitutive_tensor);
+      velocity_matrix<linearized>(A, h, theta, u, ice_shelf);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -178,14 +170,10 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return ice_shelf.constitutive_tensor.nonlinear(H, T, eps); };
-
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix(A, h, theta, u, ice_shelf, constitutive_tensor);
+      velocity_matrix<nonlinear>(A, h, theta, u, ice_shelf);
       dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -328,7 +316,7 @@ namespace icepack {
         const SymmetricTensor<2, 2> eps = strain_rate_values[q];
 
         const SymmetricTensor<4, 2> C =
-          constitutive_tensor.nonlinear(H, T, eps);
+          constitutive_tensor.C<nonlinear>(H, T, eps);
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
@@ -391,11 +379,7 @@ namespace icepack {
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();
 
-    const auto constitutive_tensor =
-      [&](const double H, const double T, const SymmetricTensor<2, 2>& eps)
-      { return this->constitutive_tensor.linearized(H, T, eps); };
-
-    velocity_matrix(A, h, theta, u0, *this, constitutive_tensor);
+    velocity_matrix<linearized>(A, h, theta, u0, *this);
     dealii::MatrixTools::apply_boundary_values(
       boundary_values, A, Lambda, F, false
     );
