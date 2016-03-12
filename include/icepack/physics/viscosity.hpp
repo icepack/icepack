@@ -17,8 +17,8 @@ namespace icepack {
   {
     Rheology(const double n);
 
-    double
-    operator()(const double temperature) const;
+    double B(const double theta) const;
+    double dB(const double theta) const;
 
     const double n;
   };
@@ -43,7 +43,7 @@ namespace icepack {
     template <Linearity linearity>
     SymmetricTensor<4, 2> C(
       const double thickness,
-      const double temperature,
+      const double theta,
       const SymmetricTensor<2, 2> strain_rate
     ) const;
 

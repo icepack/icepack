@@ -32,17 +32,35 @@ namespace icepack {
   }
 
 
+  double d_rate_factor(const double temperature)
+  {
+    const bool cold = (temperature < transition_temperature);
+    const double A0 = cold ? A0_cold : A0_warm;
+    const double Q = cold ? Q_cold : Q_warm;
+
+    const double r = Q / (ideal_gas * temperature);
+
+    return A0 * r / temperature * std::exp(-r);
+  }
+
+
   Rheology::Rheology(const double n)
     :
     n(n)
   {}
 
-  double Rheology::operator()(const double temperature) const
+  double Rheology::B(const double theta) const
   {
-    const double A = rate_factor(temperature);
+    const double A = rate_factor(theta);
     return std::pow(A, -1.0/n) / 2;
   }
 
+  double Rheology::dB(const double theta) const
+  {
+    const double A = rate_factor(theta);
+    const double dA = d_rate_factor(theta);
+    return -1.0/(2*n) * std::pow(A, -1.0/n) * dA;
+  }
 
 
   /*
@@ -64,21 +82,21 @@ namespace icepack {
   template <>
   SymmetricTensor<4, 2> ConstitutiveTensor::C<nonlinear>(
     const double h,
-    const double T,
+    const double theta,
     const SymmetricTensor<2, 2> eps
   ) const
   {
     const double n = rheology.n;
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
-    const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
+    const double nu = h * rheology.B(theta) * std::pow(eps_e, -2.0/n);
     return 2 * nu * CC;
   }
 
   template <>
   SymmetricTensor<4, 2> ConstitutiveTensor::C<linearized>(
     const double h,
-    const double T,
+    const double theta,
     const SymmetricTensor<2, 2> eps
   ) const
   {
@@ -86,7 +104,7 @@ namespace icepack {
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
-    const double nu = h * rheology(T) * std::pow(eps_e, -2.0/n);
+    const double nu = h * rheology.B(theta) * std::pow(eps_e, -2.0/n);
     return 2 * nu * (CC + (1-n)/(2*n) * outer_product(gamma, gamma));
   }
 
