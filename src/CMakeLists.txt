@@ -5,6 +5,7 @@ set(SRCS
   util/tensor_function_utils.cpp
   physics/viscosity.cpp
   physics/basal_shear.cpp
+  discretization.cpp
   glacier_models/pde_skeleton.cpp
   glacier_models/depth_averaged_model.cpp
   glacier_models/ice_shelf.cpp
