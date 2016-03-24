@@ -11,7 +11,6 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/vector.h>
-#include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 
 #include <icepack/discretization.hpp>
@@ -233,6 +232,14 @@ namespace icepack {
       return get_field_discretization().get_dof_handler();
     }
 
+    /**
+     * Return the constraints on degrees of freedom imposed by mesh refinement
+     */
+    const ConstraintMatrix& get_constraints() const
+    {
+      return get_field_discretization().get_constraints();
+    }
+
 
     /**
      * Write out the field to a file in the `.ucd` format. See `scripts/` for
@@ -310,6 +317,28 @@ namespace icepack {
       psi.get_dof_handler(), vphi, psi.get_coefficients()
     );
     return psi;
+  }
+
+
+  /**
+   * Create a map of degree-of-freedom indices to numbers describing how to
+   * create a field with the same boundary values as `phi` on boundary vertices
+   * with the id `boundary_id`
+   */
+  template <int rank, int dim>
+  std::map<dealii::types::global_dof_index, double>
+  interpolate_boundary_values(
+    const FieldType<rank, dim>& phi,
+    const unsigned int boundary_id = 0
+  )
+  {
+    auto boundary_values =
+      phi.get_field_discretization().zero_boundary_values(boundary_id);
+
+    const Vector<double>& Phi = phi.get_coefficients();
+    for (auto& p: boundary_values) p.second = Phi(p.first);
+
+    return boundary_values;
   }
 
 

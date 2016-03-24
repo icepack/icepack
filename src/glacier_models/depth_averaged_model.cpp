@@ -71,12 +71,10 @@ namespace icepack {
   {
     Field<2> dh(discretization);
 
-    const auto& scalar_dsc = dh.get_field_discretization();
-
-    const auto& h_fe = scalar_dsc.get_fe();
+    const auto& h_fe = dh.get_fe();
     const auto& u_fe = u.get_fe();
 
-    const auto& h_dof_handler = scalar_dsc.get_dof_handler();
+    const auto& h_dof_handler = dh.get_dof_handler();
 
     const QGauss<2>& quad = discretization.quad();
     const QGauss<1>& f_quad = discretization.face_quad();
@@ -172,7 +170,7 @@ namespace icepack {
         }
 
       cell->get_dof_indices(local_dof_indices);
-      scalar_dsc.get_constraints().distribute_local_to_global(
+      dh.get_constraints().distribute_local_to_global(
         cell_dh, local_dof_indices, dh.get_coefficients()
       );
     }

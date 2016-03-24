@@ -15,5 +15,5 @@ icepack_test(
   ice_thickness)
 
 add_subdirectory(field)
-#add_subdirectory(ice_shelf)
+add_subdirectory(ice_shelf)
 #add_subdirectory(ice_stream)
