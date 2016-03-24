@@ -50,26 +50,16 @@ public:
 
 
 template <int dim>
-Field<dim> gaussian(
-  const Triangulation<dim>& triangulation,
-  const FiniteElement<dim>& fe,
-  const DoFHandler<dim>& dof_handler
-)
+Field<dim> gaussian(const Discretization<dim>& discretization)
 {
-  const Z<dim> Z_;
-  return interpolate(triangulation, fe, dof_handler, Z_);
+  return interpolate(discretization, Z<dim>());
 }
 
 
 template <int dim>
-Field<dim> parabola(
-  const Triangulation<dim>& triangulation,
-  const FiniteElement<dim>& fe,
-  const DoFHandler<dim>& dof_handler
-)
+Field<dim> parabola(const Discretization<dim>& discretization)
 {
-  const P<dim> P_;
-  return interpolate(triangulation, fe, dof_handler, P_);
+  return interpolate(discretization, P<dim>());
 }
 
 
@@ -80,15 +70,13 @@ int main()
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
   triangulation.refine_global(num_levels);
 
-  FE_Q<2> fe(1);
-  DoFHandler<2> dof_handler(triangulation);
-  dof_handler.distribute_dofs(fe);
+  const Discretization<2> discretization(triangulation, 1);
 
   /**
    * Initialize a FieldType object with the return value from a function; this
    * utilizes the move constructor for FieldType.
    */
-  Field<2> u = gaussian(triangulation, fe, dof_handler);
+  Field<2> u = gaussian(discretization);
 
   std::cout << norm(u) << std::endl;
 
@@ -96,7 +84,7 @@ int main()
    * Reassign the FieldType object with the return value from another function;
    * this uses the move assignment operator.
    */
-  u = parabola(triangulation, fe, dof_handler);
+  u = parabola(discretization);
 
   std::cout << norm(u) << std::endl;
 

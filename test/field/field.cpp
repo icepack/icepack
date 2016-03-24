@@ -40,30 +40,24 @@ class F : public TensorFunction<1, dim>
 
 
 template <int dim>
-bool test_field(
-  const Triangulation<dim>& triangulation,
-  const Function<dim>& phi
-)
+bool
+test_field(const Discretization<dim>& discretization, const Function<dim>& phi)
 {
-  FE_Q<dim> fe(1);
-  DoFHandler<dim> dof_handler(triangulation);
-  dof_handler.distribute_dofs(fe);
-  Field<dim> psi = interpolate(triangulation, fe, dof_handler, phi);
+  Field<dim> psi = interpolate(discretization, phi);
 
-  Quadrature<dim> quad(2);
+  Quadrature<dim> quad = discretization.quad();
   const unsigned int n_q_points = quad.size();
-
-  const auto& coefficients = psi.get_coefficients();
-
   std::vector<double> phi_values(n_q_points), psi_values(n_q_points);
-  FEValues<dim> fe_values(fe, quad, update_values | update_quadrature_points);
-  const FEValuesExtractors::Scalar extractor(0);
 
-  for (auto cell: dof_handler.active_cell_iterators()) {
+  FEValues<dim>
+    fe_values(psi.get_fe(), quad, update_values | update_quadrature_points);
+  const FEValuesExtractors::Scalar ex(0);
+
+  for (auto cell: psi.get_dof_handler().active_cell_iterators()) {
     fe_values.reinit(cell);
-    const std::vector<Point<dim> >& qs = fe_values.get_quadrature_points();
-    phi.value_list(qs, phi_values);
-    fe_values[extractor].get_function_values(coefficients, psi_values);
+
+    phi.value_list(fe_values.get_quadrature_points(), phi_values);
+    fe_values[ex].get_function_values(psi.get_coefficients(), psi_values);
 
     for (unsigned int q = 0; q < n_q_points; ++q)
       Assert(abs(phi_values[q] - psi_values[q]) < 1.0e-6, ExcInternalError());
@@ -79,29 +73,25 @@ bool test_field(
 
 template <int dim>
 bool test_vector_field(
-  const Triangulation<dim>& triangulation,
+  const Discretization<dim>& discretization,
   const TensorFunction<1, dim>& f
 )
 {
-  FESystem<dim> fe(FE_Q<dim>(1), dim);
-  DoFHandler<dim> dof_handler(triangulation);
-  dof_handler.distribute_dofs(fe);
-  VectorField<dim> g = interpolate(triangulation, fe, dof_handler, f);
+  VectorField<dim> g = interpolate(discretization, f);
 
-  Quadrature<dim> quad(2);
+  Quadrature<dim> quad = discretization.quad();
   const unsigned int n_q_points = quad.size();
 
-  const auto& coefficients = g.get_coefficients();
+  std::vector<Tensor<1, dim>> f_values(n_q_points), g_values(n_q_points);
+  FEValues<dim>
+    fe_values(g.get_fe(), quad, update_values | update_quadrature_points);
+  const FEValuesExtractors::Vector ex(0);
 
-  std::vector<Tensor<1, dim> > f_values(n_q_points), g_values(n_q_points);
-  FEValues<dim> fe_values(fe, quad, update_values | update_quadrature_points);
-  const FEValuesExtractors::Vector extractor(0);
-
-  for (auto cell: dof_handler.active_cell_iterators()) {
+  for (auto cell: g.get_dof_handler().active_cell_iterators()) {
     fe_values.reinit(cell);
-    const std::vector<Point<dim> >& qs = fe_values.get_quadrature_points();
-    f.value_list(qs, f_values);
-    fe_values[extractor].get_function_values(coefficients, g_values);
+
+    f.value_list(fe_values.get_quadrature_points(), f_values);
+    fe_values[ex].get_function_values(g.get_coefficients(), g_values);
 
     for (unsigned int q = 0; q < n_q_points; ++q)
       Assert((f_values[q] - g_values[q]).norm() < 1.0e-6, ExcInternalError());
@@ -122,11 +112,13 @@ int main()
   GridGenerator::hyper_rectangle(triangulation, p1, p2);
   triangulation.refine_global(num_levels);
 
+  const Discretization<2> discretization(triangulation, 1);
+
   Phi<2> phi;
-  if (!test_field(triangulation, phi)) return 1;
+  if (!test_field(discretization, phi)) return 1;
 
   F<2> f;
-  if (!test_vector_field(triangulation, f)) return 1;
+  if (!test_vector_field(discretization, f)) return 1;
 
   return 0;
 }

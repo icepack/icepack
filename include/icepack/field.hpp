@@ -14,6 +14,8 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/data_out.h>
 
+#include <icepack/discretization.hpp>
+
 namespace icepack {
 
   using dealii::Tensor;
@@ -21,10 +23,7 @@ namespace icepack {
   using dealii::TensorFunction;
   using dealii::VectorFunctionFromTensorFunction;
 
-  using dealii::Triangulation;
-  using dealii::QGauss;
   using dealii::FiniteElement;
-  using dealii::DoFHandler;
   using dealii::FEValues;
 
   using dealii::update_values;
@@ -93,9 +92,7 @@ namespace icepack {
      */
     FieldType()
       :
-      triangulation(nullptr),
-      fe(nullptr),
-      dof_handler(nullptr),
+      discretization(nullptr),
       coefficients(0)
     {}
 
@@ -109,20 +106,12 @@ namespace icepack {
      * You should not have to call this constructor in normal usage. Instead,
      * use the `interpolate` member of the model object for the problem.
      */
-    FieldType(
-      const Triangulation<dim>& _triangulation,
-      const FiniteElement<dim>& _fe,
-      const DoFHandler<dim>& _dof_handler
-    )
+    FieldType(const Discretization<dim>& discretization)
       :
-      triangulation(&_triangulation),
-      fe(&_fe),
-      dof_handler(&_dof_handler)
+      discretization(&discretization),
+      coefficients(get_field_discretization().get_dof_handler().n_dofs())
     {
-      coefficients.reinit(dof_handler->n_dofs());
-
-      // TODO: put in some asserts to make sure that the FiniteElement object
-      // supplied is compatible with the field type (scalar vs. vector)
+      coefficients = 0;
     }
 
     /**
@@ -137,11 +126,9 @@ namespace icepack {
      */
     void copy_from(const FieldType<rank, dim>& phi)
     {
-      // These are all dealii::SmartPointers to the object in question, so the
+      // This is a `dealii::SmartPointer` to the object in question, so the
       // assignment just copies the address and not the actual object.
-      triangulation = phi.triangulation;
-      fe = phi.fe;
-      dof_handler = phi.dof_handler;
+      discretization = phi.discretization;
 
       // This actually copies the vector.
       coefficients = phi.coefficients;
@@ -158,11 +145,12 @@ namespace icepack {
      */
     FieldType(FieldType<rank, dim>&& phi)
       :
-      triangulation(phi.triangulation),
-      fe(phi.fe),
-      dof_handler(phi.dof_handler),
+      discretization(phi.discretization),
       coefficients(std::move(phi.coefficients))
-    {}
+    {
+      phi.discretization = nullptr;
+      phi.coefficients.reinit(0);
+    }
 
     /**
      * Move assignment operator. Like the move constructor, this allows fields
@@ -176,11 +164,11 @@ namespace icepack {
      */
     FieldType<rank, dim>& operator=(FieldType<rank, dim>&& phi)
     {
-      triangulation = phi.triangulation;
-      fe = phi.fe;
-      dof_handler = phi.dof_handler;
-
+      discretization = phi.discretization;
       coefficients = std::move(phi.coefficients);
+
+      phi.discretization = nullptr;
+      phi.coefficients.reinit(0);
 
       return *this;
     }
@@ -189,6 +177,25 @@ namespace icepack {
     // although the Vector member coefficients does, so the dtor is trivial.
     virtual ~FieldType()
     {}
+
+
+    /**
+     * Return the underlying discretization of this field.
+     */
+    const Discretization<dim>& get_discretization() const
+    {
+      return *discretization;
+    }
+
+
+    /**
+     * Return the `FieldDiscretization` for this field, i.e. a scalar
+     * discretization of a scalar field, etc.
+     */
+    const FieldDiscretization<rank, dim>& get_field_discretization() const
+    {
+      return (*discretization).field_discretization(fe_field<rank, dim>());
+    }
 
 
     /**
@@ -214,7 +221,7 @@ namespace icepack {
      */
     const FiniteElement<dim>& get_fe() const
     {
-      return *fe;
+      return get_field_discretization().get_fe();
     }
 
     /**
@@ -223,7 +230,7 @@ namespace icepack {
      */
     const DoFHandler<dim>& get_dof_handler() const
     {
-      return *dof_handler;
+      return get_field_discretization().get_dof_handler();
     }
 
 
@@ -236,7 +243,7 @@ namespace icepack {
       std::ofstream output(filename.c_str());
 
       dealii::DataOut<dim> data_out;
-      data_out.attach_dof_handler(*dof_handler);
+      data_out.attach_dof_handler(get_dof_handler());
 
       std::vector<std::string> component_names;
       if (rank == 1)
@@ -252,28 +259,10 @@ namespace icepack {
 
   protected:
     /**
-     * Reference to the model geometry.
-     * This is a `dealii::SmartPointer` instead of a normal C++ reference; this
-     * is to ensure that an exception is thrown if the triangulation object is
-     * destroyed before any client field objects are done with it.
-     * It does not implement any memory management (e.g. reference counting)
-     * or imply ownership.
+     * Reference to the Discretization object which aggregates all of the data
+     * needed to define a finite element discretization.
      */
-    SmartPointer<const Triangulation<dim> > triangulation;
-
-    /**
-     * Reference to the finite element discretization for this field, e.g. a
-     * `dealii::FE_Q` object for a scalar field, a `dealii::FESystem` object
-     * for a vector field, etc.
-     */
-    SmartPointer<const FiniteElement<dim> > fe;
-
-    /**
-     * Reference to the `dealii::DoFHandler` object for this geometry and FE
-     * discretization; stores the mapping of geometric objects in the
-     * triangulation (points, edges, etc.) to FE degrees of freedom.
-     */
-    SmartPointer<const DoFHandler<dim> > dof_handler;
+    SmartPointer<const Discretization<dim>> discretization;
 
     /**
      * Coefficients of the finite element expansion of the field.
@@ -294,20 +283,14 @@ namespace icepack {
    */
   template <int dim>
   Field<dim> interpolate(
-    const Triangulation<dim>& triangulation,
-    const FiniteElement<dim>& finite_element,
-    const DoFHandler<dim>& dof_handler,
+    const Discretization<dim>& discretization,
     const Function<dim>& phi
   )
   {
-    Field<dim> psi(triangulation, finite_element, dof_handler);
-
+    Field<dim> psi(discretization);
     dealii::VectorTools::interpolate(
-      psi.get_dof_handler(),
-      phi,
-      psi.get_coefficients()
+      psi.get_dof_handler(), phi, psi.get_coefficients()
     );
-
     return psi;
   }
 
@@ -317,21 +300,15 @@ namespace icepack {
    */
   template <int dim>
   VectorField<dim> interpolate(
-    const Triangulation<dim>& triangulation,
-    const FiniteElement<dim>& finite_element,
-    const DoFHandler<dim>& dof_handler,
+    const Discretization<dim>& discretization,
     const TensorFunction<1, dim>& phi
   )
   {
-    VectorField<dim> psi(triangulation, finite_element, dof_handler);
-
+    VectorField<dim> psi(discretization);
     const VectorFunctionFromTensorFunction<dim> vphi(phi);
     dealii::VectorTools::interpolate(
-      psi.get_dof_handler(),
-      vphi,
-      psi.get_coefficients()
+      psi.get_dof_handler(), vphi, psi.get_coefficients()
     );
-
     return psi;
   }
 
@@ -342,26 +319,23 @@ namespace icepack {
   template <int rank, int dim>
   double norm(const FieldType<rank, dim>& phi)
   {
-    const auto& dof_handler = phi.get_dof_handler();
     const auto& fe = phi.get_fe();
-    const Vector<double>& Phi = phi.get_coefficients();
-
-    const unsigned int p = fe.tensor_degree();
-    const QGauss<dim> quad(p);
+    const QGauss<dim> quad = phi.get_discretization().quad();
 
     FEValues<dim> fe_values(
-      fe, quad, update_values | update_JxW_values | update_quadrature_points
+      fe, quad, update_values|update_JxW_values|update_quadrature_points
     );
 
     const unsigned int n_q_points = quad.size();
-    std::vector<typename FieldType<rank, dim>::value_type> phi_values(n_q_points);
+    std::vector<typename FieldType<rank, dim>::value_type>
+      phi_values(n_q_points);
 
-    const typename FieldType<rank, dim>::extractor_type extractor(0);
+    const typename FieldType<rank, dim>::extractor_type ex(0);
 
     double N = 0.0;
-    for (auto cell: dof_handler.active_cell_iterators()) {
+    for (auto cell: phi.get_dof_handler().active_cell_iterators()) {
       fe_values.reinit(cell);
-      fe_values[extractor].get_function_values(Phi, phi_values);
+      fe_values[ex].get_function_values(phi.get_coefficients(), phi_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = fe_values.JxW(q);
@@ -380,16 +354,11 @@ namespace icepack {
   template <int rank, int dim>
   double dist(const FieldType<rank, dim>& phi1, const FieldType<rank, dim>& phi2)
   {
-    const auto& dof_handler = phi1.get_dof_handler();
-    const auto& fe = phi1.get_fe();
-    const Vector<double>& Phi1 = phi1.get_coefficients();
-    const Vector<double>& Phi2 = phi2.get_coefficients();
-
     //TODO: add some error handling to make sure both fields are defined with
     // the same FE discretization
 
-    const unsigned int p = fe.tensor_degree();
-    const QGauss<dim> quad(p);
+    const auto& fe = phi1.get_fe();
+    const QGauss<dim> quad = phi1.get_discretization().quad();
 
     FEValues<dim> fe_values(
       fe, quad, update_values | update_JxW_values | update_quadrature_points
@@ -399,13 +368,13 @@ namespace icepack {
     using value_type = typename FieldType<rank, dim>::value_type;
     std::vector<value_type> phi1_values(n_q_points), phi2_values(n_q_points);
 
-    const typename FieldType<rank, dim>::extractor_type extractor(0);
+    const typename FieldType<rank, dim>::extractor_type ex(0);
 
     double N = 0.0;
-    for (auto cell: dof_handler.active_cell_iterators()) {
+    for (auto cell: phi1.get_dof_handler().active_cell_iterators()) {
       fe_values.reinit(cell);
-      fe_values[extractor].get_function_values(Phi1, phi1_values);
-      fe_values[extractor].get_function_values(Phi2, phi2_values);
+      fe_values[ex].get_function_values(phi1.get_coefficients(), phi1_values);
+      fe_values[ex].get_function_values(phi2.get_coefficients(), phi2_values);
 
       for (unsigned int q = 0; q < n_q_points; ++q) {
         const double dx = fe_values.JxW(q);
