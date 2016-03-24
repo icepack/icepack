@@ -73,37 +73,37 @@ namespace icepack {
 
     FieldDiscretization(const Triangulation<dim>& tria, const unsigned int p)
       :
-      m_fe(fe_field<rank, dim>::fe(p)),
-      m_dof_handler(tria)
+      fe(fe_field<rank, dim>::fe(p)),
+      dof_handler(tria)
     {
-      m_dof_handler.distribute_dofs(m_fe);
+      dof_handler.distribute_dofs(fe);
 
-      m_constraints.clear();
-      make_hanging_node_constraints(m_dof_handler, m_constraints);
-      m_constraints.close();
+      constraints.clear();
+      make_hanging_node_constraints(dof_handler, constraints);
+      constraints.close();
 
-      DynamicSparsityPattern dsp(m_dof_handler.n_dofs());
-      make_sparsity_pattern(m_dof_handler, dsp, m_constraints, false);
-      m_sparsity.copy_from(dsp);
+      DynamicSparsityPattern dsp(dof_handler.n_dofs());
+      make_sparsity_pattern(dof_handler, dsp, constraints, false);
+      sparsity.copy_from(dsp);
     }
 
     FieldDiscretization(const FieldDiscretization<rank, dim>&) = delete;
 
     ~FieldDiscretization()
     {
-      m_dof_handler.clear();
+      dof_handler.clear();
     }
 
-    const FE& fe() const { return m_fe; }
-    const DoFHandler<dim>& dof_handler() const { return m_dof_handler; }
-    const SparsityPattern& sparsity() const { return m_sparsity; }
-    const ConstraintMatrix& constraints() const { return m_constraints; }
+    const FE& get_fe() const { return fe; }
+    const DoFHandler<dim>& get_dof_handler() const { return dof_handler; }
+    const SparsityPattern& get_sparsity() const { return sparsity; }
+    const ConstraintMatrix& get_constraints() const { return constraints; }
 
   protected:
-    FE m_fe;
-    DoFHandler<dim> m_dof_handler;
-    SparsityPattern m_sparsity;
-    ConstraintMatrix m_constraints;
+    FE fe;
+    DoFHandler<dim> dof_handler;
+    SparsityPattern sparsity;
+    ConstraintMatrix constraints;
   };
 
 
@@ -115,7 +115,7 @@ namespace icepack {
    * of FieldDiscretization objects for each rank.
    */
   template <int dim>
-  class Discretization
+  class Discretization : public dealii::Subscriptor
   {
   public:
     using Scalar = FieldDiscretization<0, dim>;
