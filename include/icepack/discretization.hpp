@@ -6,6 +6,7 @@
 #include <memory>
 
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/function.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
@@ -13,6 +14,7 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/numerics/vector_tools.h>
 
 namespace icepack {
 
@@ -32,14 +34,12 @@ namespace icepack {
    * Default update flags for `dealii::FEValues` objects when iterating over
    * the degrees of freedom of a finite element field.
    */
-  /*
   namespace DefaultUpdateFlags {
     using dealii::UpdateFlags;
 
     extern const UpdateFlags flags;
     extern const UpdateFlags face_flags;
   }
-  */
 
 
   /**
@@ -71,6 +71,10 @@ namespace icepack {
   public:
     using FE = typename fe_field<rank, dim>::FE;
 
+    /*
+     * Constructors & destructor
+     */
+
     FieldDiscretization(const Triangulation<dim>& tria, const unsigned int p)
       :
       fe(fe_field<rank, dim>::fe(p)),
@@ -93,6 +97,31 @@ namespace icepack {
     {
       dof_handler.clear();
     }
+
+
+    /*
+     * Boundary value maps
+     */
+
+    std::map<dealii::types::global_dof_index, double>
+    zero_boundary_values(const unsigned int boundary_id = 0) const
+    {
+      std::map<dealii::types::global_dof_index, double> boundary_values;
+
+      dealii::VectorTools::interpolate_boundary_values(
+        dof_handler,
+        boundary_id,
+        dealii::ZeroFunction<dim>(fe.n_components()),
+        boundary_values
+      );
+
+      return boundary_values;
+    }
+
+
+    /*
+     * Accessors
+     */
 
     const FE& get_fe() const { return fe; }
     const DoFHandler<dim>& get_dof_handler() const { return dof_handler; }
@@ -175,6 +204,6 @@ namespace icepack {
     std::tuple<std::unique_ptr<Scalar>, std::unique_ptr<Vector>> ranks;
   };
 
-}
+} // End of namespace icepack
 
 #endif

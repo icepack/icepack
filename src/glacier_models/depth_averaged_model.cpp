@@ -14,6 +14,9 @@ namespace icepack {
   using dealii::GeometryInfo;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
+  using DefaultUpdateFlags::flags;
+  using DefaultUpdateFlags::face_flags;
+
   namespace DefaultPhysicalParams {
     /**
      * Glen's flow law exponent
@@ -24,12 +27,9 @@ namespace icepack {
   DepthAveragedModel::DepthAveragedModel(
     const Triangulation<2>& tria,
     const unsigned int p
-  )
-    :
+  ) :
     constitutive_tensor(DefaultPhysicalParams::n),
-    triangulation(tria),
-    scalar_pde(tria, p),
-    vector_pde(tria, p)
+    discretization(tria, p)
   {}
 
 
@@ -39,23 +39,14 @@ namespace icepack {
 
   Field<2> DepthAveragedModel::interpolate(const Function<2>& phi) const
   {
-    return icepack::interpolate(
-      triangulation,
-      scalar_pde.get_fe(),
-      scalar_pde.get_dof_handler(),
-      phi
-    );
+    return icepack::interpolate(discretization, phi);
   }
+
 
   VectorField<2>
   DepthAveragedModel::interpolate(const TensorFunction<1, 2>& f) const
   {
-    return icepack::interpolate(
-      triangulation,
-      vector_pde.get_fe(),
-      vector_pde.get_dof_handler(),
-      f
-    );
+    return icepack::interpolate(discretization, f);
   }
 
 
@@ -78,24 +69,24 @@ namespace icepack {
     const VectorField<2>& u
   ) const
   {
-    Field<2> dh;
-    dh.copy_from(h0);
-    dh.get_coefficients() = 0.0;
+    Field<2> dh(discretization);
 
-    const auto& h_fe = scalar_pde.get_fe();
-    const auto& h_dof_handler = scalar_pde.get_dof_handler();
+    const auto& scalar_dsc = dh.get_field_discretization();
 
-    const auto& u_fe = vector_pde.get_fe();
+    const auto& h_fe = scalar_dsc.get_fe();
+    const auto& u_fe = u.get_fe();
 
-    const QGauss<2>& quad = scalar_pde.get_quadrature();
-    const QGauss<1>& f_quad = scalar_pde.get_face_quadrature();
+    const auto& h_dof_handler = scalar_dsc.get_dof_handler();
 
-    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
-    FEFaceValues<2> h_fe_face_values(h_fe, f_quad, DefaultUpdateFlags::face_flags);
+    const QGauss<2>& quad = discretization.quad();
+    const QGauss<1>& f_quad = discretization.face_quad();
+
+    FEValues<2> h_fe_values(h_fe, quad, flags);
+    FEFaceValues<2> h_fe_face_values(h_fe, f_quad, face_flags);
     const FEValuesExtractors::Scalar exs(0);
 
-    FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
-    FEFaceValues<2> u_fe_face_values(u_fe, f_quad, DefaultUpdateFlags::face_flags);
+    FEValues<2> u_fe_values(u_fe, quad, flags);
+    FEFaceValues<2> u_fe_face_values(u_fe, f_quad, face_flags);
     const FEValuesExtractors::Vector exv(0);
 
     const unsigned int n_q_points = quad.size();
@@ -112,7 +103,8 @@ namespace icepack {
 
     // Compute a natural time scale for this grid and velocity
     const double u_max = u.get_coefficients().linfty_norm();
-    const double dx_min = dealii::GridTools::minimal_cell_diameter(triangulation);
+    const double dx_min =
+      dealii::GridTools::minimal_cell_diameter(get_triangulation());
 
     // TODO check the factor of 4.0. This should probably be the minimal length
     // of one of the triangulation edges but deal.II only gives us the cell
@@ -123,7 +115,7 @@ namespace icepack {
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = h_dof_handler.begin_active();
-    auto u_cell = vector_pde.get_dof_handler().begin_active();
+    auto u_cell = u.get_dof_handler().begin_active();
     for (; cell != h_dof_handler.end(); ++cell, ++u_cell) {
       cell_dh = 0;
       h_fe_values.reinit(cell);
@@ -180,7 +172,7 @@ namespace icepack {
         }
 
       cell->get_dof_indices(local_dof_indices);
-      scalar_pde.get_constraints().distribute_local_to_global(
+      scalar_dsc.get_constraints().distribute_local_to_global(
         cell_dh, local_dof_indices, dh.get_coefficients()
       );
     }
@@ -200,23 +192,24 @@ namespace icepack {
     Field<2> h;
     h.copy_from(h0);
 
+    const auto& scalar_dsc = h.get_field_discretization();
+
     Field<2> h_dot = dh_dt(h0, a, u);
     Vector<double>& dH_dt = h_dot.get_coefficients();
     Vector<double> F(dH_dt);
 
     // TODO store the mass matrix somewhere
-    SparseMatrix<double> B(scalar_pde.get_sparsity_pattern());
+    SparseMatrix<double> B(scalar_dsc.get_sparsity());
     dealii::MatrixCreator::create_mass_matrix(
-      scalar_pde.get_dof_handler(), scalar_pde.get_quadrature(), B
+      scalar_dsc.get_dof_handler(), h.get_discretization().quad(), B
     );
 
     // TODO use filtered matrix
-    auto boundary_values = scalar_pde.zero_boundary_values();
     dealii::MatrixTools::apply_boundary_values(
-      boundary_values, B, dH_dt, F, false
+      scalar_dsc.zero_boundary_values(), B, dH_dt, F, false
     );
 
-    linear_solve(B, dH_dt, F, scalar_pde.get_constraints());
+    linear_solve(B, dH_dt, F, scalar_dsc.get_constraints());
     h.get_coefficients().add(dt, dH_dt);
 
     return h;
@@ -227,22 +220,14 @@ namespace icepack {
    * Accessors
    */
 
+  const Discretization<2>& DepthAveragedModel::get_discretization() const
+  {
+    return discretization;
+  }
+
   const Triangulation<2>& DepthAveragedModel::get_triangulation() const
   {
-    return triangulation;
+    return discretization.get_triangulation();
   }
 
-  const ScalarPDESkeleton<2>&
-  DepthAveragedModel::get_scalar_pde_skeleton() const
-  {
-    return scalar_pde;
-  }
-
-  const VectorPDESkeleton<2>&
-  DepthAveragedModel::get_vector_pde_skeleton() const
-  {
-    return vector_pde;
-  }
-
-
-}
+} // End of namespace icepack
