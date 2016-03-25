@@ -8,7 +8,7 @@ set(SRCS
   discretization.cpp
   glacier_models/depth_averaged_model.cpp
   glacier_models/ice_shelf.cpp
-  #glacier_models/ice_stream.cpp
+  glacier_models/ice_stream.cpp
   )
 
 add_library(icepack ${SRCS})

@@ -12,6 +12,7 @@ namespace icepack {
   using dealii::FEFaceValues;
   using dealii::GeometryInfo;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
+  namespace MatrixTools = dealii::MatrixTools;
 
 
   /* ================
@@ -44,20 +45,15 @@ namespace icepack {
   {
     A = 0;
 
-    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
-    const auto& scalar_pde = ice_stream.get_scalar_pde_skeleton();
+    const auto& u_fe = u0.get_fe();
+    const auto& u_dof_handler = u0.get_dof_handler();
 
-    const auto& u_fe = vector_pde.get_fe();
-    const auto& u_dof_handler = vector_pde.get_dof_handler();
-
-    const auto& h_fe = scalar_pde.get_fe();
-
-    const QGauss<2>& quad = vector_pde.get_quadrature();
+    const QGauss<2>& quad = ice_stream.get_discretization().quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
 
-    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    FEValues<2> h_fe_values(h.get_fe(), quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Scalar exs(0);
 
     const unsigned int n_q_points = quad.size();
@@ -74,7 +70,7 @@ namespace icepack {
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = u_dof_handler.begin_active();
-    auto h_cell = scalar_pde.get_dof_handler().begin_active();
+    auto h_cell = h.get_dof_handler().begin_active();
     for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
       cell_matrix = 0;
       u_fe_values.reinit(cell);
@@ -121,7 +117,7 @@ namespace icepack {
 
       // Add the local stiffness matrix to the global stiffness matrix
       cell->get_dof_indices(local_dof_indices);
-      vector_pde.get_constraints().distribute_local_to_global(
+      u0.get_constraints().distribute_local_to_global(
         cell_matrix, local_dof_indices, A
       );
     }
@@ -144,12 +140,12 @@ namespace icepack {
     const unsigned int max_iterations
   )
   {
-    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
-    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
+    const auto& vector_dsc = u0.get_field_discretization();
+    SparseMatrix<double> A(vector_dsc.get_sparsity());
 
     VectorField<2> u;
     u.copy_from(u0);
-    auto boundary_values = vector_pde.zero_boundary_values();
+    auto boundary_values = vector_dsc.zero_boundary_values();
 
     const VectorField<2> tau = ice_stream.driving_stress(s, h);
     const double tau_norm = norm(tau);
@@ -158,16 +154,16 @@ namespace icepack {
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
-    Vector<double> dU(vector_pde.get_dof_handler().n_dofs());
+    Vector<double> dU(U.size());
 
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix<linearized>(A, s, h, theta, beta, u, ice_stream);
-      dealii::MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
+      MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
-      linear_solve(A, dU, R, vector_pde.get_constraints());
+      linear_solve(A, dU, R, u0.get_constraints());
       U.add(1.0, dU);
 
       // Compute the relative difference between the new and old solutions
@@ -195,12 +191,12 @@ namespace icepack {
     const unsigned int max_iterations
   )
   {
-    const auto& vector_pde = ice_stream.get_vector_pde_skeleton();
-    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
+    const auto& vector_dsc = u0.get_field_discretization();
+    SparseMatrix<double> A(vector_dsc.get_sparsity());
 
     VectorField<2> u, u_old;
     u_old.copy_from(u0);  u.copy_from(u0);
-    auto boundary_values = vector_pde.interpolate_boundary_values(u0);
+    auto boundary_values = interpolate_boundary_values(u0);
 
     VectorField<2> tau = ice_stream.driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
@@ -211,10 +207,10 @@ namespace icepack {
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       velocity_matrix<nonlinear>(A, s, h, theta, beta, u, ice_stream);
-      dealii::MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
+      MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
-      linear_solve(A, U, F, vector_pde.get_constraints());
+      linear_solve(A, U, F, u0.get_constraints());
 
       // Compute the relative change in the solution
       error = dist(u, u_old) / norm(u);
@@ -250,18 +246,17 @@ namespace icepack {
   VectorField<2>
   IceStream::driving_stress(const Field<2>& s, const Field<2>& h) const
   {
-    // Initialize the VectorField for the driving stress
-    const auto& tau_fe = vector_pde.get_fe();
-    const auto& tau_dof_handler = vector_pde.get_dof_handler();
-    VectorField<2> tau(triangulation, tau_fe, tau_dof_handler);
+    VectorField<2> tau(discretization);
 
-    // Get the finite element & DoF handler for scalar fields
-    const auto& h_fe = scalar_pde.get_fe();
+    const auto& tau_fe = tau.get_fe();
+    const auto& tau_dof_handler = tau.get_dof_handler();
+
+    const auto& h_fe = h.get_fe();
 
     // Find the polynomial degree of the finite element expansion and make
     // quadrature rules for cells and faces with sufficient accuracy
-    const QGauss<2>& quad = vector_pde.get_quadrature();
-    const QGauss<1>& f_quad = vector_pde.get_face_quadrature();
+    const QGauss<2>& quad = discretization.quad();
+    const QGauss<1>& f_quad = discretization.face_quad();
 
     // Get FEValues objects and an extractor for the driving stress and the
     // thickness/surface elevation fields.
@@ -279,7 +274,7 @@ namespace icepack {
     const unsigned int dofs_per_cell = tau_fe.dofs_per_cell;
 
     std::vector<double> h_values(n_q_points);
-    std::vector<Tensor<1, 2> > grad_s_values(n_q_points);
+    std::vector<Tensor<1, 2>> grad_s_values(n_q_points);
 
     std::vector<double> h_face_values(n_face_q_points);
     std::vector<double> s_face_values(n_face_q_points);
@@ -290,7 +285,7 @@ namespace icepack {
     // Create cell iterators from the tau and h DoFHandlers; these will be
     // iterated jointly.
     auto cell = tau_dof_handler.begin_active();
-    auto h_cell = scalar_pde.get_dof_handler().begin_active();
+    auto h_cell = h.get_dof_handler().begin_active();
     for (; cell != tau_dof_handler.end(); ++cell, ++h_cell) {
       cell_rhs = 0;
       tau_fe_values.reinit(cell);
@@ -342,7 +337,7 @@ namespace icepack {
         }
 
       cell->get_dof_indices(local_dof_indices);
-      vector_pde.get_constraints().distribute_local_to_global(
+      tau.get_constraints().distribute_local_to_global(
         cell_rhs, local_dof_indices, tau.get_coefficients()
       );
     }
@@ -363,17 +358,15 @@ namespace icepack {
     VectorField<2> r;
     r.copy_from(f);
 
-    const auto& u_fe = vector_pde.get_fe();
-    const auto& u_dof_handler = vector_pde.get_dof_handler();
+    const auto& u_fe = u.get_fe();
+    const auto& u_dof_handler = u.get_dof_handler();
 
-    const auto& h_fe = scalar_pde.get_fe();
-
-    const QGauss<2>& quad = vector_pde.get_quadrature();
+    const QGauss<2>& quad = discretization.quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
 
-    FEValues<2> h_fe_values(h_fe, quad, DefaultUpdateFlags::flags);
+    FEValues<2> h_fe_values(h.get_fe(), quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Scalar exs(0);
 
     const unsigned int n_q_points = quad.size();
@@ -390,7 +383,7 @@ namespace icepack {
     std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     auto cell = u_dof_handler.begin_active();
-    auto h_cell = scalar_pde.get_dof_handler().begin_active();
+    auto h_cell = h.get_dof_handler().begin_active();
     for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
       cell_residual = 0;
       u_fe_values.reinit(cell);
@@ -430,7 +423,7 @@ namespace icepack {
      }
 
       cell->get_dof_indices(local_dof_indices);
-      vector_pde.get_constraints().distribute_local_to_global(
+      r.get_constraints().distribute_local_to_global(
         cell_residual, local_dof_indices, r.get_coefficients()
       );
     }
@@ -500,12 +493,8 @@ namespace icepack {
     const VectorField<2>& rhs
   ) const
   {
-    const auto& vector_pde = get_vector_pde_skeleton();
-    SparseMatrix<double> A(vector_pde.get_sparsity_pattern());
-
-    VectorField<2> lambda;
-    lambda.copy_from(rhs);
-    const auto boundary_values = vector_pde.zero_boundary_values();
+    VectorField<2> lambda(discretization);
+    const auto& vector_dsc = lambda.get_field_discretization();
 
     VectorField<2> f;
     f.copy_from(rhs);
@@ -513,12 +502,13 @@ namespace icepack {
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();
 
+    SparseMatrix<double> A(lambda.get_field_discretization().get_sparsity());
     velocity_matrix<linearized>(A, s, h, theta, beta, u0, *this);
-    dealii::MatrixTools::apply_boundary_values(
-      boundary_values, A, Lambda, F, false
+    MatrixTools::apply_boundary_values(
+      vector_dsc.zero_boundary_values(), A, Lambda, F, false
     );
 
-    linear_solve(A, Lambda, F, vector_pde.get_constraints());
+    linear_solve(A, Lambda, F, lambda.get_constraints());
 
     return lambda;
   }
