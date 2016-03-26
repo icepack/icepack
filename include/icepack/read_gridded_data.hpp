@@ -53,11 +53,6 @@ namespace icepack {
    */
   GridData readArcAsciiGrid(const std::string& filename);
 
-  /**
-   * Read gridded data from the format used in Joughin's ice velocity data sets
-   */
-  GridData readGeoDat(const std::string& filename);
-
 
   /**
    * Read gridded data from a georeferenced .tif image
