@@ -5,7 +5,7 @@
 #include <deal.II/base/function.h>
 #include <deal.II/grid/tria.h>
 
-#include <icepack/field.hpp>
+#include <icepack/field/field.hpp>
 #include <icepack/physics/viscosity.hpp>
 
 namespace icepack {

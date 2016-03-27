@@ -198,6 +198,19 @@ namespace icepack {
 
 
     /**
+     * Return whether or not another field uses the same discretization; the
+     * comparison is at the level of pointer equality, i.e. they must point to
+     * the same object in memory.
+     */
+    template <int rank_>
+    bool has_same_discretization(const FieldType<rank_, dim>& phi) const
+    {
+      return (const Discretization<dim>*) discretization
+        == (const Discretization<dim>*) phi.discretization;
+    }
+
+
+    /**
      * Return const access to the coefficients of the finite element expansion
      * of the field.
      */
@@ -205,6 +218,7 @@ namespace icepack {
     {
       return coefficients;
     }
+
 
     /**
      * Return non-const access to the coefficients of the field, e.g. so that a
@@ -215,6 +229,7 @@ namespace icepack {
       return coefficients;
     }
 
+
     /**
      * Return the `dealii::FiniteElement` object used to discretize the field.
      */
@@ -222,6 +237,7 @@ namespace icepack {
     {
       return get_field_discretization().get_fe();
     }
+
 
     /**
      * Return the degree-of-freedom handler for the field. This object can be
@@ -231,6 +247,7 @@ namespace icepack {
     {
       return get_field_discretization().get_dof_handler();
     }
+
 
     /**
      * Return the constraints on degrees of freedom imposed by mesh refinement
