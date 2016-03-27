@@ -11,7 +11,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-#include <icepack/field/field.hpp>
+#include <icepack/field.hpp>
 
 
 const unsigned int num_levels = 4;

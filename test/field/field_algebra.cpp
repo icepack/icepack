@@ -1,8 +1,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 
-#include <icepack/field/field.hpp>
-#include <icepack/field/field_algebra.hpp>
+#include <icepack/field.hpp>
 
 using dealii::Point;
 using dealii::Tensor;

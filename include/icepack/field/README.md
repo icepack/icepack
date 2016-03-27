@@ -18,5 +18,7 @@ See the header `discretization.hpp`.
 
 ### Contents
 
-* `field.hpp`: definition of the `FieldType` class template
-* `field_algebra.hpp`: template functions for performing algebraic manipulations on fields, e.g. addition, subtraction, multiplication by scalars, etc.
+* `field_type.hpp`: definition of the `FieldType` class template
+* `field_interpolate.hpp`: procedures for interpolating deal.II `Function` or `TensorFunction` objects into finite element fields
+* `field_algebra.hpp`: procedures for performing algebraic manipulations on fields, e.g. addition, subtraction, multiplication by scalars, etc.
+* the header `icepack/field.hpp` aggregates all of the headers in this directory for easy including

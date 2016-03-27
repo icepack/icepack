@@ -6,7 +6,7 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
-#include <icepack/field/field.hpp>
+#include <icepack/field.hpp>
 
 
 const unsigned int num_levels = 3;

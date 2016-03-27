@@ -2,7 +2,7 @@
 #ifndef ICEPACK_FIELD_ALGEBRA_HPP
 #define ICEPACK_FIELD_ALGEBRA_HPP
 
-#include <icepack/field/field.hpp>
+#include <icepack/field/field_type.hpp>
 
 namespace icepack {
 
