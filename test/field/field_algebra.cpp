@@ -5,7 +5,9 @@
 #include <icepack/field/field_algebra.hpp>
 
 using dealii::Point;
+using dealii::Tensor;
 using dealii::Function;
+using dealii::TensorFunction;
 using dealii::Triangulation;
 namespace GridGenerator = dealii::GridGenerator;
 using dealii::ScalarFunctionFromFunctionObject;
@@ -15,24 +17,28 @@ namespace FEValuesExtractors = dealii::FEValuesExtractors;
 using icepack::Discretization;
 using icepack::Field;
 using icepack::VectorField;
+using icepack::FieldType;
 using icepack::interpolate;
 namespace DefaultUpdateFlags = icepack::DefaultUpdateFlags;
 
 
-template <int dim>
-bool test_scalar_multiplication(const Field<dim>& phi, const double tolerance)
+template <int rank, int dim>
+bool test_scalar_multiplication(
+  const FieldType<rank, dim>& phi, const double tolerance
+)
 {
-  Field<dim> psi;
+  FieldType<rank, dim> psi;
   psi.copy_from(phi);
 
   psi *= 2.0;
 
   dealii::QGauss<dim> quad = psi.get_discretization().quad();
   const unsigned int n_q_points = quad.size();
-  std::vector<double> phi_values(n_q_points), psi_values(n_q_points);
+  std::vector<typename FieldType<rank, dim>::value_type>
+    phi_values(n_q_points), psi_values(n_q_points);
 
   FEValues<dim> fe_values(psi.get_fe(), quad, DefaultUpdateFlags::flags);
-  const FEValuesExtractors::Scalar ex(0);
+  const typename FieldType<rank, dim>::extractor_type ex(0);
 
   for (auto cell: psi.get_dof_handler().active_cell_iterators()) {
     fe_values.reinit(cell);
@@ -40,31 +46,43 @@ bool test_scalar_multiplication(const Field<dim>& phi, const double tolerance)
     fe_values[ex].get_function_values(psi.get_coefficients(), psi_values);
     fe_values[ex].get_function_values(phi.get_coefficients(), phi_values);
 
-    for (unsigned int q = 0; q < n_q_points; ++q)
-      if (abs(2*phi_values[q] - psi_values[q]) > tolerance) return false;
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+      // Admittedly this looks a little weird. Why not just use std::abs to
+      // compute the difference between the two values instead of creating the
+      // temporary variable `delta`? The reason is that this quantity has a
+      // different type depending on whether we're looking at scalar or vector
+      // fields; in the one case it's a `double`, in the other it's a
+      // `Tensor<1, dim>`. The `auto` type declaration is hiding a rather large
+      // subtlety here! Computing the square of the value is the only way to
+      // get its magnitude in the same way for scalars or vectors.
+      const auto delta = 2*phi_values[q] - psi_values[q];
+      if (delta*delta > tolerance*tolerance) return false;
+    }
   }
 
   return true;
 }
 
 
-template <int dim>
+template <int rank, int dim>
 bool test_addition(
-  const Field<dim>& phi1, const Field<dim>& phi2, const double tolerance
+  const FieldType<rank, dim>& phi1,
+  const FieldType<rank, dim>& phi2,
+  const double tolerance
 )
 {
-  Field<dim> psi;
+  FieldType<rank, dim> psi;
   psi.copy_from(phi1);
 
   psi += phi2;
 
   dealii::QGauss<dim> quad = psi.get_discretization().quad();
   const unsigned int n_q_points = quad.size();
-  std::vector<double>
+  std::vector<typename FieldType<rank, dim>::value_type>
     psi_values(n_q_points), phi1_values(n_q_points), phi2_values(n_q_points);
 
   FEValues<dim> fe_values(psi.get_fe(), quad, DefaultUpdateFlags::flags);
-  const FEValuesExtractors::Scalar ex(0);
+  const typename FieldType<rank, dim>::extractor_type ex(0);
 
   for (auto cell: psi.get_dof_handler().active_cell_iterators()) {
     fe_values.reinit(cell);
@@ -73,14 +91,45 @@ bool test_addition(
     fe_values[ex].get_function_values(phi1.get_coefficients(), phi1_values);
     fe_values[ex].get_function_values(phi2.get_coefficients(), phi2_values);
 
-    for (unsigned int q = 0; q < n_q_points; ++q)
-      if (abs(psi_values[q] - phi1_values[q] - phi2_values[q]) > tolerance)
-        return false;
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+      const auto delta = psi_values[q] - phi1_values[q] - phi2_values[q];
+      if (delta*delta > tolerance*tolerance) return false;
+    }
   }
 
   return true;
 
 }
+
+
+template <int dim>
+class F1 : public TensorFunction<1, dim>
+{
+public:
+  F1() : TensorFunction<1, dim>() {}
+
+  Tensor<1, dim> value(const Point<dim>& x) const
+  {
+    Tensor<1, dim> v;
+    for (size_t k = 0; k < dim; ++k) v[k] = x[(k+1)%dim];
+    return v;
+  }
+};
+
+
+template <int dim>
+class F2 : public TensorFunction<1, dim>
+{
+public:
+  F2() : TensorFunction<1, dim>() {}
+
+  Tensor<1, dim> value(const Point<dim>& x) const
+  {
+    Tensor<1, dim> v;
+    for (size_t k = 0; k < dim; ++k) v[k] = -2 * x[k] * exp(-x*x);
+    return v;
+  }
+};
 
 
 int main()
@@ -104,6 +153,12 @@ int main()
 
   if (!test_scalar_multiplication(phi1, dx*dx)) return 1;
   if (!test_addition(phi1, phi2, dx*dx)) return 1;
+
+  const VectorField<2> f1 = interpolate(discretization, F1<2>());
+  const VectorField<2> f2 = interpolate(discretization, F2<2>());
+
+  if (!test_scalar_multiplication(f1, dx*dx)) return 1;
+  if (!test_addition(f1, f2, dx*dx)) return 1;
 
   return 0;
 }
