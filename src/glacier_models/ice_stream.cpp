@@ -33,8 +33,7 @@ namespace icepack {
    * Construct the system matrix for the ice stream equations.
    */
   template <Linearity linearity>
-  void velocity_matrix (
-    SparseMatrix<double>& A,
+  SparseMatrix<double> velocity_matrix (
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& theta,
@@ -43,6 +42,8 @@ namespace icepack {
     const IceStream& ice_stream
   )
   {
+    SparseMatrix<double>
+      A(ice_stream.get_discretization().vector().get_sparsity());
     A = 0;
 
     const auto& u_fe = u0.get_fe();
@@ -123,6 +124,8 @@ namespace icepack {
     }
 
     A.compress(dealii::VectorOperation::add);
+
+    return A;
   }
 
 
@@ -141,7 +144,6 @@ namespace icepack {
   )
   {
     const auto& vector_dsc = u0.get_field_discretization();
-    SparseMatrix<double> A(vector_dsc.get_sparsity());
 
     VectorField<2> u;
     u.copy_from(u0);
@@ -159,7 +161,7 @@ namespace icepack {
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix<linearized>(A, s, h, theta, beta, u, ice_stream);
+      auto A = velocity_matrix<linearized>(s, h, theta, beta, u, ice_stream);
       MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
@@ -192,7 +194,6 @@ namespace icepack {
   )
   {
     const auto& vector_dsc = u0.get_field_discretization();
-    SparseMatrix<double> A(vector_dsc.get_sparsity());
 
     VectorField<2> u, u_old;
     u_old.copy_from(u0);  u.copy_from(u0);
@@ -206,7 +207,7 @@ namespace icepack {
     double error = 1.0e16;
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      velocity_matrix<nonlinear>(A, s, h, theta, beta, u, ice_stream);
+      auto A = velocity_matrix<nonlinear>(s, h, theta, beta, u, ice_stream);
       MatrixTools::apply_boundary_values(boundary_values, A, U, F, false);
 
       // Solve the linear system with the updated matrix
@@ -502,8 +503,7 @@ namespace icepack {
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();
 
-    SparseMatrix<double> A(lambda.get_field_discretization().get_sparsity());
-    velocity_matrix<linearized>(A, s, h, theta, beta, u0, *this);
+    auto A = velocity_matrix<linearized>(s, h, theta, beta, u0, *this);
     MatrixTools::apply_boundary_values(
       vector_dsc.zero_boundary_values(), A, Lambda, F, false
     );
