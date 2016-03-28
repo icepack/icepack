@@ -14,7 +14,9 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
 
 namespace icepack {
 
@@ -26,6 +28,7 @@ namespace icepack {
   using dealii::SparsityPattern;
   using dealii::DynamicSparsityPattern;
   using dealii::ConstraintMatrix;
+  using dealii::SparseMatrix;
   using dealii::SmartPointer;
   using dealii::DoFTools::make_hanging_node_constraints;
   using dealii::DoFTools::make_sparsity_pattern;
@@ -89,6 +92,16 @@ namespace icepack {
       DynamicSparsityPattern dsp(dof_handler.n_dofs());
       make_sparsity_pattern(dof_handler, dsp, constraints, false);
       sparsity.copy_from(dsp);
+
+      // TODO: lazy initialization
+      mass_matrix.reinit(sparsity);
+      dealii::MatrixCreator::create_mass_matrix(
+        dof_handler,
+        QGauss<dim>(p + 1),
+        mass_matrix,
+        (const dealii::Function<dim> * const)nullptr,
+        constraints
+      );
     }
 
     FieldDiscretization(const FieldDiscretization<rank, dim>&) = delete;
@@ -127,12 +140,14 @@ namespace icepack {
     const DoFHandler<dim>& get_dof_handler() const { return dof_handler; }
     const SparsityPattern& get_sparsity() const { return sparsity; }
     const ConstraintMatrix& get_constraints() const { return constraints; }
+    const SparseMatrix<double>& get_mass_matrix() const { return mass_matrix; }
 
   protected:
     FE fe;
     DoFHandler<dim> dof_handler;
     SparsityPattern sparsity;
     ConstraintMatrix constraints;
+    SparseMatrix<double> mass_matrix;
   };
 
 
