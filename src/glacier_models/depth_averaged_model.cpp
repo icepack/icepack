@@ -1,6 +1,7 @@
 
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/grid/grid_tools.h>
+#include <deal.II/lac/filtered_matrix.h>
 
 #include <icepack/util/tensor_function_utils.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
@@ -12,6 +13,7 @@ namespace icepack {
   using dealii::FEValues;
   using dealii::FEFaceValues;
   using dealii::GeometryInfo;
+  using dealii::FilteredMatrix;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
   using DefaultUpdateFlags::flags;
@@ -196,18 +198,18 @@ namespace icepack {
     Vector<double>& dH_dt = h_dot.get_coefficients();
     Vector<double> F(dH_dt);
 
-    // TODO store the mass matrix somewhere
-    SparseMatrix<double> B(scalar_dsc.get_sparsity());
-    dealii::MatrixCreator::create_mass_matrix(
-      scalar_dsc.get_dof_handler(), h.get_discretization().quad(), B
-    );
+    SolverControl solver_control(1000, 1.0e-10);
+    solver_control.log_result(false);
+    SolverCG<> solver(solver_control);
 
-    // TODO use filtered matrix
-    dealii::MatrixTools::apply_boundary_values(
-      scalar_dsc.zero_boundary_values(), B, dH_dt, F, false
-    );
+    FilteredMatrix<Vector<double>> M(scalar_dsc.get_mass_matrix());
+    M.add_constraints(scalar_dsc.zero_boundary_values());
 
-    linear_solve(B, dH_dt, F, scalar_dsc.get_constraints());
+    M.apply_constraints(F);
+    solver.solve(M, dH_dt, F, dealii::PreconditionIdentity());
+    scalar_dsc.get_constraints().distribute(dH_dt);
+
+    // TODO make this nice with ETs
     h.get_coefficients().add(dt, dH_dt);
 
     return h;

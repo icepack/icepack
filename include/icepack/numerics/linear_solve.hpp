@@ -6,6 +6,7 @@
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/solver_bicgstab.h>
+#include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_ilu.h>
 
 namespace icepack {
@@ -22,7 +23,7 @@ namespace icepack {
    * Solve a linear system using sparse ILU and some Krylov subspace method,
    * which defaults to conjugate gradients.
    */
-  template <class Solver = SolverCG<> >
+  template <class Solver = SolverCG<>>
   void linear_solve(
     const SparseMatrix<double>& A,
     Vector<double>& u,
