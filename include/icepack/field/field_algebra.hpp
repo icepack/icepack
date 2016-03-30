@@ -6,8 +6,6 @@
 
 namespace icepack {
 
-  using dealii::ExcInternalError;
-
   template <int rank, int dim>
   FieldType<rank, dim>&
   operator *=(FieldType<rank, dim>& phi, const double alpha)

@@ -32,6 +32,8 @@ namespace icepack {
   using dealii::Vector;
   using dealii::SmartPointer;
 
+  using dealii::ExcInternalError;
+
 
   // This is for template magic, nothing to see here, move along folks...
   namespace {
@@ -341,8 +343,7 @@ namespace icepack {
   template <int rank, int dim>
   double dist(const FieldType<rank, dim>& phi1, const FieldType<rank, dim>& phi2)
   {
-    //TODO: add some error handling to make sure both fields are defined with
-    // the same FE discretization
+    Assert(phi1.has_same_discretization(phi2), ExcInternalError());
 
     const auto& fe = phi1.get_fe();
     const QGauss<dim> quad = phi1.get_discretization().quad();
