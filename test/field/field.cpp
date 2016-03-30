@@ -67,6 +67,10 @@ test_field(const Discretization<dim>& discretization, const Function<dim>& phi)
   const double exact_integral = 1.0/3;
   Assert(abs(n - exact_integral) < dx*dx, ExcInternalError());
 
+  const double avg = rms_average(psi);
+  const double exact_avg = 1.0/3;
+  Assert(abs(avg - exact_avg) < dx*dx, ExcInternalError());
+
   return true;
 }
 

@@ -8,6 +8,7 @@
 #include <deal.II/base/function.h>
 #include <deal.II/base/tensor_function.h>
 #include <deal.II/grid/tria.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/lac/vector.h>
@@ -233,6 +234,15 @@ namespace icepack {
 
 
     /**
+     * Return the underlying geometry of the field
+     */
+    const Triangulation<dim>& get_triangulation() const
+    {
+      return get_discretization().get_triangulation();
+    }
+
+
+    /**
      * Return the `dealii::FiniteElement` object used to discretize the field.
      */
     const FiniteElement<dim>& get_fe() const
@@ -334,6 +344,18 @@ namespace icepack {
     }
 
     return std::sqrt(N);
+  }
+
+
+  /**
+   * Compute the RMS average of a finite-element field
+   */
+  template <int rank, int dim>
+  double rms_average(const FieldType<rank, dim>& phi)
+  {
+    const double N = norm(phi);
+    const double area = dealii::GridTools::volume(phi.get_triangulation());
+    return std::sqrt(N * N / area);
   }
 
 
