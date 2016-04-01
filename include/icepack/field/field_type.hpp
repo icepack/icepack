@@ -107,23 +107,8 @@ namespace icepack {
 
 
     /**
-     * Default constructor for an empty field object with no geometry, FE, etc.
-     */
-    FieldType()
-      :
-      discretization(nullptr),
-      coefficients(0)
-    {}
-
-
-    /**
-     * Construct a field given the geometry, discretization and mapping of
-     * geometry to FE degrees of freedom. The field object does not own its
-     * `dealii::DoFHandler`, which may be shared among several fields;
-     * consequently, this data must be passed in to the constructor.
-     * Initializes the field to 0.
-     * You should not have to call this constructor in normal usage. Instead,
-     * use the `interpolate` member of the model object for the problem.
+     * Construct a field which is 0 everywhere given the data about its finite
+     * element discretization.
      */
     FieldType(const Discretization<dim>& discretization)
       :
@@ -308,7 +293,7 @@ namespace icepack {
 
 
     /**
-     * Create a field from an algebraic expression
+     * Assign a field from an algebraic expression
      */
     template <class Expr>
     FieldType<rank, dim>& operator=(const FieldExpr<rank, dim, Expr>& expr)
