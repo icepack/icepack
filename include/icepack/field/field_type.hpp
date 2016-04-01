@@ -69,7 +69,24 @@ namespace icepack {
     {
       return static_cast<const Expr&>(*this).coefficient(i);
     }
+
+    const Discretization<dim>& get_discretization() const
+    {
+      return static_cast<const Expr&>(*this).get_discretization();
+    }
   };
+
+
+  /**
+   * Check if two field expressions have identical discretizations; this is a
+   * precondition for doing any algebraic operations on fields.
+   */
+  template <int rank1, int rank2, int dim, class Expr1, class Expr2>
+  bool have_same_discretization(const FieldExpr<rank1, dim, Expr1>& expr1,
+                                const FieldExpr<rank2, dim, Expr2>& expr2)
+  {
+    return &expr1.get_discretization() == &expr2.get_discretization();
+  }
 
 
   /**
@@ -209,19 +226,6 @@ namespace icepack {
     const FieldDiscretization<rank, dim>& get_field_discretization() const
     {
       return (*discretization).field_discretization(fe_field<rank, dim>());
-    }
-
-
-    /**
-     * Return whether or not another field uses the same discretization; the
-     * comparison is at the level of pointer equality, i.e. they must point to
-     * the same object in memory.
-     */
-    template <int rank_>
-    bool has_same_discretization(const FieldType<rank_, dim>& phi) const
-    {
-      return (const Discretization<dim>*) discretization
-        == (const Discretization<dim>*) phi.discretization;
     }
 
 
@@ -400,7 +404,7 @@ namespace icepack {
   template <int rank, int dim>
   double dist(const FieldType<rank, dim>& phi1, const FieldType<rank, dim>& phi2)
   {
-    Assert(phi1.has_same_discretization(phi2), ExcInternalError());
+    Assert(have_same_discretization(phi1, phi2), ExcInternalError());
 
     const auto& fe = phi1.get_fe();
     const QGauss<dim> quad = phi1.get_discretization().quad();

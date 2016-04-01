@@ -28,8 +28,7 @@ namespace icepack {
   FieldType<rank, dim>&
   operator +=(FieldType<rank, dim>& phi, const FieldType<rank, dim>& psi)
   {
-    // TODO: handle the case where the discretizations aren't identical
-    Assert(phi.has_same_discretization(psi), ExcInternalError());
+    Assert(have_same_discretization(phi, psi), ExcInternalError());
 
     phi.get_coefficients().add(1.0, psi.get_coefficients());
     return phi;
@@ -40,8 +39,7 @@ namespace icepack {
   FieldType<rank, dim>&
   operator -=(FieldType<rank, dim>& phi, const FieldType<rank, dim>& psi)
   {
-    // TODO: handle the case where the discretizations aren't identical
-    Assert(phi.has_same_discretization(psi), ExcInternalError());
+    Assert(have_same_discretization(phi, psi), ExcInternalError());
 
     phi.get_coefficients().add(-1.0, psi.get_coefficients());
     return phi;
@@ -66,6 +64,11 @@ namespace icepack {
     double coefficient(const size_t i) const
     {
       return alpha * expr.coefficient(i);
+    }
+
+    const Discretization<dim>& get_discretization() const
+    {
+      return expr.get_discretization();
     }
 
   protected:
@@ -107,11 +110,21 @@ namespace icepack {
       :
       expr1(expr1),
       expr2(expr2)
-    {}
+    {
+      Assert(have_same_discretization(expr1, expr2), ExcInternalError());
+    }
 
     double coefficient(const size_t i) const
     {
       return expr1.coefficient(i) + expr2.coefficient(i);
+    }
+
+    const Discretization<dim>& get_discretization() const
+    {
+      // Since we've asserted that both `expr1` and `expr2` have identical (in
+      // the sense of pointer equality) discretizations, we can just return the
+      // first expression's discretization.
+      return expr1.get_discretization();
     }
 
   protected:
@@ -138,11 +151,18 @@ namespace icepack {
       :
       expr1(expr1),
       expr2(expr2)
-    {}
+    {
+      Assert(have_same_discretization(expr1, expr2), ExcInternalError());
+    }
 
     double coefficient(const size_t i) const
     {
       return expr1.coefficient(i) - expr2.coefficient(i);
+    }
+
+    const Discretization<dim>& get_discretization() const
+    {
+      return expr1.get_discretization();
     }
 
   protected:
