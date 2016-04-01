@@ -112,8 +112,7 @@ namespace icepack {
   {
     const auto& vector_dsc = u0.get_field_discretization();
 
-    VectorField<2> u;
-    u.copy_from(u0);
+    VectorField<2> u(u0);
     auto boundary_values = vector_dsc.zero_boundary_values();
 
     const VectorField<2> tau = ice_shelf.driving_stress(h);
@@ -158,8 +157,7 @@ namespace icepack {
   {
     const auto& vector_dsc = u0.get_field_discretization();
 
-    VectorField<2> u, u_old;
-    u_old.copy_from(u0);  u.copy_from(u0);
+    VectorField<2> u(u0), u_old(u0);
     auto boundary_values = interpolate_boundary_values(u0);
 
     VectorField<2> tau = ice_shelf.driving_stress(h);
@@ -265,8 +263,7 @@ namespace icepack {
     const VectorField<2>& f
   ) const
   {
-    VectorField<2> r;
-    r.copy_from(f);
+    VectorField<2> r(f);
 
     const auto& u_fe = u.get_fe();
     const auto& u_dof_handler = u.get_dof_handler();
@@ -362,8 +359,7 @@ namespace icepack {
     VectorField<2> lambda(discretization);
     const auto& vector_dsc = lambda.get_field_discretization();
 
-    VectorField<2> f;
-    f.copy_from(rhs);
+    VectorField<2> f(rhs);
 
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();

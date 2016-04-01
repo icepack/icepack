@@ -26,8 +26,7 @@ bool test_scalar_multiplication(
   const FieldType<rank, dim>& phi, const double tolerance
 )
 {
-  FieldType<rank, dim> psi;
-  psi.copy_from(phi);
+  FieldType<rank, dim> psi(phi);
 
   psi *= 2.0;
 
@@ -70,9 +69,7 @@ bool test_addition(
   const double tolerance
 )
 {
-  FieldType<rank, dim> psi;
-  psi.copy_from(phi1);
-
+  FieldType<rank, dim> psi(phi1);
   psi += phi2;
 
   dealii::QGauss<dim> quad = psi.get_discretization().quad();

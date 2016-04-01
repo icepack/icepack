@@ -189,8 +189,7 @@ namespace icepack {
   ) const
   {
     // Can avoid this. Make dh_dt, multiply it by dt, add h0 at the end
-    Field<2> h;
-    h.copy_from(h0);
+    Field<2> h(h0);
 
     const auto& scalar_dsc = h.get_field_discretization();
 

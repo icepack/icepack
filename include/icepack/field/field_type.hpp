@@ -135,28 +135,18 @@ namespace icepack {
 
 
     /**
-     * Copy constructor
+     * Copy the values of another field. Note that the discretization member is
+     * just a `dealii::SmartPointer`, so this copies the address of the object
+     * and not its contents.
+     *
+     * This method allocates memory and should be used sparingly, hence the
+     * explicit keyword.
      */
-    FieldType(const FieldType<rank, dim>& phi)
+    explicit FieldType(const FieldType<rank, dim>& phi)
       :
       discretization(phi.discretization),
       coefficients(phi.coefficients)
     {}
-
-
-    /**
-     * Explicitly copy a field; this replaces the functionality of the copy
-     * constructor.
-     */
-    void copy_from(const FieldType<rank, dim>& phi)
-    {
-      // This is a `dealii::SmartPointer` to the object in question, so the
-      // assignment just copies the address and not the actual object.
-      discretization = phi.discretization;
-
-      // This actually copies the vector.
-      coefficients = phi.coefficients;
-    }
 
 
     /**
@@ -176,6 +166,7 @@ namespace icepack {
       phi.discretization = nullptr;
       phi.coefficients.reinit(0);
     }
+
 
     /**
      * Move assignment operator. Like the move constructor, this allows fields
@@ -199,6 +190,9 @@ namespace icepack {
     }
 
 
+    /**
+     * Copy assignment operator
+     */
     FieldType<rank, dim>& operator=(const FieldType<rank, dim>& phi)
     {
       discretization = phi.discretization;
