@@ -98,7 +98,9 @@ namespace icepack {
   class FieldType : public FieldExpr<rank, dim, FieldType<rank, dim> >
   {
   public:
-    // Type aliases; these are for template magic.
+    /* ------------
+     * Type aliases
+     * ------------ */
 
     /**
      * The `value_type` for a scalar field is a real number, for a vector field
@@ -123,6 +125,10 @@ namespace icepack {
     using extractor_type = typename ExtractorType<rank>::type;
 
 
+    /* ------------
+     * Constructors
+     * ------------ */
+
     /**
      * Construct a field which is 0 everywhere given the data about its finite
      * element discretization.
@@ -134,21 +140,6 @@ namespace icepack {
     {
       coefficients = 0;
     }
-
-
-    /**
-     * Copy the values of another field. Note that the discretization member is
-     * just a `dealii::SmartPointer`, so this copies the address of the object
-     * and not its contents.
-     *
-     * This method allocates memory and should be used sparingly, hence the
-     * explicit keyword.
-     */
-    explicit FieldType(const FieldType<rank, dim>& phi)
-      :
-      discretization(phi.discretization),
-      coefficients(phi.coefficients)
-    {}
 
 
     /**
@@ -168,6 +159,41 @@ namespace icepack {
       phi.discretization = nullptr;
       phi.coefficients.reinit(0);
     }
+
+
+    /**
+     * Copy the values of another field. Note that the discretization member is
+     * just a `dealii::SmartPointer`, so this copies the address of the object
+     * and not its contents.
+     *
+     * This method allocates memory and should be used sparingly, hence the
+     * explicit keyword.
+     */
+    explicit FieldType(const FieldType<rank, dim>& phi)
+      :
+      discretization(phi.discretization),
+      coefficients(phi.coefficients)
+    {}
+
+
+    /**
+     * Create a field algebraically from other fields
+     */
+    template <class Expr>
+    FieldType(FieldExpr<rank, dim, Expr>&& expr)
+      :
+      discretization(&expr.get_discretization()),
+      coefficients(get_field_discretization().get_dof_handler().n_dofs())
+    {
+      for (size_t k = 0; k < coefficients.size(); ++k)
+        coefficients[k] = expr.coefficient(k);
+    }
+
+
+
+    /* --------------------
+     * Assignment operators
+     * -------------------- */
 
 
     /**
@@ -199,6 +225,19 @@ namespace icepack {
     {
       discretization = phi.discretization;
       coefficients = phi.coefficients;
+
+      return *this;
+    }
+
+
+    /**
+     * Assign a field from an algebraic expression
+     */
+    template <class Expr>
+    FieldType<rank, dim>& operator=(FieldExpr<rank, dim, Expr>&& expr)
+    {
+      for (size_t k = 0; k < coefficients.size(); ++k)
+        coefficients[k] = expr.coefficient(k);
 
       return *this;
     }
@@ -295,18 +334,6 @@ namespace icepack {
       return coefficients(i);
     }
 
-
-    /**
-     * Assign a field from an algebraic expression
-     */
-    template <class Expr>
-    FieldType<rank, dim>& operator=(const FieldExpr<rank, dim, Expr>& expr)
-    {
-      for (size_t k = 0; k < coefficients.size(); ++k)
-        coefficients[k] = expr.coefficient(k);
-
-      return *this;
-    }
 
 
     /**

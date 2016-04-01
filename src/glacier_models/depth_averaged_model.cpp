@@ -188,10 +188,7 @@ namespace icepack {
     const VectorField<2>& u
   ) const
   {
-    // Can avoid this. Make dh_dt, multiply it by dt, add h0 at the end
-    Field<2> h(h0);
-
-    const auto& scalar_dsc = h.get_field_discretization();
+    const auto& scalar_dsc = h0.get_field_discretization();
 
     Field<2> h_dot = dh_dt(h0, a, u);
     Vector<double>& dH_dt = h_dot.get_coefficients();
@@ -208,10 +205,7 @@ namespace icepack {
     solver.solve(M, dH_dt, F, dealii::PreconditionIdentity());
     scalar_dsc.get_constraints().distribute(dH_dt);
 
-    // TODO make this nice with ETs
-    h.get_coefficients().add(dt, dH_dt);
-
-    return h;
+    return h0 + dt * h_dot;
   }
 
 

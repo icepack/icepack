@@ -37,42 +37,53 @@ int main()
   const Field<2> phi2 = interpolate(discretization, Phi2);
   const Field<2> phi3 = interpolate(discretization, Phi3);
 
-  Field<2> phi(discretization), psi(discretization);
-  phi = phi1 + phi2;
-  psi = phi1;
-  psi += phi2;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+  // Test assignment of expression templates to fields
+  {
+    Field<2> phi(discretization), psi(discretization);
+    phi = phi1 + phi2;
+    psi = phi1;
+    psi += phi2;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
 
-  phi = 2 * phi1 + phi2;
-  psi = phi1;
-  psi *= 2;
-  psi += phi2;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+    phi = 2 * phi1 + phi2;
+    psi = phi1;
+    psi *= 2;
+    psi += phi2;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
 
-  phi = phi1 + 3*phi2 + phi3;
-  psi = phi2;
-  psi *= 3;
-  psi += phi1;
-  psi += phi3;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+    phi = phi1 + 3*phi2 + phi3;
+    psi = phi2;
+    psi *= 3;
+    psi += phi1;
+    psi += phi3;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
 
-  phi = phi1 + 7*phi2 + 3*phi3;
-  psi = phi2;
-  psi *= 7.0/3;
-  psi += phi3;
-  psi *= 3;
-  psi += phi1;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+    phi = phi1 + 7*phi2 + 3*phi3;
+    psi = phi2;
+    psi *= 7.0/3;
+    psi += phi3;
+    psi *= 3;
+    psi += phi1;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
 
-  phi = phi1 - phi2;
-  psi = phi1;
-  psi -= phi2;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+    phi = phi1 - phi2;
+    psi = phi1;
+    psi -= phi2;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
 
-  phi = -phi1;
-  psi = phi1;
-  psi *= -1.0;
-  Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+    phi = -phi1;
+    psi = phi1;
+    psi *= -1.0;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+  }
+
+  // Test initializing fields from expression templates
+  {
+    const Field<2> phi(phi1 + 2 * phi2);
+    Field<2> psi(phi2);
+    psi *= 2;
+    psi += phi1;
+  }
 
   return 0;
 }
