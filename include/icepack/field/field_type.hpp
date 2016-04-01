@@ -55,13 +55,30 @@ namespace icepack {
   }
 
 
+  // This is for the kind of template magic that gets you burned at the stake.
+  template <int rank, int dim, class Expr>
+  class FieldExpr
+  {
+  public:
+    operator const Expr&() const
+    {
+      return static_cast<const Expr&>(*this);
+    }
+
+    double coefficient(const size_t i) const
+    {
+      return static_cast<const Expr&>(*this).coefficient(i);
+    }
+  };
+
+
   /**
    * This is a base class for any physical field discretized using a finite
    * element expansion. It is used as the return and argument types of all
    * glacier model objects (see `include/icepack/glacier_models`).
    */
   template <int rank, int dim>
-  class FieldType
+  class FieldType : public FieldExpr<rank, dim, FieldType<rank, dim> >
   {
   public:
     // Type aliases; these are for template magic.
@@ -116,11 +133,16 @@ namespace icepack {
       coefficients = 0;
     }
 
+
     /**
-     * Delete the copy constructor; copying a field object should only be done
-     * if the user asks for it explicitly (see `copy_from`).
+     * Copy constructor
      */
-    FieldType(const FieldType<rank, dim>&) = delete;
+    FieldType(const FieldType<rank, dim>& phi)
+      :
+      discretization(phi.discretization),
+      coefficients(phi.coefficients)
+    {}
+
 
     /**
      * Explicitly copy a field; this replaces the functionality of the copy
@@ -135,6 +157,7 @@ namespace icepack {
       // This actually copies the vector.
       coefficients = phi.coefficients;
     }
+
 
     /**
      * Move constructor. This allows fields to be returned from functions,
@@ -174,6 +197,16 @@ namespace icepack {
 
       return *this;
     }
+
+
+    FieldType<rank, dim>& operator=(const FieldType<rank, dim>& phi)
+    {
+      discretization = phi.discretization;
+      coefficients = phi.coefficients;
+
+      return *this;
+    }
+
 
     // Destructor. FieldType doesn't directly own any heap-allocated memory,
     // although the Vector member coefficients does, so the dtor is trivial.
@@ -267,6 +300,29 @@ namespace icepack {
     const ConstraintMatrix& get_constraints() const
     {
       return get_field_discretization().get_constraints();
+    }
+
+
+    /**
+     * Implement coefficient access so that fields can trivially function as
+     * as field expressions.
+     */
+    double coefficient(const size_t i) const
+    {
+      return coefficients(i);
+    }
+
+
+    /**
+     * Create a field from an algebraic expression
+     */
+    template <class Expr>
+    FieldType<rank, dim>& operator=(const FieldExpr<rank, dim, Expr>& expr)
+    {
+      for (size_t k = 0; k < coefficients.size(); ++k)
+        coefficients[k] = expr.coefficient(k);
+
+      return *this;
     }
 
 
