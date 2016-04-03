@@ -17,3 +17,4 @@ icepack_test(
 add_subdirectory(field)
 add_subdirectory(ice_shelf)
 add_subdirectory(ice_stream)
+add_subdirectory(inverse)
