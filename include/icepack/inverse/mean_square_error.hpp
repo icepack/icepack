@@ -8,10 +8,22 @@ namespace icepack {
   namespace inverse {
 
     /**
-     * Calculate the misfit between a modeled velocity field and observations
-     * weighted by the estimated standard deviation `sigma` of the measurements
+     * Calculate the mean-square difference between a modeled velocity field
+     * and observations, weighted by the estimated standard deviation `sigma`
+     * of the measurements
      */
     double mean_square_error(
+      const VectorField<2>& u_model,
+      const VectorField<2>& u_observed,
+      const Field<2>& sigma
+    );
+
+
+    /**
+     * Calculate the difference between the modeled and observed velocities,
+     * weighted by the standard deviation of the measurements
+     */
+    VectorField<2> misfit(
       const VectorField<2>& u_model,
       const VectorField<2>& u_observed,
       const Field<2>& sigma
