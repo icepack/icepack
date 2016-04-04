@@ -15,8 +15,7 @@ namespace icepack {
     namespace {
 
       // Compute the product of the mass matrix and the gradient of the
-      // objective functional
-
+      // objective functional.
       Field<2> M_gradient(
         const IceShelf& ice_shelf,
         const Field<2>& h,

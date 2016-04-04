@@ -7,6 +7,11 @@
 namespace icepack {
   namespace inverse {
 
+    /**
+     * Given an ice shelf, observed velocities and a candidate temperature,
+     * return the gradient of the mean-square error with respect to the
+     * temperature, i.e. for use in an inverse problem.
+     */
     Field<2> gradient(
       const IceShelf& ice_shelf,
       const Field<2>& thickness,
