@@ -10,6 +10,7 @@ set(SRCS
   glacier_models/ice_shelf.cpp
   glacier_models/ice_stream.cpp
   inverse/mean_square_error.cpp
+  inverse/ice_shelf.cpp
   )
 
 add_library(icepack ${SRCS})
