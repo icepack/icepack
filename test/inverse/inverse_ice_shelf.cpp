@@ -3,6 +3,7 @@
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/inverse/mean_square_error.hpp>
+#include <icepack/inverse/optimization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
 
 using dealii::Tensor;
@@ -122,7 +123,7 @@ int main()
   // Compute the error of our initial guess
   double J = inverse::mean_square_error(u_guess, u_true, sigma);
 
-  std::cout << J << std::endl;
+  std::cout << 0 << ", " << J << std::endl;
 
   // Compute the gradient of of the objective functional. Note that this field
   // has dimensions of inverse temperature.
@@ -133,44 +134,29 @@ int main()
   // average temperature.
   Field<2> p = rms_average(theta_guess) * dJ / norm(dJ);
 
-  const double alpha = 5.0;
 
-  Field<2> theta(theta_guess);
-  VectorField<2> u(u_guess);
+  // First, find an interval in which to perform the line search using the
+  // Armijo method. See Polak's "Optimization", pp. 30-31.
+  const auto f =
+    [&](const double beta)
+    {
+      Field<2> theta = theta_guess + beta * p;
+      VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
+      return inverse::mean_square_error(u, u_true, sigma);
+    };
 
-  size_t k_best = 0;
-  for (size_t k = 1; k < 16; ++k) {
-    theta = theta_guess + alpha * k * p;
-    u = ice_shelf.diagnostic_solve(h, theta, u_guess);
-    const double Jk = inverse::mean_square_error(u, u_true, sigma);
+  double beta =
+    inverse::armijo(f, rms_average(theta_guess) * norm(dJ), 1.0e-4, 0.5);
 
-    if (Jk < J) {
-      k_best = k;
-      J = Jk;
-    }
+  std::cout << beta << ", " << f(beta) << std::endl;
 
-    std::cout << Jk << std::endl;
-  }
 
-  std::cout << std::endl;
+  // Next, use something slightly smarter than the bisection method to find the
+  // minimum value of the objective functional between 0.0 and the endpoint
+  // we just computed using the Armijo method.
+  beta = inverse::golden_section_search(f, 0.0, beta, 1.0e-3);
 
-  const Field<2> theta1 = theta_guess + alpha * k_best * p;
-  u = ice_shelf.diagnostic_solve(h, theta1, u_guess);
-  dJ = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
-  p = rms_average(theta) * dJ / norm(dJ);
-
-  for (size_t k = 1; k < 16; ++k) {
-    theta = theta1 + alpha * k * p;
-    u = ice_shelf.diagnostic_solve(h, theta, u_guess);
-    const double Jk = inverse::mean_square_error(u, u_true, sigma);
-
-    if (Jk < J) {
-      k_best = k;
-      J = Jk;
-    }
-
-    std::cout << Jk << std::endl;
-  }
+  std::cout << beta << "," << f(beta) << std::endl;
 
   return 0;
 }
