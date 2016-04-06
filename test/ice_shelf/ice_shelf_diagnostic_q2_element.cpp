@@ -108,11 +108,12 @@ int main(int argc, char ** argv)
         cell->face(face_number)->set_boundary_id(1);
   }
 
-  const unsigned int num_levels = 5;
+  const unsigned int num_levels = 4;
   triangulation.refine_global(num_levels);
 
-  // Dimensionless mesh resolution; finite element solution is only
-  // O(dx^2) accurate.
+  // Dimensionless mesh resolution; the finite element solution is accurate to
+  // order O(dx^(p+1)), where dx is the mesh resolution and p is the polynomial
+  // order. In this test p = 2.
   const double dx = 1.0 / (1 << num_levels);
 
 
