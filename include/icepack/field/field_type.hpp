@@ -414,6 +414,25 @@ namespace icepack {
 
 
   /**
+   * Compute the L2-inner product of two finite element fields
+   */
+  template <int rank, int dim>
+  double inner_product(
+    const FieldType<rank, dim>& phi1,
+    const FieldType<rank, dim>& phi2
+  )
+  {
+    Assert(have_same_discretization(phi1, phi2), ExcInternalError());
+
+    const auto& field_dsc = phi1.get_field_discretization();
+    const auto& M = field_dsc.get_mass_matrix();
+
+    return M.matrix_scalar_product(phi1.get_coefficients(),
+                                   phi2.get_coefficients());
+  }
+
+
+  /**
    * Compute the RMS average of a finite-element field
    */
   template <int rank, int dim>
@@ -462,6 +481,6 @@ namespace icepack {
     return std::sqrt(N);
   }
 
-}
+} // End of namespace icepack
 
 #endif

@@ -38,23 +38,6 @@ class Phi2 : public Function<dim>
 };
 
 
-template <int dim>
-bool test_field_dist(
-  const Discretization<dim>& discretization,
-  const Function<dim>& phi1,
-  const Function<dim>& phi2,
-  const double exact_distance
-)
-{
-  const Field<dim> psi1 = interpolate(discretization, phi1);
-  const Field<dim> psi2 = interpolate(discretization, phi2);
-
-  Assert(abs(dist(psi1, psi2) - exact_distance) < dx, ExcInternalError());
-
-  return true;
-}
-
-
 int main()
 {
   const Point<2> p1(0.0, 0.0), p2(1.0, 1.0);
@@ -64,12 +47,16 @@ int main()
 
   const Discretization<2> discretization(triangulation, 1);
 
-  Phi1<2> phi1;
-  Phi2<2> phi2;
+  const Field<2> phi1 = interpolate(discretization, Phi1<2>());
+  const Field<2> phi2 = interpolate(discretization, Phi2<2>());
 
   const double exact_distance = 1.0;
 
-  if (!test_field_dist(discretization, phi1, phi2, exact_distance)) return 1;
+  if (abs(dist(phi1, phi2) - exact_distance) > dx) return 1;
+
+  const double exact_inner_product = 0.0;
+
+  if (abs(inner_product(phi1, phi2) - exact_inner_product) > dx) return 1;
 
   return 0;
 }
