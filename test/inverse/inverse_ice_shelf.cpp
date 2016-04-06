@@ -120,43 +120,62 @@ int main()
    * Solve the inverse problem
    * ------------------------- */
 
-  // Compute the error of our initial guess
-  double J = inverse::mean_square_error(u_guess, u_true, sigma);
 
-  std::cout << 0 << ", " << J << std::endl;
+  Field<2> theta(theta_guess);
+  VectorField<2> u(u_guess);
 
-  // Compute the gradient of of the objective functional. Note that this field
-  // has dimensions of inverse temperature.
-  Field<2> dJ = inverse::gradient(ice_shelf, h, theta_guess, u_true, sigma);
+  // Compute the error of our crude guess
+  double error_old = std::numeric_limits<double>::infinity();
+  double error = inverse::mean_square_error(u, u_true, sigma);
 
-  // Compute a direction in which to search for a better solution. In order to
-  // get the units right, we can normalize the gradient and multiply by the
-  // average temperature.
-  Field<2> p = -rms_average(theta_guess) * dJ / norm(dJ);
+  std::cout << "Initial error: " << error << std::endl << std::endl;
 
+  const double tolerance = 1.0e-2;
 
-  // First, find an interval in which to perform the line search using the
-  // Armijo method. See Polak's "Optimization", pp. 30-31.
-  const auto f =
-    [&](const double beta)
-    {
-      Field<2> theta = theta_guess + beta * p;
-      VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
-      return inverse::mean_square_error(u, u_true, sigma);
-    };
+  // Keep looping until there is no improvement in the error.
+  while (std::abs(error_old - error) > tolerance) {
+    error_old = error;
 
-  double beta =
-    inverse::armijo(f, -rms_average(theta_guess) * norm(dJ), 1.0e-4, 0.5);
+    // Compute the gradient of the objective functional at our current guess
+    // for the ice temperature.
+    const auto grad = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
 
-  std::cout << beta << ", " << f(beta) << std::endl;
+    // Compute a search direction in which to look for a better candidate
+    // temperature field. In order to get the units right, we can normalize the
+    // gradient field and multiply by some representative temperature.
+    Field<2> p = -rms_average(theta) * grad / norm(grad);
 
+    // Create a function to compute the error obtained by searching along the
+    // direction `p` starting at our current guess for the temperature.
+    const auto f =
+      [&](const double alpha)
+      {
+        u = ice_shelf.diagnostic_solve(h, theta + alpha * p, u);
+        return inverse::mean_square_error(u, u_true, sigma);
+      };
 
-  // Next, use something slightly smarter than the bisection method to find the
-  // minimum value of the objective functional between 0.0 and the endpoint
-  // we just computed using the Armijo method.
-  beta = inverse::golden_section_search(f, 0.0, beta, 1.0e-3);
+    // Find an upper bound for the interval in which we will perform the line
+    // search using the Armijo rule.
+    const double endpoint =
+      inverse::armijo(f, -rms_average(theta) * norm(grad), 1.0e-4, 0.5);
 
-  std::cout << beta << "," << f(beta) << std::endl;
+    std::cout << "Search in interval:  [0, " << endpoint << "]" << std::endl;
+
+    // Next, search within this interval using a bisection-like method for the
+    // minimum of the objective functional.
+    const double alpha = inverse::golden_section_search(f, 0.0, endpoint, 1.0e-3);
+
+    std::cout << "Line search minimum: " << alpha << std::endl;
+
+    // Update our candidate temperature field.
+    theta = theta + alpha * p;
+    u = ice_shelf.diagnostic_solve(h, theta, u);
+
+    // Update the current error.
+    error = inverse::mean_square_error(u, u_true, sigma);
+    std::cout << "Error:               " << error << std::endl << std::endl;
+  }
+
 
   return 0;
 }
