@@ -78,7 +78,7 @@ namespace icepack {
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
               const auto phi_i = s_fe_values[exs].value(i, q);
-              cell_dJ(i) += 2 * dB * H * u_dot_lambda * phi_i * dx;
+              cell_dJ(i) -= 2 * dB * H * u_dot_lambda * phi_i * dx;
             }
           }
 

@@ -132,7 +132,7 @@ int main()
   // Compute a direction in which to search for a better solution. In order to
   // get the units right, we can normalize the gradient and multiply by the
   // average temperature.
-  Field<2> p = rms_average(theta_guess) * dJ / norm(dJ);
+  Field<2> p = -rms_average(theta_guess) * dJ / norm(dJ);
 
 
   // First, find an interval in which to perform the line search using the
@@ -146,7 +146,7 @@ int main()
     };
 
   double beta =
-    inverse::armijo(f, rms_average(theta_guess) * norm(dJ), 1.0e-4, 0.5);
+    inverse::armijo(f, -rms_average(theta_guess) * norm(dJ), 1.0e-4, 0.5);
 
   std::cout << beta << ", " << f(beta) << std::endl;
 
