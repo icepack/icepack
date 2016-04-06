@@ -7,6 +7,10 @@
 namespace icepack {
   namespace inverse {
 
+    /**
+     * This procedure is for computing a bounding interval [a, b] in which to
+     * search for the minimum of some functional in a line search.
+     */
     template <typename Functional>
     double armijo(
       const Functional& f,
@@ -46,6 +50,14 @@ namespace icepack {
     }
 
 
+    /**
+     * This procedure finds the minimum of a function of one variable in an
+     * interval using golden section search, which is like a bisection method
+     * that reduces the interval size by the inverse of the golden ratio at
+     * every iteration.
+     *
+     * The input function is assumed to be convex.
+     */
     template <typename Functional>
     double
     golden_section_search(const Functional& f, double a, double b, double eps)
@@ -61,7 +73,29 @@ namespace icepack {
 
         const double fA = f(A), fB = f(B);
 
-        // TODO: picture explaining this and assert that it's not bizarre
+        /* There are four cases to consider if `f` is convex. In these two
+         * cases, the minimum lies in the interval [A, b]:
+         *  ^                 ^
+         *  |  o              |  o
+         *  |                 |          o
+         *  |    o            |    o
+         *  |      o          |       o
+         *  |          o      |
+         *  *------------>    *------------>
+         *     a A B   b         a A  B  b
+         *
+         * and in these two cases, the minimum lies in the interval [a, B].
+         * ^                  ^
+         * |         o        |         o
+         * |                  | o
+         * |       o          |       o
+         * |     o            |    o
+         * | o                |
+         * *------------->    *------------>
+         *   a   A B b          a  A  B  b
+         *
+         * These cases are characterized by whether f(A) >= f(B) or vice versa.
+         */
 
         if (fA >= fB) {
           a = A;
