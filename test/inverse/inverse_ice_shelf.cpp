@@ -50,8 +50,12 @@ public:
 
 
 
-int main()
+int main(int argc, char ** argv)
 {
+  const bool verbose = (argc == 2) &&
+    (strcmp(argv[1], "-v") == 0 ||
+     strcmp(argv[1], "--verbose") == 0);
+
   /* ---------------
    * Generate a mesh
    * --------------- */
@@ -148,6 +152,13 @@ int main()
 
   std::cout << "Final error:   "
             << inverse::mean_square_error(u, u_true, sigma) << std::endl;
+
+  if (verbose) {
+    theta_true.write("theta_true.ucd", "theta");
+    u_true.write("u_true.ucd", "u");
+    theta.write("theta.ucd", "theta");
+    u.write("u.ucd", "u");
+  }
 
   return 0;
 }
