@@ -10,6 +10,9 @@ namespace icepack {
     /**
      * This procedure is for computing a bounding interval [a, b] in which to
      * search for the minimum of some functional in a line search.
+     *
+     * See E. Polak, "Optimization: Algorithms and Consistent Approximations",
+     * pp. 30-31 for the Armijo rule.
      */
     template <typename Functional>
     double armijo(
@@ -19,6 +22,9 @@ namespace icepack {
       const double beta
     )
     {
+      Assert(alpha < 1.0, ExcInternalError());
+      Assert(beta < 1.0, ExcInternalError());
+
       std::map<int, double> fs;
 
       // Make a function that memoizes values of the objective functional so
@@ -109,7 +115,60 @@ namespace icepack {
       return (a + b) / 2;
     }
 
-  }
-}
+
+    /**
+     * Given a cost functional `F` and a method `dF` to compute its gradient,
+     * find an approximate minimizer starting from the guess `phi0`, stopping
+     * when the improvement in the cost functional is less than `eps`.
+     */
+    template <typename T, typename Functional, typename Gradient>
+    T gradient_descent(
+      const Functional& F,
+      const Gradient& dF,
+      const T& phi0,
+      const double eps
+    )
+    {
+      double cost_old = std::numeric_limits<double>::infinity();
+      double cost = F(phi0);
+
+      T phi(phi0);
+
+      while (std::abs(cost_old - cost) > eps) {
+        cost_old = cost;
+
+        // Compute the gradient of the objective functional.
+        const auto df = dF(phi);
+
+        // Compute a search direction.
+        const auto p = -rms_average(phi) * df / norm(df);
+
+        // Compute the inner product of the gradient of the objective
+        // functional and the search direction.
+        const double theta = -rms_average(phi) * norm(df);
+
+        // Make a lambda function for computing the value of the objective
+        // functional along the line starting at `u` in the direction `p`
+        const auto f = [&](const double alpha)
+                       {
+                             return F(phi + alpha * p);
+                       };
+
+        // Find a bounding interval in which to perform a line search.
+        const double end_point = armijo(f, theta, 1.0e-4, 0.5);
+
+        // Locate the minimum within the bounding interval.
+        const double alpha = golden_section_search(f, 0.0, end_point, eps);
+
+        // Update the current guess.
+        phi = phi + alpha * p;
+        cost = F(phi);
+      }
+
+      return phi;
+    }
+
+  } // End of namespace inverse
+} // End of namespace icepack
 
 #endif
