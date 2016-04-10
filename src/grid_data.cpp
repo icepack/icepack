@@ -30,18 +30,31 @@ namespace icepack {
     }
   }
 
+
+  /* -------------------
+   * Methods of GridData
+   * ------------------- */
+
   GridData::GridData(
     const std::array<std::vector<double>, 2>& coordinate_values,
     const Table<2, double>& data_values,
     const double missing
-  )
-    :
+  ) :
     InterpolatedTensorProductGridData<2>(coordinate_values, data_values),
     xrange{{coordinate_values[0][0], coordinate_values[0].back()}},
     yrange{{coordinate_values[1][0], coordinate_values[1].back()}},
     missing(missing),
     mask(make_missing_data_mask(data_values, missing))
   {}
+
+
+  double GridData::value(const Point<2>& x, const unsigned int) const
+  {
+    if (is_masked(x))
+      return missing;
+
+    return InterpolatedTensorProductGridData<2>::value(x);
+  }
 
 
   bool GridData::is_masked(const Point<2>& x) const
@@ -52,6 +65,10 @@ namespace icepack {
       mask(idx[0], idx[1] + 1) || mask(idx[0] + 1, idx[1] + 1);
   }
 
+
+  /* ---------------------------------------------------
+   * Procedures for reading various gridded data formats
+   * --------------------------------------------------- */
 
   GridData readArcAsciiGrid(const std::string& filename)
   {

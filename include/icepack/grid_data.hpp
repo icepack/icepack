@@ -31,6 +31,13 @@ namespace icepack {
     );
 
     /**
+     * Return the value of the gridded data near a point, or, if no suitable
+     * value can be interpolated to that point due to missing data, return the
+     * missing data value.
+     */
+    virtual double value(const Point<2>& x, const unsigned int = 0) const;
+
+    /**
      * Return whether or not a given point is masked, i.e. one of the data
      * points necessary to interpolate a value to this point is missing from
      * the observations

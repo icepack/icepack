@@ -1,6 +1,9 @@
 
+#include <cmath>
+
 #include <icepack/grid_data.hpp>
 
+using dealii::ExcInternalError;
 using namespace icepack;
 
 int main()
@@ -37,12 +40,13 @@ int main()
 
   // Check that a point near the missing data is masked
   const Point<2> x(x0 + (J + 0.5) * dx, y0 + (I + 0.5) * dy);
-  if (not grid_data.is_masked(x))
-    return 1;
+  Assert(grid_data.is_masked(x), ExcInternalError());
+  Assert(grid_data.value(x) <= missing, ExcInternalError());
 
   const Point<2> y(x0 + dx, y0 + dy);
-  if (grid_data.is_masked(y))
-    return 1;
+  Assert(not grid_data.is_masked(y), ExcInternalError());
+  Assert(std::abs(grid_data.value(y) - y[0] - y[1]) < 1.0e-16,
+         ExcInternalError());
 
   return 0;
 }
