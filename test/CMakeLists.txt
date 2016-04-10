@@ -10,6 +10,7 @@ endfunction(icepack_test)
 
 icepack_test(
   tensor_function_utils
+  grid_data
   read_arc
   read_geotiff
   ice_thickness)

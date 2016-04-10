@@ -6,12 +6,29 @@
 #include <gdal_priv.h>
 #include <cpl_conv.h>
 
+#include <deal.II/base/table.h>
+
 #include <icepack/read_gridded_data.hpp>
 
 using dealii::Table;
+using dealii::TableIndices;
 using dealii::Functions::InterpolatedTensorProductGridData;
 
 namespace icepack {
+
+  namespace {
+    Table<2, bool>
+    make_missing_data_mask(const Table<2, double>& data, const double missing)
+    {
+      Table<2, bool> mask(data.size(0), data.size(1));
+
+      for (size_t i = 0; i < data.size(0); ++i)
+        for (size_t j = 0; j < data.size(1); ++j)
+          mask(i, j) = (data(i, j) == missing);
+
+      return mask;
+    }
+  }
 
   GridData::GridData(
     const std::array<std::vector<double>, 2>& coordinate_values,
@@ -22,8 +39,18 @@ namespace icepack {
     InterpolatedTensorProductGridData<2>(coordinate_values, data_values),
     xrange{{coordinate_values[0][0], coordinate_values[0].back()}},
     yrange{{coordinate_values[1][0], coordinate_values[1].back()}},
-    missing(missing)
+    missing(missing),
+    mask(make_missing_data_mask(data_values, missing))
   {}
+
+
+  bool GridData::is_masked(const Point<2>& x) const
+  {
+    const auto idx = table_index_of_point(x);
+    return
+      mask(idx[0], idx[1]) || mask(idx[0] + 1, idx[1]) ||
+      mask(idx[0], idx[1] + 1) || mask(idx[0] + 1, idx[1] + 1);
+  }
 
 
   GridData readArcAsciiGrid(const std::string& filename)

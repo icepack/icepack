@@ -8,6 +8,7 @@
 
 
 namespace icepack {
+  using dealii::Point;
   using dealii::Functions::InterpolatedTensorProductGridData;
 
   /**
@@ -30,6 +31,13 @@ namespace icepack {
     );
 
     /**
+     * Return whether or not a given point is masked, i.e. one of the data
+     * points necessary to interpolate a value to this point is missing from
+     * the observations
+     */
+    bool is_masked(const Point<2>& x) const;
+
+    /**
      * Horizontal extent of the gridded data
      */
     const std::array<double, 2> xrange;
@@ -43,6 +51,11 @@ namespace icepack {
      * Value to indicate missing data
      */
     const double missing;
+
+    /**
+     * Table to describe where there are missing measurements
+     */
+    const dealii::Table<2, bool> mask;
   };
 
 
