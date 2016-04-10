@@ -1,6 +1,6 @@
 
 set(SRCS
-  read_gridded_data.cpp
+  grid_data.cpp
   ice_thickness.cpp
   util/tensor_function_utils.cpp
   physics/viscosity.cpp

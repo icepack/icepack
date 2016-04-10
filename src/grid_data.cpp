@@ -8,7 +8,7 @@
 
 #include <deal.II/base/table.h>
 
-#include <icepack/read_gridded_data.hpp>
+#include <icepack/grid_data.hpp>
 
 using dealii::Table;
 using dealii::TableIndices;

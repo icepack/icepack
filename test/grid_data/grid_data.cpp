@@ -1,5 +1,5 @@
 
-#include <icepack/read_gridded_data.hpp>
+#include <icepack/grid_data.hpp>
 
 using namespace icepack;
 

@@ -10,5 +10,5 @@ The most important classes for the typical user are:
 These are in turn built on top of assorted lower-level functions:
 
 * viscosity and basal shear parameterizations are in the directory `physics/`
-* reading in geotif and Arc ASCII data are in `read_gridded_data.hpp`
+* a class for representing gridded data and functions for reading geotif and Arc ASCII files are in `grid_data.hpp`
 * the `Discretization` class template in the header `discretization.hpp` is a support class for discretizing finite element fields

@@ -10,11 +10,10 @@ endfunction(icepack_test)
 
 icepack_test(
   tensor_function_utils
-  grid_data
-  read_arc
-  read_geotiff
-  ice_thickness)
+  ice_thickness
+  )
 
+add_subdirectory(grid_data)
 add_subdirectory(field)
 add_subdirectory(ice_shelf)
 add_subdirectory(ice_stream)

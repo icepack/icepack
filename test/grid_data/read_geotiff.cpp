@@ -4,7 +4,7 @@
 #include <cpl_string.h>
 #include <ogr_spatialref.h>
 
-#include <icepack/read_gridded_data.hpp>
+#include <icepack/grid_data.hpp>
 
 
 using namespace icepack;

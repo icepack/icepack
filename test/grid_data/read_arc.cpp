@@ -7,7 +7,7 @@
 #include <deal.II/base/function.h>
 
 // our includes
-#include <icepack/read_gridded_data.hpp>
+#include <icepack/grid_data.hpp>
 
 using namespace icepack;
 using dealii::Point;
