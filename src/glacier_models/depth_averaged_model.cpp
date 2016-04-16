@@ -177,6 +177,15 @@ namespace icepack {
       );
     }
 
+    Vector<double> F(dh.get_coefficients());
+    SolverControl solver_control(1000, 1.0e-10);
+    solver_control.log_result(false);
+    SolverCG<> solver(solver_control);
+
+    const auto& M = discretization.scalar().get_mass_matrix();
+    solver.solve(M, dh.get_coefficients(), F, dealii::PreconditionIdentity());
+    dh.get_constraints().distribute(dh.get_coefficients());
+
     return dh;
   }
 
@@ -188,22 +197,12 @@ namespace icepack {
     const VectorField<2>& u
   ) const
   {
-    const auto& scalar_dsc = h0.get_field_discretization();
-
     Field<2> h_dot = dh_dt(h0, a, u);
-    Vector<double>& dH_dt = h_dot.get_coefficients();
-    Vector<double> F(dH_dt);
+    const auto& boundary_values =
+      h0.get_field_discretization().zero_boundary_values();
 
-    SolverControl solver_control(1000, 1.0e-10);
-    solver_control.log_result(false);
-    SolverCG<> solver(solver_control);
-
-    FilteredMatrix<Vector<double>> M(scalar_dsc.get_mass_matrix());
-    M.add_constraints(scalar_dsc.zero_boundary_values());
-
-    M.apply_constraints(F);
-    solver.solve(M, dH_dt, F, dealii::PreconditionIdentity());
-    scalar_dsc.get_constraints().distribute(dH_dt);
+    for (const auto& p: boundary_values)
+      h_dot.get_coefficients()[p.first] = p.second;
 
     return h0 + dt * h_dot;
   }
