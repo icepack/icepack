@@ -127,13 +127,19 @@ int main(int argc, char ** argv)
   VectorField<2> u(u_guess);
 
   // Compute the error of our crude guess
-  double error_old = std::numeric_limits<double>::infinity();
-  double error = inverse::mean_square_error(u, u_true, sigma);
+  const double area = dealii::GridTools::volume(mesh);
+  double error =
+    dist(theta_guess, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
+  double residual = inverse::mean_square_error(u, u_true, sigma);
 
-  std::cout << "Initial error: " << error << std::endl;
+  std::cout << "Initial velocity error:    " << residual << std::endl;
+  std::cout << "Initial temperature error: " << error << std::endl;
 
   const double tolerance = 1.0e-2;
 
+  // Create some lambda functions which will calculate the objective functional
+  // and its gradient for a given value of the temperature field, but capture
+  // all the other data like the model object, ice thickness, etc.
   const auto F =
     [&](const Field<2>& theta)
     {
@@ -147,17 +153,27 @@ int main(int argc, char ** argv)
       return inverse::gradient(ice_shelf, h, theta, u_true, sigma);
     };
 
+  // Use a simple gradient descent procedure starting from our crude initial
+  // guess to solve for the temperature.
   Field<2> theta = inverse::gradient_descent(F, dF, theta_guess, 1.0e-2);
   u = ice_shelf.diagnostic_solve(h, theta, u);
 
-  std::cout << "Final error:   "
-            << inverse::mean_square_error(u, u_true, sigma) << std::endl;
+  // Compute the final misfits in velocity and temperature.
+  residual = inverse::mean_square_error(u, u_true, sigma);
+  error = dist(theta, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
+  std::cout << "Final velocity error:      " << residual << std::endl;
+  std::cout << "Final temperature error:   " << error << std::endl;
+
+  Assert(residual < 0.05, ExcInternalError());
 
   if (verbose) {
     theta_true.write("theta_true.ucd", "theta");
     u_true.write("u_true.ucd", "u");
     theta.write("theta.ucd", "theta");
     u.write("u.ucd", "u");
+
+    const Field<2> delta_theta = theta_true - theta;
+    delta_theta.write("delta_theta.ucd", "delta_theta");
   }
 
   return 0;
