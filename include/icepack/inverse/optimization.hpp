@@ -149,10 +149,7 @@ namespace icepack {
 
         // Make a lambda function for computing the value of the objective
         // functional along the line starting at `u` in the direction `p`
-        const auto f = [&](const double alpha)
-                       {
-                             return F(phi + alpha * p);
-                       };
+        const auto f = [&](const double alpha) { return F(phi + alpha * p); };
 
         // Find a bounding interval in which to perform a line search.
         const double end_point = armijo(f, theta, 1.0e-4, 0.5);

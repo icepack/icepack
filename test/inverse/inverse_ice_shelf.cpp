@@ -4,6 +4,7 @@
 #include <icepack/physics/constants.hpp>
 #include <icepack/inverse/mean_square_error.hpp>
 #include <icepack/inverse/optimization.hpp>
+#include <icepack/inverse/regularization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
 
 using dealii::Tensor;
@@ -123,7 +124,6 @@ int main(int argc, char ** argv)
   /* -------------------------
    * Solve the inverse problem
    * ------------------------- */
-
   VectorField<2> u(u_guess);
 
   // Compute the error of our crude guess
@@ -135,7 +135,13 @@ int main(int argc, char ** argv)
   std::cout << "Initial velocity error:    " << residual << std::endl;
   std::cout << "Initial temperature error: " << error << std::endl;
 
-  const double tolerance = 1.0e-2;
+  // Pick a typical length scale, which we will use as a smoothing length to
+  // regularize the problem. In order to make the units work out right, we also
+  // need to pick a reasonable temperature difference that we would expect to
+  // see over this length scale.
+  const double length_scale = 100.0;
+  const double temp_scale = 1.0;
+  const double grad_scale = temp_scale / length_scale;
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -144,18 +150,24 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      return inverse::mean_square_error(u, u_true, sigma);
+      return inverse::mean_square_error(u, u_true, sigma)
+        + inverse::mean_square_gradient(theta) / (grad_scale * grad_scale);
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
-      return inverse::gradient(ice_shelf, h, theta, u_true, sigma);
+      return Field<2>(inverse::gradient(ice_shelf, h, theta, u_true, sigma)
+                      - inverse::laplacian(theta) / (grad_scale * grad_scale));
     };
+
+  // Stop the iteration when the improvement from one iterate to the next is
+  // less than this tolerance.
+  const double tolerance = 1.0e-2;
 
   // Use a simple gradient descent procedure starting from our crude initial
   // guess to solve for the temperature.
-  Field<2> theta = inverse::gradient_descent(F, dF, theta_guess, 1.0e-2);
+  Field<2> theta = inverse::gradient_descent(F, dF, theta_guess, tolerance);
   u = ice_shelf.diagnostic_solve(h, theta, u);
 
   // Compute the final misfits in velocity and temperature.
