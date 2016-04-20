@@ -117,48 +117,69 @@ namespace icepack {
 
 
     /**
+     * Given a cost functional `F`, a starting point `phi`, the derivative `df`
+     * of `F` at `phi`, and a search direction `p`, search for the minimum of
+     * `F` along `p`.
+     */
+    template <int rank, int dim, typename Functional>
+    FieldType<rank, dim> line_search(
+      const Functional& F,
+      const FieldType<rank, dim>& phi,
+      const FieldType<rank, dim>& df,
+      const FieldType<rank, dim>& p,
+      const double eps
+    )
+    {
+      // Compute the angle between the search direction and the gradient of the
+      // objective functional; we need this
+      const double theta = inner_product(p, df);
+
+      // Make a lambda function giving the value of the objective along the
+      // search direction.
+      const auto f = [&](const double alpha) { return F(phi + alpha * p); };
+
+      // Find an endpoint to bound the line search.
+      // TODO: make the parameters 1.0e-4, 0.5 adjustable, but default to the
+      // values given in Nocedal & Wright.
+      const double end_point = armijo(f, theta, 1.0e-4, 0.5);
+
+      // Locate the minimum of the objective functional along the search,
+      // within the bounds obtained using the Armijo rule.
+      const double alpha = golden_section_search(f, 0.0, end_point, eps);
+
+      return phi + alpha * p;
+    }
+
+
+    /**
      * Given a cost functional `F` and a method `dF` to compute its gradient,
      * find an approximate minimizer starting from the guess `phi0`, stopping
      * when the improvement in the cost functional is less than `eps`.
      */
-    template <typename T, typename Functional, typename Gradient>
-    T gradient_descent(
+    template <int rank, int dim, typename Functional, typename Gradient>
+    FieldType<rank, dim> gradient_descent(
       const Functional& F,
       const Gradient& dF,
-      const T& phi0,
+      const FieldType<rank, dim>& phi0,
       const double eps
     )
     {
       double cost_old = std::numeric_limits<double>::infinity();
       double cost = F(phi0);
 
-      T phi(phi0);
+      FieldType<rank, dim> phi(phi0);
 
       while (std::abs(cost_old - cost) > eps) {
         cost_old = cost;
 
         // Compute the gradient of the objective functional.
-        const auto df = dF(phi);
+        const FieldType<rank, dim> df = dF(phi);
 
         // Compute a search direction.
-        const auto p = -rms_average(phi) * df / norm(df);
-
-        // Compute the inner product of the gradient of the objective
-        // functional and the search direction.
-        const double theta = -rms_average(phi) * norm(df);
-
-        // Make a lambda function for computing the value of the objective
-        // functional along the line starting at `u` in the direction `p`
-        const auto f = [&](const double alpha) { return F(phi + alpha * p); };
-
-        // Find a bounding interval in which to perform a line search.
-        const double end_point = armijo(f, theta, 1.0e-4, 0.5);
-
-        // Locate the minimum within the bounding interval.
-        const double alpha = golden_section_search(f, 0.0, end_point, eps);
+        const FieldType<rank, dim> p = -rms_average(phi) * df / norm(df);
 
         // Update the current guess.
-        phi = phi + alpha * p;
+        phi = line_search(F, phi, df, p, eps);
         cost = F(phi);
       }
 
