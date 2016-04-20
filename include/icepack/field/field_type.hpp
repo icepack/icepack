@@ -384,32 +384,9 @@ namespace icepack {
   template <int rank, int dim>
   double norm(const FieldType<rank, dim>& phi)
   {
-    const auto& fe = phi.get_fe();
-    const QGauss<dim> quad = phi.get_discretization().quad();
-
-    FEValues<dim> fe_values(
-      fe, quad, update_values|update_JxW_values|update_quadrature_points
-    );
-
-    const unsigned int n_q_points = quad.size();
-    std::vector<typename FieldType<rank, dim>::value_type>
-      phi_values(n_q_points);
-
-    const typename FieldType<rank, dim>::extractor_type ex(0);
-
-    double N = 0.0;
-    for (auto cell: phi.get_dof_handler().active_cell_iterators()) {
-      fe_values.reinit(cell);
-      fe_values[ex].get_function_values(phi.get_coefficients(), phi_values);
-
-      for (unsigned int q = 0; q < n_q_points; ++q) {
-        const double dx = fe_values.JxW(q);
-        const auto phi_q = phi_values[q];
-        N += (phi_q * phi_q) * dx;
-      }
-    }
-
-    return std::sqrt(N);
+    const auto& field_dsc = phi.get_field_discretization();
+    const auto& M = field_dsc.get_mass_matrix();
+    return std::sqrt(M.matrix_norm_square(phi.get_coefficients()));
   }
 
 
