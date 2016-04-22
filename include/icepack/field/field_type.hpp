@@ -55,8 +55,15 @@ namespace icepack {
   }
 
 
+  /**
+   * This type is for keeping track of whether a field is in the function space
+   * \f$H^1\f$, i.e. the primal space, or in the dual space \f$H^{-1}\f$.
+   */
+  enum Duality {primal, dual};
+
+
   // This is for the kind of template magic that gets you burned at the stake.
-  template <int rank, int dim, class Expr>
+  template <int rank, int dim, Duality duality, class Expr>
   class FieldExpr
   {
   public:
@@ -81,9 +88,13 @@ namespace icepack {
    * Check if two field expressions have identical discretizations; this is a
    * precondition for doing any algebraic operations on fields.
    */
-  template <int rank1, int rank2, int dim, class Expr1, class Expr2>
-  bool have_same_discretization(const FieldExpr<rank1, dim, Expr1>& expr1,
-                                const FieldExpr<rank2, dim, Expr2>& expr2)
+  template <int rank1, int rank2, int dim,
+            Duality duality1, Duality duality2,
+            class Expr1, class Expr2>
+  bool have_same_discretization(
+    const FieldExpr<rank1, dim, duality1, Expr1>& expr1,
+    const FieldExpr<rank2, dim, duality2, Expr2>& expr2
+  )
   {
     return &expr1.get_discretization() == &expr2.get_discretization();
   }
@@ -93,9 +104,32 @@ namespace icepack {
    * This is a base class for any physical field discretized using a finite
    * element expansion. It is used as the return and argument types of all
    * glacier model objects (see `include/icepack/glacier_models`).
+   *
+   * Fields are distinguished by: their tensor rank, i.e. 0 for a scalar field,
+   * 1 for a vector field; the dimension of the ambient space; and whether the
+   * field is primal or dual, i.e. whether it is in the function space
+   * \f$H^1\f$ or in its dual space \f$H^{-1}\f$.
+   *
+   * Typically, differential operators such as the Laplacian are mappings from
+   * the primal space to the dual space:
+   \f[
+   L : H^1 \to H^{-1}
+   \f]
+   * and the product \f$Lu\f$ is defined in terms of how it acts on elements of
+   * the space \f$H^1\f$:
+   \f[
+   \langle Lu, v\rangle = \int_\Omega\nabla u\cdot\nabla v\hspace{2pt}dx.
+   \f]
+   * The distinction between primal and dual fields is useful because it is
+   * very often unclear whether the result of some computation is implicitly
+   * multiplied by the finite element mass matrix or not, a common source of
+   * mistakes. By introducing a type-level distinction between primal and dual
+   * fields, we guarantee that the dual fields are implicitly multiplied by the
+   * mass matrix, and primal fields are not.
    */
-  template <int rank, int dim>
-  class FieldType : public FieldExpr<rank, dim, FieldType<rank, dim> >
+  template <int rank, int dim, Duality duality = primal>
+  class FieldType :
+    public FieldExpr<rank, dim, duality, FieldType<rank, dim, duality> >
   {
   public:
     /* ------------
@@ -151,7 +185,7 @@ namespace icepack {
      * without an expensive and unnecessary copy operation by using C++11
      * move semantics.
      */
-    FieldType(FieldType<rank, dim>&& phi)
+    FieldType(FieldType<rank, dim, duality>&& phi)
       :
       discretization(phi.discretization),
       coefficients(std::move(phi.coefficients))
@@ -169,7 +203,7 @@ namespace icepack {
      * This method allocates memory and should be used sparingly, hence the
      * explicit keyword.
      */
-    explicit FieldType(const FieldType<rank, dim>& phi)
+    explicit FieldType(const FieldType<rank, dim, duality>& phi)
       :
       discretization(phi.discretization),
       coefficients(phi.coefficients)
@@ -180,7 +214,7 @@ namespace icepack {
      * Create a field algebraically from other fields
      */
     template <class Expr>
-    FieldType(FieldExpr<rank, dim, Expr>&& expr)
+    FieldType(FieldExpr<rank, dim, duality, Expr>&& expr)
       :
       discretization(&expr.get_discretization()),
       coefficients(get_field_discretization().get_dof_handler().n_dofs())
@@ -206,7 +240,8 @@ namespace icepack {
      *
      * This functionality is useful when solving nonlinear PDE iteratively.
      */
-    FieldType<rank, dim>& operator=(FieldType<rank, dim>&& phi)
+    FieldType<rank, dim, duality>&
+    operator=(FieldType<rank, dim, duality>&& phi)
     {
       discretization = phi.discretization;
       coefficients = std::move(phi.coefficients);
@@ -221,7 +256,8 @@ namespace icepack {
     /**
      * Copy assignment operator
      */
-    FieldType<rank, dim>& operator=(const FieldType<rank, dim>& phi)
+    FieldType<rank, dim, duality>&
+    operator=(const FieldType<rank, dim, duality>& phi)
     {
       discretization = phi.discretization;
       coefficients = phi.coefficients;
@@ -234,7 +270,8 @@ namespace icepack {
      * Assign a field from an algebraic expression
      */
     template <class Expr>
-    FieldType<rank, dim>& operator=(FieldExpr<rank, dim, Expr>&& expr)
+    FieldType<rank, dim, duality>&
+    operator=(FieldExpr<rank, dim, duality, Expr>&& expr)
     {
       for (size_t k = 0; k < coefficients.size(); ++k)
         coefficients[k] = expr.coefficient(k);
@@ -374,8 +411,10 @@ namespace icepack {
 
 
   // Scalar and vector fields are specializations of FieldType with ranks 0, 1.
-  template <int dim> using Field = FieldType<0, dim>;
-  template <int dim> using VectorField = FieldType<1, dim>;
+  template <int dim> using Field = FieldType<0, dim, primal>;
+  template <int dim> using VectorField = FieldType<1, dim, primal>;
+  template <int dim> using DualField = FieldType<0, dim, dual>;
+  template <int dim> using DualVectorField = FieldType<1, dim, dual>;
 
 
   /**
@@ -406,6 +445,21 @@ namespace icepack {
 
     return M.matrix_scalar_product(phi1.get_coefficients(),
                                    phi2.get_coefficients());
+  }
+
+
+  /**
+   * Compute the L2-inner product of a dual field and a primal field.
+   */
+  template <int rank, int dim>
+  double inner_product(
+    const FieldType<rank, dim, dual>& phi1,
+    const FieldType<rank, dim, primal>& phi2
+  )
+  {
+    Assert(have_same_discretization(phi1, phi2), ExcInternalError());
+
+    return phi1.get_coefficients() * phi2.get_coefficients();
   }
 
 

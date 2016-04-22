@@ -6,27 +6,28 @@
 
 namespace icepack {
 
-  template <int rank, int dim>
-  FieldType<rank, dim>&
-  operator *=(FieldType<rank, dim>& phi, const double alpha)
+  template <int rank, int dim, Duality duality>
+  FieldType<rank, dim, duality>&
+  operator *=(FieldType<rank, dim, duality>& phi, const double alpha)
   {
     phi.get_coefficients() *= alpha;
     return phi;
   }
 
 
-  template <int rank, int dim>
-  FieldType<rank, dim>&
-  operator /=(FieldType<rank, dim>& phi, const double alpha)
+  template <int rank, int dim, Duality duality>
+  FieldType<rank, dim, duality>&
+  operator /=(FieldType<rank, dim, duality>& phi, const double alpha)
   {
     phi.get_coefficients() *= 1.0/alpha;
     return phi;
   }
 
 
-  template <int rank, int dim>
-  FieldType<rank, dim>&
-  operator +=(FieldType<rank, dim>& phi, const FieldType<rank, dim>& psi)
+  template <int rank, int dim, Duality duality>
+  FieldType<rank, dim, duality>&
+  operator +=(FieldType<rank, dim, duality>& phi,
+              const FieldType<rank, dim, duality>& psi)
   {
     Assert(have_same_discretization(phi, psi), ExcInternalError());
 
@@ -35,9 +36,10 @@ namespace icepack {
   }
 
 
-  template <int rank, int dim>
-  FieldType<rank, dim>&
-  operator -=(FieldType<rank, dim>& phi, const FieldType<rank, dim>& psi)
+  template <int rank, int dim, Duality duality>
+  FieldType<rank, dim, duality>&
+  operator -=(FieldType<rank, dim, duality>& phi,
+              const FieldType<rank, dim, duality>& psi)
   {
     Assert(have_same_discretization(phi, psi), ExcInternalError());
 
@@ -50,9 +52,10 @@ namespace icepack {
    * Algebraic expression templates
    * ------------------------------ */
 
-  template <int rank, int dim, class Expr>
+  template <int rank, int dim, Duality duality, class Expr>
   class ScalarMultiplyExpr :
-    public FieldExpr<rank, dim, ScalarMultiplyExpr<rank, dim, Expr> >
+    public FieldExpr<rank, dim, duality,
+                     ScalarMultiplyExpr<rank, dim, duality, Expr> >
   {
   public:
     ScalarMultiplyExpr(const double alpha, const Expr& expr)
@@ -77,33 +80,34 @@ namespace icepack {
   };
 
 
-  template <int rank, int dim, class Expr>
-  ScalarMultiplyExpr<rank, dim, Expr>
-  operator*(const double alpha, const FieldExpr<rank, dim, Expr>& expr)
+  template <int rank, int dim, Duality duality, class Expr>
+  ScalarMultiplyExpr<rank, dim, duality, Expr>
+  operator*(const double alpha, const FieldExpr<rank, dim, duality, Expr>& expr)
   {
-    return ScalarMultiplyExpr<rank, dim, Expr>(alpha, expr);
+    return ScalarMultiplyExpr<rank, dim, duality, Expr>(alpha, expr);
   }
 
 
-  template <int rank, int dim, class Expr>
-  ScalarMultiplyExpr<rank, dim, Expr>
-  operator/(const FieldExpr<rank, dim, Expr>& expr, const double alpha)
+  template <int rank, int dim, Duality duality, class Expr>
+  ScalarMultiplyExpr<rank, dim, duality, Expr>
+  operator/(const FieldExpr<rank, dim, duality, Expr>& expr, const double alpha)
   {
-    return ScalarMultiplyExpr<rank, dim, Expr>(1.0/alpha, expr);
+    return ScalarMultiplyExpr<rank, dim, duality, Expr>(1.0/alpha, expr);
   }
 
 
-  template <int rank, int dim, class Expr>
-  ScalarMultiplyExpr<rank, dim, Expr>
-  operator-(const FieldExpr<rank, dim, Expr>& expr)
+  template <int rank, int dim, Duality duality, class Expr>
+  ScalarMultiplyExpr<rank, dim, duality, Expr>
+  operator-(const FieldExpr<rank, dim, duality, Expr>& expr)
   {
-    return ScalarMultiplyExpr<rank, dim, Expr>(-1.0, expr);
+    return ScalarMultiplyExpr<rank, dim, duality, Expr>(-1.0, expr);
   }
 
 
-  template <int rank, int dim, class Expr1, class Expr2>
+  template <int rank, int dim, Duality duality, class Expr1, class Expr2>
   class AddExpr :
-    public FieldExpr<rank, dim, AddExpr<rank, dim, Expr1, Expr2> >
+    public FieldExpr<rank, dim, duality,
+                     AddExpr<rank, dim, duality, Expr1, Expr2> >
   {
   public:
     AddExpr(const Expr1& expr1, const Expr2& expr2)
@@ -133,18 +137,19 @@ namespace icepack {
   };
 
 
-  template <int rank, int dim, class Expr1, class Expr2>
-  AddExpr<rank, dim, Expr1, Expr2>
-  operator+(const FieldExpr<rank, dim, Expr1>& expr1,
-            const FieldExpr<rank, dim, Expr2>& expr2)
+  template <int rank, int dim, Duality duality, class Expr1, class Expr2>
+  AddExpr<rank, dim, duality, Expr1, Expr2>
+  operator+(const FieldExpr<rank, dim, duality, Expr1>& expr1,
+            const FieldExpr<rank, dim, duality, Expr2>& expr2)
   {
-    return AddExpr<rank, dim, Expr1, Expr2>(expr1, expr2);
+    return AddExpr<rank, dim, duality, Expr1, Expr2>(expr1, expr2);
   }
 
 
-  template <int rank, int dim, class Expr1, class Expr2>
+  template <int rank, int dim, Duality duality, class Expr1, class Expr2>
   class SubtractExpr :
-    public FieldExpr<rank, dim, SubtractExpr<rank, dim, Expr1, Expr2> >
+    public FieldExpr<rank, dim, duality,
+                     SubtractExpr<rank, dim, duality, Expr1, Expr2> >
   {
   public:
     SubtractExpr(const Expr1& expr1, const Expr2& expr2)
@@ -171,12 +176,12 @@ namespace icepack {
   };
 
 
-  template <int rank, int dim, class Expr1, class Expr2>
-  SubtractExpr<rank, dim, Expr1, Expr2>
-  operator-(const FieldExpr<rank, dim, Expr1>& expr1,
-            const FieldExpr<rank, dim, Expr2>& expr2)
+  template <int rank, int dim, Duality duality, class Expr1, class Expr2>
+  SubtractExpr<rank, dim, duality, Expr1, Expr2>
+  operator-(const FieldExpr<rank, dim, duality, Expr1>& expr1,
+            const FieldExpr<rank, dim, duality, Expr2>& expr2)
   {
-    return SubtractExpr<rank, dim, Expr1, Expr2>(expr1, expr2);
+    return SubtractExpr<rank, dim, duality, Expr1, Expr2>(expr1, expr2);
   }
 
 } // End of namespace icepack
