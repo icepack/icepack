@@ -28,17 +28,17 @@ namespace icepack {
      \f]
      * from the ice thickness \f$h\f$ and surface elevation \f$s\f$.
      */
-    VectorField<2> driving_stress(const Field<2>& thickness) const;
+    DualVectorField<2> driving_stress(const Field<2>& thickness) const;
 
     /**
      * Compute the residual of a candidate solution to the diagnostic equation.
      * This vector is used to solve the system by Newton's method.
      */
-    VectorField<2> residual(
+    DualVectorField<2> residual(
       const Field<2>& thickness,
       const Field<2>& temperature,
       const VectorField<2>& u,
-      const VectorField<2>& tau_d
+      const DualVectorField<2>& tau_d
     ) const;
 
     /**
@@ -66,7 +66,7 @@ namespace icepack {
       const Field<2>& thickness,
       const Field<2>& temperature,
       const VectorField<2>& u0,
-      const VectorField<2>& f
+      const DualVectorField<2>& f
     ) const;
   };
 

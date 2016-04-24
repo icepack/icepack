@@ -132,13 +132,11 @@ int main(int argc, char ** argv)
    * Test computing the residual of a candidate velocity
    */
 
-  const VectorField<2> tau = ice_shelf.driving_stress(h);
-  const VectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
-  const Vector<double>& Tau = tau.get_coefficients();
-  const Vector<double>& R = r.get_coefficients();
+  const DualVectorField<2> tau = ice_shelf.driving_stress(h);
+  const DualVectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
 
   // Residual of the exact solution should be < dx^2.
-  Assert(R.l2_norm() / Tau.l2_norm() < dx*dx, ExcInternalError());
+  Assert(norm(r)/norm(tau) < dx*dx, ExcInternalError());
 
 
   /**

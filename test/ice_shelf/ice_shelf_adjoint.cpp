@@ -112,11 +112,11 @@ int main(int argc, char ** argv)
   const Field<2> theta = ice_shelf.interpolate(Temperature());
   const VectorField<2> u0 = ice_shelf.interpolate(Velocity());
 
-  const VectorField<2> tau = ice_shelf.driving_stress(h);
-  const VectorField<2> r = ice_shelf.residual(h, theta, u0, tau);
+  const DualVectorField<2> tau = ice_shelf.driving_stress(h);
+  const DualVectorField<2> r = ice_shelf.residual(h, theta, u0, tau);
   Assert(norm(r) / norm(tau) < dx*dx, ExcInternalError());
 
-  const VectorField<2> d_tau = ice_shelf.interpolate(DeltaTau());
+  const DualVectorField<2> d_tau = transpose(ice_shelf.interpolate(DeltaTau()));
   const VectorField<2> lambda = ice_shelf.adjoint_solve(h, theta, u0, d_tau);
 
   if (verbose)
