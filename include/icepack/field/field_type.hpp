@@ -15,6 +15,7 @@
 #include <deal.II/numerics/data_out.h>
 
 #include <icepack/discretization.hpp>
+#include <icepack/numerics/linear_solve.hpp>
 
 namespace icepack {
 
@@ -372,7 +373,6 @@ namespace icepack {
     }
 
 
-
     /**
      * Write out the field to a file in the `.ucd` format. See `scripts/` for
      * Python modules to read meshes and data in this format.
@@ -418,6 +418,46 @@ namespace icepack {
 
 
   /**
+   * Convert from a primal field to a dual field
+   */
+  template <int rank, int dim>
+  FieldType<rank, dim, dual> transpose(const FieldType<rank, dim, primal>& phi)
+  {
+    FieldType<rank, dim, dual> f(phi.get_discretization());
+
+    const auto& M = phi.get_field_discretization().get_mass_matrix();
+    M.vmult(f.get_coefficients(), phi.get_coefficients());
+
+    // TODO: check if this is necessary
+    phi.get_constraints().distribute(f.get_coefficients());
+
+    return f;
+  }
+
+
+
+  /**
+   * Convert from a dual field to a primal field
+   */
+  template <int rank, int dim>
+  FieldType<rank, dim, primal> transpose(const FieldType<rank, dim, dual>& f)
+  {
+    FieldType<rank, dim, primal> phi(f.get_discretization());
+
+    const auto& M = f.get_field_discretization().get_mass_matrix();
+
+    SolverControl solver_control(1000, 1.0e-10);
+    solver_control.log_result(false);
+    SolverCG<> solver(solver_control);
+    const auto id = dealii::PreconditionIdentity();
+    solver.solve(M, phi.get_coefficients(), f.get_coefficients(), id);
+    f.get_constraints().distribute(phi.get_coefficients());
+
+    return phi;
+  }
+
+
+  /**
    * Compute the L2-norm of a finite element field
    */
   template <int rank, int dim>
@@ -426,6 +466,17 @@ namespace icepack {
     const auto& field_dsc = phi.get_field_discretization();
     const auto& M = field_dsc.get_mass_matrix();
     return std::sqrt(M.matrix_norm_square(phi.get_coefficients()));
+  }
+
+
+  /**
+   * Compute the L2-norm of a dual finite element field
+   */
+  template <int rank, int dim>
+  double norm(const FieldType<rank, dim, dual>& f)
+  {
+    const FieldType<rank, dim, primal> phi = transpose(f);
+    return std::sqrt(f.get_coefficients() * phi.get_coefficients());
   }
 
 
