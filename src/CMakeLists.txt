@@ -9,7 +9,7 @@ set(SRCS
   glacier_models/depth_averaged_model.cpp
   glacier_models/ice_shelf.cpp
   glacier_models/ice_stream.cpp
-  inverse/mean_square_error.cpp
+  inverse/error_functionals.cpp
   inverse/ice_shelf.cpp
   )
 

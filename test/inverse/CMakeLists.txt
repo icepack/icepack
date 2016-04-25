@@ -1,5 +1,5 @@
 
 icepack_test(
-  mean_square_error
+  error_functionals
   inverse_ice_shelf
   )

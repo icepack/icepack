@@ -4,7 +4,7 @@
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
 #include <icepack/numerics/linear_solve.hpp>
-#include <icepack/inverse/mean_square_error.hpp>
+#include <icepack/inverse/error_functionals.hpp>
 
 using dealii::SparseMatrix;
 namespace FEValuesExtractors = dealii::FEValuesExtractors;
@@ -16,7 +16,7 @@ namespace icepack {
 
       // Compute the product of the mass matrix and the gradient of the
       // objective functional.
-      Field<2> M_gradient(
+      DualField<2> gradient(
         const IceShelf& ice_shelf,
         const Field<2>& h,
         const Field<2>& theta,
@@ -25,10 +25,10 @@ namespace icepack {
       )
       {
         const auto& discretization = ice_shelf.get_discretization();
-        Field<2> MdJ(discretization);
+        DualField<2> dJ(discretization);
 
-        const auto& s_fe = MdJ.get_fe();
-        const auto& s_dof_handler = MdJ.get_dof_handler();
+        const auto& s_fe = dJ.get_fe();
+        const auto& s_dof_handler = dJ.get_dof_handler();
 
         const QGauss<2> quad = discretization.quad();
 
@@ -83,19 +83,19 @@ namespace icepack {
           }
 
           cell->get_dof_indices(local_dof_indices);
-          MdJ.get_constraints().distribute_local_to_global(
-            cell_dJ, local_dof_indices, MdJ.get_coefficients()
+          dJ.get_constraints().distribute_local_to_global(
+            cell_dJ, local_dof_indices, dJ.get_coefficients()
           );
         }
 
-        return MdJ;
+        return dJ;
       }
 
     } // End of anonymous namespace
 
 
 
-    Field<2> gradient(
+    DualField<2> gradient(
       const IceShelf& ice_shelf,
       const Field<2>& h,
       const Field<2>& theta,
@@ -104,22 +104,10 @@ namespace icepack {
     )
     {
       const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
-      const VectorField<2> du = misfit(u, u0, sigma);
+      const DualVectorField<2> du = misfit(u, u0, sigma);
       const VectorField<2> lambda = ice_shelf.adjoint_solve(h, theta, u, du);
 
-      Field<2> MdJ = M_gradient(ice_shelf, h, theta, u, lambda);
-
-      const auto& scalar_dsc = ice_shelf.get_discretization().scalar();
-      const SparseMatrix<double>& M = scalar_dsc.get_mass_matrix();
-
-      Field<2> dJ(MdJ);
-
-      linear_solve(
-        M,
-        dJ.get_coefficients(),
-        MdJ.get_coefficients(),
-        scalar_dsc.get_constraints()
-      );
+      DualField<2> dJ = gradient(ice_shelf, h, theta, u, lambda);
 
       return dJ;
     }

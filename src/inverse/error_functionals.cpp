@@ -1,21 +1,18 @@
 
-#include <deal.II/grid/grid_tools.h>
-
 #include <icepack/field.hpp>
 
-using dealii::GridTools::volume;
 namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
 namespace icepack {
   namespace inverse {
 
-    double mean_square_error(
+    double square_error(
       const VectorField<2>& u_model,
       const VectorField<2>& u_observed,
       const Field<2>& sigma
     )
     {
-      double mse = 0.0;
+      double error = 0.0;
 
       const auto& u_fe = u_model.get_fe();
       const auto& u_dof_handler = u_model.get_dof_handler();
@@ -49,16 +46,15 @@ namespace icepack {
           const double Sigma = sigma_values[q];
           const Tensor<1, 2> dU = u_values[q] - uo_values[q];
 
-          mse += (dU * dU) / (2 * Sigma * Sigma) * dx;
+          error += (dU * dU) / (2 * Sigma * Sigma) * dx;
         }
       }
 
-      const double area = volume(discretization.get_triangulation());
-      return mse / area;
+      return error;
     }
 
 
-    VectorField<2> misfit(
+    DualVectorField<2> misfit(
       const VectorField<2>& u_model,
       const VectorField<2>& u_observed,
       const Field<2>& sigma
@@ -68,7 +64,7 @@ namespace icepack {
       const auto& u_dof_handler = u_model.get_dof_handler();
       const auto& discretization = u_model.get_discretization();
 
-      VectorField<2> du(discretization);
+      DualVectorField<2> du(discretization);
 
       const QGauss<2>& quad = discretization.quad();
 
@@ -119,8 +115,7 @@ namespace icepack {
         );
       }
 
-      const double area = volume(discretization.get_triangulation());
-      return du / area;
+      return du;
     }
 
 

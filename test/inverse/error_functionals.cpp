@@ -2,7 +2,7 @@
 #include <deal.II/grid/grid_generator.h>
 
 #include <icepack/field.hpp>
-#include <icepack/inverse/mean_square_error.hpp>
+#include <icepack/inverse/error_functionals.hpp>
 
 using namespace dealii;
 using namespace icepack;
@@ -47,9 +47,9 @@ int main()
 
   const Field<2> sigma = interpolate(discretization, ConstantFunction<2>(1.0));
 
-  const double mse = 0.125;
+  const double error = 0.125;
 
-  Assert(abs(inverse::mean_square_error(u_model, u_true, sigma) - mse) < dx*dx,
+  Assert(abs(inverse::square_error(u_model, u_true, sigma) - error) < dx*dx,
          ExcInternalError());
 
   return 0;

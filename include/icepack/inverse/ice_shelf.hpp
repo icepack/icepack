@@ -12,7 +12,7 @@ namespace icepack {
      * return the gradient of the mean-square error with respect to the
      * temperature, i.e. for use in an inverse problem.
      */
-    Field<2> gradient(
+    DualField<2> gradient(
       const IceShelf& ice_shelf,
       const Field<2>& thickness,
       const Field<2>& temperature,

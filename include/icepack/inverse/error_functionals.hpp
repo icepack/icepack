@@ -12,7 +12,7 @@ namespace icepack {
      * and observations, weighted by the estimated standard deviation `sigma`
      * of the measurements
      */
-    double mean_square_error(
+    double square_error(
       const VectorField<2>& u_model,
       const VectorField<2>& u_observed,
       const Field<2>& sigma
@@ -23,7 +23,7 @@ namespace icepack {
      * Calculate the difference between the modeled and observed velocities,
      * weighted by the standard deviation of the measurements
      */
-    VectorField<2> misfit(
+    DualVectorField<2> misfit(
       const VectorField<2>& u_model,
       const VectorField<2>& u_observed,
       const Field<2>& sigma

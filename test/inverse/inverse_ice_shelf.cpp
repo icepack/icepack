@@ -2,7 +2,7 @@
 #include <deal.II/grid/grid_generator.h>
 
 #include <icepack/physics/constants.hpp>
-#include <icepack/inverse/mean_square_error.hpp>
+#include <icepack/inverse/error_functionals.hpp>
 #include <icepack/inverse/optimization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
 
