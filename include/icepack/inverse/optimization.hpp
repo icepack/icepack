@@ -125,14 +125,14 @@ namespace icepack {
     FieldType<rank, dim> line_search(
       const Functional& F,
       const FieldType<rank, dim>& phi,
-      const FieldType<rank, dim>& df,
-      const FieldType<rank, dim>& p,
+      const FieldType<rank, dim, dual>& df,
+      const FieldType<rank, dim, primal>& p,
       const double eps
     )
     {
       // Compute the angle between the search direction and the gradient of the
       // objective functional; we need this
-      const double theta = inner_product(p, df);
+      const double theta = inner_product(df, p);
 
       // Make a lambda function giving the value of the objective along the
       // search direction.

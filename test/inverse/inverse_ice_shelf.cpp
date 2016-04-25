@@ -127,13 +127,13 @@ int main(int argc, char ** argv)
 
   // Compute the error of our crude guess
   const double area = dealii::GridTools::volume(mesh);
-  double error =
+  double mean_error =
     dist(theta_guess, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
-  double residual = inverse::mean_square_error(u, u_true, sigma);
+  double mean_residual = inverse::square_error(u, u_true, sigma) / area;
 
   if (verbose)
-    std::cout << "Initial velocity error:    " << residual << std::endl
-              << "Initial temperature error: " << error << std::endl;
+    std::cout << "Initial velocity error:    " << mean_residual << std::endl
+              << "Initial temperature error: " << mean_error << std::endl;
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -142,7 +142,7 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      return inverse::mean_square_error(u, u_true, sigma);
+      return inverse::square_error(u, u_true, sigma);
     };
 
   const auto dF =
@@ -160,11 +160,12 @@ int main(int argc, char ** argv)
   double cost = F(theta_guess);
 
   Field<2> theta(theta_guess);
+
   for (size_t k = 0; k < 10 || std::abs(cost_old - cost) > tolerance; ++k) {
     cost_old = cost;
 
-    const Field<2> df = dF(theta);
-    const Field<2> p = -rms_average(theta) * df / norm(df);
+    const DualField<2> df = dF(theta);
+    const Field<2> p = -rms_average(theta) * transpose(df) / norm(df);
     theta = inverse::line_search(F, theta, df, p, tolerance);
 
     cost = F(theta);
@@ -178,14 +179,14 @@ int main(int argc, char ** argv)
   u = ice_shelf.diagnostic_solve(h, theta, u);
 
   // Compute the final misfits in velocity and temperature.
-  residual = inverse::mean_square_error(u, u_true, sigma);
-  error = dist(theta, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
+  mean_residual = inverse::square_error(u, u_true, sigma) / area;
+  mean_error = dist(theta, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
 
   if (verbose)
-    std::cout << "Final velocity error:      " << residual << std::endl
-              << "Final temperature error:   " << error << std::endl;
+    std::cout << "Final velocity error:      " << mean_residual << std::endl
+              << "Final temperature error:   " << mean_error << std::endl;
 
-  Assert(residual < 0.05, ExcInternalError());
+  Assert(mean_residual < 0.05, ExcInternalError());
 
   if (verbose) {
     theta_true.write("theta_true.ucd", "theta");
