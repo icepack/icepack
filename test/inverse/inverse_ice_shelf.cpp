@@ -153,7 +153,7 @@ int main(int argc, char ** argv)
 
   // Stop the iteration when the improvement from one iterate to the next is
   // less than this tolerance.
-  const double tolerance = 1.0e-3;
+  const double tolerance = 1.0e-3 * area;
 
   // Use gradient descent to find the optimal value of the temperature field.
   double cost_old = std::numeric_limits<double>::infinity();
@@ -165,12 +165,13 @@ int main(int argc, char ** argv)
     cost_old = cost;
 
     const DualField<2> df = dF(theta);
-    const Field<2> p = -rms_average(theta) * transpose(df) / norm(df);
+    Field<2> p = transpose(df);
+    p *= -rms_average(theta) / norm(p);
     theta = inverse::line_search(F, theta, df, p, tolerance);
 
     cost = F(theta);
     if (verbose) {
-      std::cout << cost << std::endl;
+      std::cout << cost / area << std::endl;
       std::string filename = "theta" + std::to_string(k) + ".ucd";
       theta.write(filename, "theta");
     }
