@@ -3,6 +3,7 @@
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/inverse/error_functionals.hpp>
+#include <icepack/inverse/regularization.hpp>
 #include <icepack/inverse/optimization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
 
@@ -96,6 +97,7 @@ int main(int argc, char ** argv)
    * Make a model object and interpolate exact data
    * ---------------------------------------------- */
   IceShelf ice_shelf(mesh, 1);
+  const auto& discretization = ice_shelf.get_discretization();
 
   const Field<2> h = ice_shelf.interpolate(thickness);
 
@@ -135,6 +137,12 @@ int main(int argc, char ** argv)
     std::cout << "Initial velocity error:    " << mean_residual << std::endl
               << "Initial temperature error: " << mean_error << std::endl;
 
+  // Typical length and temperature scales for the problem. Used to fix the
+  // regularization parameter.
+  const double length_scale = length;
+  const double theta_scale = 30.0;
+  const double r = 1.0 / std::pow(theta_scale / length_scale, 2);
+
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
   // all the other data like the model object, ice thickness, etc.
@@ -142,14 +150,38 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      return inverse::square_error(u, u_true, sigma);
+      const double error = inverse::square_error(u, u_true, sigma);
+      const double regularization = r * inverse::square_gradient(theta);
+      return error + regularization;
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
-      return inverse::gradient(ice_shelf, h, theta, u_true, sigma);
+      const auto dE = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
+      const auto dR = inverse::laplacian(theta);
+      return DualField<2>(dE + r * dR);
     };
+
+
+  // Finally, we need a procedure to approximate multiplication by the inverse
+  // of the second derivative of the objective functional.
+  SparseMatrix<double> L(discretization.scalar().get_sparsity());
+  dealii::MatrixCreator::create_laplace_matrix(
+    discretization.scalar().get_dof_handler(),
+    discretization.quad(),
+    L,
+    (const Function<2> *)nullptr,
+    discretization.scalar().get_constraints()
+  );
+  L *= r;
+  L.add(1.0, discretization.scalar().get_mass_matrix());
+
+  SolverControl solver_control(1000, 1.0e-10);
+  solver_control.log_result(false);
+  SolverCG<> solver(solver_control);
+  SparseILU<double> M;
+  M.initialize(L);
 
   // Stop the iteration when the improvement from one iterate to the next is
   // less than this tolerance.
@@ -165,8 +197,14 @@ int main(int argc, char ** argv)
     cost_old = cost;
 
     const DualField<2> df = dF(theta);
+
     Field<2> p = transpose(df);
-    p *= -rms_average(theta) / norm(p);
+    solver.solve(L, p.get_coefficients(), df.get_coefficients(), M);
+    discretization.scalar().get_constraints().distribute(p.get_coefficients());
+    p *= -1.0;
+
+    if (verbose) std::cout << rms_average(p) << ", ";
+
     theta = inverse::line_search(F, theta, df, p, tolerance);
 
     cost = F(theta);

@@ -3,13 +3,12 @@
 #define ICEPACK_INVERSE_REGULARIZATION_HPP
 
 #include <icepack/field.hpp>
-#include <icepack/numerics/linear_solve.hpp>
 
 namespace icepack {
   namespace inverse {
 
     template <int rank, int dim>
-    double mean_square_gradient(const FieldType<rank, dim>& phi)
+    double square_gradient(const FieldType<rank, dim>& phi)
     {
       const auto& fe = phi.get_fe();
 
@@ -39,16 +38,15 @@ namespace icepack {
         }
       }
 
-      const double area = dealii::GridTools::volume(phi.get_triangulation());
-      return 0.5 * integral_grad_square / area;
+      return 0.5 * integral_grad_square;
     }
 
 
     template <int rank, int dim>
-    FieldType<rank, dim> laplacian(const FieldType<rank, dim>& phi)
+    FieldType<rank, dim, dual> laplacian(const FieldType<rank, dim>& phi)
     {
       const auto& discretization = phi.get_discretization();
-      FieldType<rank, dim> grad_square_phi(discretization);
+      FieldType<rank, dim, dual> grad_square_phi(discretization);
 
       const auto& fe = phi.get_fe();
       const QGauss<dim> quad = discretization.quad();
@@ -87,20 +85,7 @@ namespace icepack {
         );
       }
 
-      // This is probably a terrible idea. Figure out some way to apply the
-      // spatial filter directly to the gradient.
-      Vector<double> F(grad_square_phi.get_coefficients());
-      SolverControl solver_control(1000, 1.0e-10);
-      solver_control.log_result(false);
-      SolverCG<> solver(solver_control);
-
-      auto& DPhi = grad_square_phi.get_coefficients();
-      const auto& M = phi.get_field_discretization().get_mass_matrix();
-      solver.solve(M, DPhi, F, dealii::PreconditionIdentity());
-      grad_square_phi.get_constraints().distribute(DPhi);
-
-      const double area = dealii::GridTools::volume(phi.get_triangulation());
-      return grad_square_phi / area;
+      return grad_square_phi;
     }
 
   } // End of namespace inverse
