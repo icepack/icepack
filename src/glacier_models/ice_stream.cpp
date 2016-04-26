@@ -148,10 +148,10 @@ namespace icepack {
     VectorField<2> u(u0);
     auto boundary_values = vector_dsc.zero_boundary_values();
 
-    const VectorField<2> tau = ice_stream.driving_stress(s, h);
+    const DualVectorField<2> tau = ice_stream.driving_stress(s, h);
     const double tau_norm = norm(tau);
 
-    VectorField<2> r = ice_stream.residual(s, h, theta, beta, u, tau);
+    DualVectorField<2> r = ice_stream.residual(s, h, theta, beta, u, tau);
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
@@ -192,12 +192,10 @@ namespace icepack {
     const unsigned int max_iterations
   )
   {
-    const auto& vector_dsc = u0.get_field_discretization();
-
     VectorField<2> u(u0), u_old(u0);
     auto boundary_values = interpolate_boundary_values(u0);
 
-    VectorField<2> tau = ice_stream.driving_stress(s, h);
+    DualVectorField<2> tau = ice_stream.driving_stress(s, h);
     Vector<double>& F = tau.get_coefficients();
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
@@ -242,10 +240,10 @@ namespace icepack {
    * Diagnostic/prognostic model solves
    */
 
-  VectorField<2>
+  DualVectorField<2>
   IceStream::driving_stress(const Field<2>& s, const Field<2>& h) const
   {
-    VectorField<2> tau(discretization);
+    DualVectorField<2> tau(discretization);
 
     const auto& tau_fe = tau.get_fe();
     const auto& tau_dof_handler = tau.get_dof_handler();
@@ -254,8 +252,8 @@ namespace icepack {
 
     // Find the polynomial degree of the finite element expansion and make
     // quadrature rules for cells and faces with sufficient accuracy
-    const QGauss<2>& quad = discretization.quad();
-    const QGauss<1>& f_quad = discretization.face_quad();
+    const QGauss<2> quad = discretization.quad();
+    const QGauss<1> f_quad = discretization.face_quad();
 
     // Get FEValues objects and an extractor for the driving stress and the
     // thickness/surface elevation fields.
@@ -345,16 +343,16 @@ namespace icepack {
   }
 
 
-  VectorField<2> IceStream::residual(
+  DualVectorField<2> IceStream::residual(
     const Field<2>& s,
     const Field<2>& h,
     const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u,
-    const VectorField<2>& f
+    const DualVectorField<2>& f
   ) const
   {
-    VectorField<2> r(f);
+    DualVectorField<2> r(f);
 
     const auto& u_fe = u.get_fe();
     const auto& u_dof_handler = u.get_dof_handler();
@@ -488,13 +486,13 @@ namespace icepack {
     const Field<2>& theta,
     const Field<2>& beta,
     const VectorField<2>& u0,
-    const VectorField<2>& rhs
+    const DualVectorField<2>& rhs
   ) const
   {
     VectorField<2> lambda(discretization);
     const auto& vector_dsc = lambda.get_field_discretization();
 
-    VectorField<2> f(rhs);
+    DualVectorField<2> f(rhs);
 
     Vector<double>& Lambda = lambda.get_coefficients();
     Vector<double>& F = f.get_coefficients();

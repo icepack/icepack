@@ -283,13 +283,11 @@ int main(int argc, char ** argv)
    * Test computing the model residual
    */
 
-  const VectorField<2> tau = ice_stream.driving_stress(s, h);
-  const VectorField<2> r = ice_stream.residual(s, h, theta, beta, u_true, tau);
-  const Vector<double>& Tau = tau.get_coefficients();
-  const Vector<double>& R = r.get_coefficients();
+  const DualVectorField<2> tau = ice_stream.driving_stress(s, h);
+  const DualVectorField<2> r = ice_stream.residual(s, h, theta, beta, u_true, tau);
 
   // Residual of the exact solution should be < dx^2.
-  Assert(R.l2_norm() / Tau.l2_norm() < dx * dx, ExcInternalError());
+  Assert(norm(r)/norm(tau) < dx*dx, ExcInternalError());
 
 
   /**
@@ -298,7 +296,7 @@ int main(int argc, char ** argv)
 
   const VectorField<2> u =
     ice_stream.diagnostic_solve(s, h, theta, beta, u_init);
-  Assert(dist(u, u_true)/norm(u_true) < dx * dx, ExcInternalError());
+  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
 
 
   /**
