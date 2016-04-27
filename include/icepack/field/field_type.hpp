@@ -106,27 +106,50 @@ namespace icepack {
    * element expansion. It is used as the return and argument types of all
    * glacier model objects (see `include/icepack/glacier_models`).
    *
-   * Fields are distinguished by: their tensor rank, i.e. 0 for a scalar field,
-   * 1 for a vector field; the dimension of the ambient space; and whether the
-   * field is primal or dual, i.e. whether it is in the function space
-   * \f$H^1\f$ or in its dual space \f$H^{-1}\f$.
+   * Fields are distinguished by:
+   *   - their tensor rank, i.e. 0 for a scalar field, 1 for a vector field
+   *   - the dimension of the ambient space
+   *   - whether the field is primal or dual
    *
-   * Typically, differential operators such as the Laplacian are mappings from
-   * the primal space to the dual space:
+   * Primal fields are the kind you are most familiar with, i.e. you can
+   * evaluate them at a point. Dual fields are something that can be the right-
+   * hand side of a PDE, e.g. the product of the mass matrix and a primal field
+   * or the product of a differential operator and a primal field. The math
+   * behind this follows, but if you aren't interested in that, you can get by
+   * knowing that you will probably never need a dual field. The glacier model
+   * classes' key functionalities are to solve the diagnostic and prognostic
+   * equations for each model, and these routines all return primal fields.
+   *
+   * In finite element analysis, one uses a weak formulation of a PDE so that
+   * its solution can be expressed in terms of functions have fewer derivatives
+   * than the strong form mandates. For example, the Laplace operator is viewed
+   * as a map from the space \f$H^1\f$ of functions with square-integrable
+   * derivatives to its dual space \f$H^{-1}\f$. We cannot compute the value of
+   * \f$-\nabla^2\phi\f$ for some field \f$\phi\f$, but we can compute the
+   * integral
    \f[
-   L : H^1 \to H^{-1}
+   L[\phi, \psi] = -\int\nabla^2\phi\cdot\psi dx
+   = \int\nabla\phi\cdot\nabla\psi dx
    \f]
-   * and the product \f$Lu\f$ is defined in terms of how it acts on elements of
-   * the space \f$H^1\f$:
-   \f[
-   \langle Lu, v\rangle = \int_\Omega\nabla u\cdot\nabla v\hspace{2pt}dx.
-   \f]
-   * The distinction between primal and dual fields is useful because it is
-   * very often unclear whether the result of some computation is implicitly
-   * multiplied by the finite element mass matrix or not, a common source of
+   * for any field \f$\psi\f$ by pushing one of the derivatives onto \f$\psi\f$
+   * using the divergence theorem. In other words, the Laplacian of a field is
+   * thought of instead as a linear functional on the space of physical fields.
+   *
+   * Some procedures naturally give elements of \f$H^1\f$ as a result, while
+   * others return elements of \f$H^{-1}\f$. For example, computing the driving
+   * stress resulting from a given thickness and surface elevation gives a
+   * dual field; computing the derivative of a nonlinear functional gives a
+   * dual field; solving the diagnostic equations for a given driving stress
+   * returns a primal field. In general, taking derivatives maps a primal to a
+   * dual field, while solving a PDE takes a dual field to a primal field.
+   *
+   * The distinction between primal and dual fields is useful because, without
+   * it, it might be unclear whether the result of some computation has a
+   * factor of the finite element mass matrix or not, a common source of
    * mistakes. By introducing a type-level distinction between primal and dual
-   * fields, we guarantee that the dual fields are implicitly multiplied by the
-   * mass matrix, and primal fields are not.
+   * fields, we guarantee that the dual fields are those which have a factor of
+   * the mass matrix, and primal fields do not. Moreover, dual fields have
+   * different units: an extra factor of area in 2D and volume in 3D.
    */
   template <int rank, int dim, Duality duality = primal>
   class FieldType :

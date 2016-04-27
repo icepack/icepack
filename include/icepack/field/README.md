@@ -16,6 +16,21 @@ We only use the general form `FieldType` for operations (e.g. interpolation or a
 Every field is defined with respect to some `Discretization` object, which aggregates various sundry data such as a degree-of-freedom handler, finite element, etc.
 See the header `discretization.hpp`.
 
+In addition to the spatial dimension and tensor rank, `FieldType` has one additional template argument, an enum `Duality` which can take one of the values `primal` or `dual`.
+Primal fields are the ones you are most familiar with; you can evaluate them at a point.
+Since they are the most common case, the duality argument defaults to `primal`.
+Dual fields often arise as the product of a differential operator, such as the Laplacian, and a primal field.
+This distinction is enforced in order to avoid hard-to-detect errors that can occur by forgetting to multiply by either the mass matrix or its inverse.
+As for primal fields, we provide the type aliases
+
+    DualField<dim> = FieldType<0, dim, dual>
+    DualVectorField<dim> = FieldType<1, dim, dual>
+
+for succinctness.
+For most usage of icepack, you will probably never have to use a `DualField` or a `DualVectorField`.
+See the full documentation for `FieldType` for more explanation of the underlying mathematics.
+
+
 ### Contents
 
 * `field_type.hpp`: definition of the `FieldType` class template
