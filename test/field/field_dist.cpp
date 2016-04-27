@@ -47,16 +47,35 @@ int main()
 
   const Discretization<2> discretization(triangulation, 1);
 
+  // Construct finite element fields interpolating two trigonometric functions
   const Field<2> phi1 = interpolate(discretization, Phi1<2>());
   const Field<2> phi2 = interpolate(discretization, Phi2<2>());
 
-  const double exact_distance = 1.0;
+  // Check that the finite element fields are approximately orthogonal
+  double exact_inner_product = 0.0;
+  if (abs(inner_product(phi1, phi2) - exact_inner_product) > dx) return 1;
 
+  // Check that the distance between the two fields of unit norm is 1
+  const double exact_distance = 1.0;
   if (abs(dist(phi1, phi2) - exact_distance) > dx) return 1;
 
-  const double exact_inner_product = 0.0;
+  // Compute the Laplacian of one of the fields; this is a dual field
+  SparseMatrix<double> L(discretization.scalar().get_sparsity());
+  dealii::MatrixCreator::create_laplace_matrix(
+    discretization.scalar().get_dof_handler(),
+    discretization.quad(),
+    L,
+    (const Function<2> *)nullptr,
+    discretization.scalar().get_constraints()
+  );
 
-  if (abs(inner_product(phi1, phi2) - exact_inner_product) > dx) return 1;
+  DualField<2> laplacian_phi1(transpose(phi1));
+  L.vmult(laplacian_phi1.get_coefficients(), phi1.get_coefficients());
+
+  // Check that the fields are also conjugate w.r.t. the Laplace operator
+  exact_inner_product = 0.0;
+  if (abs(inner_product(laplacian_phi1, phi2) - exact_inner_product) > dx)
+    return 1;
 
   return 0;
 }
