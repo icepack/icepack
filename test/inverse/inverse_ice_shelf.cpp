@@ -141,7 +141,10 @@ int main(int argc, char ** argv)
   // regularization parameter.
   const double length_scale = length;
   const double theta_scale = 30.0;
-  const double r = 1.0 / std::pow(theta_scale / length_scale, 2);
+  const double alpha = length_scale / theta_scale;
+
+  // Create an object for computing the regularization functional
+  const inverse::SquareGradient<0, 2> regularization(discretization, alpha);
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -150,38 +153,16 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      const double error = inverse::square_error(u, u_true, sigma);
-      const double regularization = r * inverse::square_gradient(theta);
-      return error + regularization;
+      return inverse::square_error(u, u_true, sigma) + regularization(theta);
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
       const auto dE = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
-      const auto dR = inverse::laplacian(theta);
-      return DualField<2>(dE + r * dR);
+      const auto dR = regularization.derivative(theta);
+      return DualField<2>(dE + dR);
     };
-
-
-  // Finally, we need a procedure to approximate multiplication by the inverse
-  // of the second derivative of the objective functional.
-  SparseMatrix<double> L(discretization.scalar().get_sparsity());
-  dealii::MatrixCreator::create_laplace_matrix(
-    discretization.scalar().get_dof_handler(),
-    discretization.quad(),
-    L,
-    (const Function<2> *)nullptr,
-    discretization.scalar().get_constraints()
-  );
-  L *= r;
-  L.add(1.0, discretization.scalar().get_mass_matrix());
-
-  SolverControl solver_control(1000, 1.0e-10);
-  solver_control.log_result(false);
-  SolverCG<> solver(solver_control);
-  SparseILU<double> M;
-  M.initialize(L);
 
   // Stop the iteration when the improvement from one iterate to the next is
   // less than this tolerance.
@@ -197,11 +178,7 @@ int main(int argc, char ** argv)
     cost_old = cost;
 
     const DualField<2> df = dF(theta);
-
-    Field<2> p = transpose(df);
-    solver.solve(L, p.get_coefficients(), df.get_coefficients(), M);
-    discretization.scalar().get_constraints().distribute(p.get_coefficients());
-    p *= -1.0;
+    const Field<2> p = -regularization.filter(theta, df);
 
     if (verbose) std::cout << rms_average(p) << ", ";
 
