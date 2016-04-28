@@ -325,7 +325,7 @@ namespace icepack {
      */
     const FieldDiscretization<rank, dim>& get_field_discretization() const
     {
-      return (*discretization).field_discretization(fe_field<rank, dim>());
+      return get<rank>(*discretization);
     }
 
 
@@ -424,7 +424,7 @@ namespace icepack {
      * Reference to the Discretization object which aggregates all of the data
      * needed to define a finite element discretization.
      */
-    SmartPointer<const Discretization<dim>> discretization;
+    SmartPointer<const Discretization<dim> > discretization;
 
     /**
      * Coefficients of the finite element expansion of the field.

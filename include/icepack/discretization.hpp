@@ -176,13 +176,6 @@ namespace icepack {
 
     Discretization(const Discretization<dim>&) = delete;
 
-    template <int rank>
-    const FieldDiscretization<rank, dim>&
-    field_discretization(const fe_field<rank, dim>&) const
-    {
-      return *std::get<rank>(ranks);
-    }
-
     const Scalar& scalar() const
     {
       return *std::get<0>(ranks);
@@ -213,11 +206,21 @@ namespace icepack {
       return p;
     }
 
+    template <int rank, int _dim> friend
+    const FieldDiscretization<rank, _dim>& get(const Discretization<_dim>& dsc);
+
   protected:
     const unsigned int p;
     SmartPointer<const Triangulation<dim>> tria;
     std::tuple<std::unique_ptr<Scalar>, std::unique_ptr<Vector>> ranks;
   };
+
+
+  template <int rank, int dim>
+  const FieldDiscretization<rank, dim>& get(const Discretization<dim>& dsc)
+  {
+    return *std::get<rank>(dsc.ranks);
+  }
 
 } // End of namespace icepack
 

@@ -19,9 +19,12 @@ namespace icepack {
       update_normal_vectors | update_JxW_values;
   }
 
-  // Explicitly instantiate some templates that we'll need in thecore library
+  // Explicitly instantiate some templates that we'll need in the core library
   // code anyway
   template class FieldDiscretization<0, 2>;
   template class FieldDiscretization<1, 2>;
   template class Discretization<2>;
+
+  template const FieldDiscretization<0, 2>& get(const Discretization<2>& dsc);
+  template const FieldDiscretization<1, 2>& get(const Discretization<2>& dsc);
 }
