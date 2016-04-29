@@ -144,7 +144,8 @@ int main(int argc, char ** argv)
   const double alpha = length_scale / theta_scale;
 
   // Create an object for computing the regularization functional
-  const inverse::SquareGradient<0, 2> regularization(discretization, alpha);
+  //const inverse::SquareGradient<0, 2> square_gradient(discretization, alpha);
+  const inverse::TotalVariation<0, 2> total_variation(discretization, alpha);
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -153,14 +154,14 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      return inverse::square_error(u, u_true, sigma) + regularization(theta);
+      return inverse::square_error(u, u_true, sigma) + total_variation(theta);
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
       const auto dE = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
-      const auto dR = regularization.derivative(theta);
+      const auto dR = total_variation.derivative(theta);
       return DualField<2>(dE + dR);
     };
 
@@ -178,7 +179,7 @@ int main(int argc, char ** argv)
     cost_old = cost;
 
     const DualField<2> df = dF(theta);
-    const Field<2> p = -regularization.filter(theta, df);
+    const Field<2> p = -total_variation.filter(theta, df);
 
     if (verbose) std::cout << rms_average(p) << ", ";
 
