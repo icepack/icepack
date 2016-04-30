@@ -12,6 +12,15 @@ namespace icepack {
 
     using dealii::linear_operator;
 
+    /**
+     * This class contains procedures for regularizing the solution of an
+     * inverse problem by penalizing the square gradient:
+     \f[
+     R[u; \alpha] = \frac{\alpha^2}{2}\int_\Omega|\nabla u|^2 dx.
+     \f]
+     * Penalizing the square gradient is equivalent to applying a low-pass
+     * filter to the solution with smoothing length \f$\alpha\f$.
+     */
     template <int rank, int dim>
     class SquareGradient
     {
@@ -34,11 +43,18 @@ namespace icepack {
         );
       }
 
+      /**
+       * Evaluate the integrated square gradient of a field.
+       */
       double operator()(const FieldType<rank, dim>& u) const
       {
         return 0.5 * L.matrix_norm_square(u.get_coefficients());
       }
 
+      /**
+       * Compute the derivative of the square gradient of a field, i.e. the
+       * Laplace operator applied to the field
+       */
       FieldType<rank, dim, dual>
       derivative(const FieldType<rank, dim>& u) const
       {
@@ -47,6 +63,10 @@ namespace icepack {
         return laplacian_u;
       }
 
+      /**
+       * Compute the field \f$u\f$ such that \f$u^*\f$ is closest to \f$f\f$,
+       * subject to a penalty on the square gradient
+       */
       FieldType<rank, dim>
       filter(
         const FieldType<rank, dim, primal>&,
@@ -73,6 +93,25 @@ namespace icepack {
     };
 
 
+    /**
+     * This class contains procedures for regularizing the solution of an
+     * inverse problem by penalizing the total variation:
+     \f[
+     R[u; \alpha] =
+     \int_\Omega\left(\sqrt{\alpha^2|\nabla u|^2 + 1} - 1\right)dx
+     \f]
+     * Strictly speaking, this is the pseudo-Heuber total variation, which is
+     * rounded off in order to make the functional differentiable.
+     *
+     * The total variation of a function can be visualized as the lateral
+     * surface area of its graph. Like the square gradient functional,
+     * penalizing the total variation is an effective way to eliminated
+     * spurious oscillations in the solution of an inverse problem constrained
+     * by noisy data. Unlike low-pass filtering, however, total variation
+     * filtering does not remove all steep gradients or jump discontinuities.
+     * Instead, it tends to confine these interfaces to as small a perimeter as
+     * possible where they do exist.
+     */
     template <int rank, int dim>
     class TotalVariation
     {
@@ -82,6 +121,9 @@ namespace icepack {
         alpha(alpha)
       {}
 
+      /**
+       * Compute the total variation of a field.
+       */
       double operator()(const FieldType<rank, dim>& u) const
       {
         using gradient_type = typename FieldType<rank, dim>::gradient_type;
@@ -114,6 +156,12 @@ namespace icepack {
         return total_variation;
       }
 
+
+      /**
+       * Compute the derivative of the total variation of a field \f$u\f$; the
+       * derivative of the total variation is a nonlinear elliptic operator,
+       * which is related to the minimal surface equation, applied to \f$u\f$.
+       */
       FieldType<rank, dim, dual>
       derivative(const FieldType<rank, dim>& u) const
       {
@@ -169,12 +217,23 @@ namespace icepack {
       }
 
 
+      /**
+       * Apply a filter to the dual field \f$f\f$ which matches it as best as
+       * possible subject to a constraint on the total variation of the output,
+       * which is linearized around an input field \f$u\f$.
+       *
+       * The Hessian of the total variation is an anisotropic elliptic operator
+       * where the anisotropy is aligned with the gradient of the input field
+       * \f$u\f$.
+       */
       FieldType<rank, dim>
       filter(
         const FieldType<rank, dim, primal>& u,
         const FieldType<rank, dim, dual>& f
       ) const
       {
+        // TODO: use matrix-free method w. multigrid + Chebyshev preconditioner
+
         using value_type = typename FieldType<rank, dim>::value_type;
         using gradient_type = typename FieldType<rank, dim>::gradient_type;
 

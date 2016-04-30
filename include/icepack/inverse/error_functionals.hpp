@@ -5,6 +5,11 @@
 #include <icepack/field.hpp>
 
 namespace icepack {
+  /**
+   * This namespace contains procedures for the solution of inverse problems
+   * for e.g. basal shear stress and ice temperature, which are not observable
+   * directly through remote sensing methods.
+   */
   namespace inverse {
 
     /**
