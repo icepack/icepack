@@ -12,6 +12,41 @@ using namespace icepack;
 
 using Fn = dealii::ScalarFunctionFromFunctionObject<2>;
 
+
+template <class Regularizer>
+bool test_regularizer(
+  const Discretization<2>& dsc,
+  const double alpha,
+  const double tolerance
+)
+{
+  const Regularizer regularizer(dsc, alpha);
+
+  // Check that filtering a constant function gives the same function back
+  {
+    const Field<2> q = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
+    const Field<2> p = regularizer.filter(q, transpose(q));
+    if (std::abs(regularizer(q)) > tolerance) return false;
+    if (dist(p, q) / norm(q) > tolerance) return false;
+  }
+
+  // Check that filtering a noisy field reduces its energy
+  {
+    std::random_device device;
+    std::mt19937 rng(device());
+    std::normal_distribution<> normal_random_variable(0, 1);
+
+    Field<2> z(dsc);
+    for (auto& v: z.get_coefficients()) v = normal_random_variable(rng);
+
+    const Field<2> p = regularizer.filter(z, transpose(z));
+    if (regularizer(p) > regularizer(z)) return false;
+  }
+
+  return true;
+}
+
+
 int main()
 {
   const SphericalManifold<2> circle(Point<2>(0.0, 0.0));
@@ -22,35 +57,18 @@ int main()
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
-  const double dx = dealii::GridTools::minimal_cell_diameter(triangulation);
-
   const Discretization<2> dsc(triangulation, 1);
 
-  // Create a regularization object for low-pass filtering
+  const double dx = dealii::GridTools::minimal_cell_diameter(triangulation);
+
+  // Pick a smoothing length for the regularizers
   const double alpha = 0.125;
-  inverse::SquareGradient<0, 2> regularizer(dsc, alpha);
 
-  // Check that filtering a constant function gives the same function back
-  {
-    const Field<2> q = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
-    Assert(std::abs(regularizer(q)) < dx*dx, ExcInternalError());
+  if (not test_regularizer<inverse::SquareGradient<0, 2> >(dsc, alpha, dx*dx))
+    return 1;
 
-    const Field<2> p = regularizer.filter(q, transpose(q));
-    Assert(dist(p, q) / norm(q) < dx*dx, ExcInternalError());
-  }
-
-  // Check that filtering an arbitrary function reduces its energy
-  {
-    std::random_device device;
-    std::mt19937 rng(device());
-    std::normal_distribution<> normal_random_variable(0, 1);
-
-    Field<2> z(dsc);
-    for (auto& v: z.get_coefficients()) v = normal_random_variable(rng);
-
-    const Field<2> p = regularizer.filter(z, transpose(z));
-    Assert(regularizer(p) < regularizer(z), ExcInternalError());
-  }
+  if (not test_regularizer<inverse::TotalVariation<0, 2> >(dsc, alpha, dx*dx))
+    return 1;
 
   return 0;
 }
