@@ -78,8 +78,8 @@ namespace icepack {
 
     const auto& h_dof_handler = dh.get_dof_handler();
 
-    const QGauss<2>& quad = discretization.quad();
-    const QGauss<1>& f_quad = discretization.face_quad();
+    const QGauss<2> quad = discretization.quad();
+    const QGauss<1> f_quad = discretization.face_quad();
 
     FEValues<2> h_fe_values(h_fe, quad, flags);
     FEFaceValues<2> h_fe_face_values(h_fe, f_quad, face_flags);

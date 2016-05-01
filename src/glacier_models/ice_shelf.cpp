@@ -36,7 +36,7 @@ namespace icepack {
     const auto& u_fe = u0.get_fe();
     const auto& u_dof_handler = u0.get_dof_handler();
 
-    const QGauss<2>& quad = ice_shelf.get_discretization().quad();
+    const QGauss<2> quad = ice_shelf.get_discretization().quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -265,7 +265,7 @@ namespace icepack {
     const auto& u_fe = u.get_fe();
     const auto& u_dof_handler = u.get_dof_handler();
 
-    const QGauss<2>& quad = discretization.quad();
+    const QGauss<2> quad = discretization.quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
