@@ -1,5 +1,5 @@
 
-icepack_test(
+icepack_tests(
   field
   field_dist
   field_move

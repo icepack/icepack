@@ -1,2 +1,4 @@
 
-icepack_test(ice_stream_diagnostic)
+icepack_tests(
+  ice_stream_diagnostic
+  )

@@ -1,5 +1,9 @@
 
+#include <fstream>
+
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_refinement.h>
+#include <deal.II/grid/grid_out.h>
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
@@ -84,12 +88,27 @@ public:
 };
 
 
+std::set<std::string> get_cmdline_args(int argc, char ** argv)
+{
+  std::set<std::string> args;
+  for (int k = 0; k < argc; ++k)
+    args.insert(std::string(argv[k]));
+
+  return args;
+}
+
 
 int main(int argc, char ** argv)
 {
-  const bool verbose = argc == 2 &&
-    (strcmp(argv[1], "-v") == 0 ||
-     strcmp(argv[1], "--verbose") == 0);
+  /**
+   * Parse command-line arguments
+   */
+  std::set<std::string> args = get_cmdline_args(argc, argv);
+
+  const bool verbose = args.count("-v") || args.count("--verbose");
+  const bool refined = args.count("--refined");
+  const int q2 = args.count("--q2");
+
 
   /**
    * Create a triangulation on which to solve PDEs
@@ -108,19 +127,45 @@ int main(int argc, char ** argv)
         cell->face(face_number)->set_boundary_id(1);
   }
 
-  const unsigned int num_levels = 5;
+  // Refine the grid 5 times if we're using piecewise bilinear elements, and
+  // only 4 times if we're using piecewise biquadratic.
+  const unsigned int num_levels = 5 - q2;
   triangulation.refine_global(num_levels);
 
-  // Dimensionless mesh resolution; finite element solution is only
-  // O(dx^2) accurate.
+  // Dimensionless mesh resolution; the finite element solution is accurate to
+  // order O(dx^{p+1}), where dx is the mesh resolution and p is the polynomial
+  // order, i.e. 1 if we're using piecewise bilinear elements and 2 if we're
+  // using piecewise biquadratic.
   const double dx = 1.0 / (1 << num_levels);
+
+  // If this test is using a non-uniform grid, refine everything on the right
+  // side of the domain.
+  if (refined) {
+    Vector<double> refinement_criteria(triangulation.n_active_cells());
+    for (const auto cell: triangulation.cell_iterators()) {
+      const unsigned int index = cell->index();
+      Point<2> x = cell->barycenter();
+      refinement_criteria[index] = x[0] / length;
+    }
+
+    GridRefinement::refine(triangulation, refinement_criteria, 0.5);
+    triangulation.execute_coarsening_and_refinement();
+
+    if (verbose) {
+      GridOut grid_out;
+      std::ofstream out("grid.msh");
+      grid_out.write_msh(triangulation, out);
+    }
+  }
 
 
   /**
    * Create a model object and input data
    */
 
-  IceShelf ice_shelf(triangulation, 1);
+  // The polynomial order is 1 by default, 2 if we use biquadratic elements
+  const unsigned int p = 1 + q2;
+  IceShelf ice_shelf(triangulation, p);
 
   Field<2> h = ice_shelf.interpolate(Thickness());
   Field<2> theta = ice_shelf.interpolate(Temperature());
@@ -144,7 +189,7 @@ int main(int argc, char ** argv)
    */
 
   const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
-  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
+  Assert(dist(u, u_true)/norm(u_true) < std::pow(dx, p+1), ExcInternalError());
 
 
   /**
