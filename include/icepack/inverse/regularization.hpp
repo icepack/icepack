@@ -10,7 +10,46 @@
 namespace icepack {
   namespace inverse {
 
-    using dealii::linear_operator;
+    /**
+     * Base class for all regularization methods
+     */
+    template <int rank, int dim>
+    class Regularizer
+    {
+    public:
+      /**
+       * Compute the cost associated with this regularization method for a
+       * field, i.e. how much it deviates from some defintion of smoothness
+       */
+      virtual double
+      operator()(const FieldType<rank, dim>& u) const = 0;
+
+      /**
+       * Compute the derivative of the regularization functional about some
+       * input field; this is a linear operator.
+       */
+      virtual FieldType<rank, dim, dual>
+      derivative(const FieldType<rank, dim>& u) const = 0;
+
+      /**
+       * Given a dual field \f$f\f$ and a field \f$u\f$, compute the Hessian
+       * of the regularization functional at \f$u\f$ and use this operator to
+       * filter \f$\f$ for smoothness.
+       */
+      virtual FieldType<rank, dim>
+      filter(
+        const FieldType<rank, dim>& u,
+        const FieldType<rank, dim, dual>& f
+      ) const = 0;
+
+      /**
+       * Implementations need to be able to override the destructor for any
+       * resource management
+       */
+      virtual ~Regularizer() {}
+    };
+
+
 
     /**
      * This class contains procedures for regularizing the solution of an
@@ -22,7 +61,7 @@ namespace icepack {
      * filter to the solution with smoothing length \f$\alpha\f$.
      */
     template <int rank, int dim>
-    class SquareGradient
+    class SquareGradient : public Regularizer<rank, dim>
     {
     public:
       SquareGradient(const Discretization<dim>& dsc, const double alpha)
@@ -73,6 +112,8 @@ namespace icepack {
         const FieldType<rank, dim, dual>& f
       ) const
       {
+        using dealii::linear_operator;
+
         FieldType<rank, dim> u(f.get_discretization());
 
         const auto A = linear_operator(*M) + linear_operator(L);
@@ -91,6 +132,7 @@ namespace icepack {
       SparseMatrix<double> L;
       SmartPointer<const SparseMatrix<double> > M;
     };
+
 
 
     /**
@@ -113,7 +155,7 @@ namespace icepack {
      * possible where they do exist.
      */
     template <int rank, int dim>
-    class TotalVariation
+    class TotalVariation : public Regularizer<rank, dim>
     {
     public:
       TotalVariation(const Discretization<dim>&, const double alpha)

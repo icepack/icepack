@@ -50,12 +50,26 @@ public:
 };
 
 
+std::set<std::string> get_cmdline_args(int argc, char ** argv)
+{
+  std::set<std::string> args;
+  for (int k = 0; k < argc; ++k)
+    args.insert(std::string(argv[k]));
+
+  return args;
+}
+
 
 int main(int argc, char ** argv)
 {
-  const bool verbose = (argc == 2) &&
-    (strcmp(argv[1], "-v") == 0 ||
-     strcmp(argv[1], "--verbose") == 0);
+  /**
+   * Parse command-line arguments
+   */
+  std::set<std::string> args = get_cmdline_args(argc, argv);
+
+  const bool verbose = args.count("-v") || args.count("--verbose");
+  const bool tv = args.count("-tv") || args.count("--total-variation");
+
 
   /* ---------------
    * Generate a mesh
@@ -143,9 +157,16 @@ int main(int argc, char ** argv)
   const double theta_scale = 30.0;
   const double alpha = length_scale / theta_scale;
 
-  // Create an object for computing the regularization functional
-  //const inverse::SquareGradient<0, 2> square_gradient(discretization, alpha);
-  const inverse::TotalVariation<0, 2> total_variation(discretization, alpha);
+  // Create an object for computing the regularization functional.
+  // Depending on command-line arguments, this is either the square gradient
+  // or the total variation.
+  std::unique_ptr<inverse::Regularizer<0, 2> > regularizer;
+  if (tv)
+    regularizer =
+      std::make_unique<inverse::TotalVariation<0, 2> >(discretization, alpha);
+  else
+    regularizer =
+      std::make_unique<inverse::SquareGradient<0, 2> >(discretization, alpha);
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -154,14 +175,14 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       u = ice_shelf.diagnostic_solve(h, theta, u);
-      return inverse::square_error(u, u_true, sigma) + total_variation(theta);
+      return inverse::square_error(u, u_true, sigma) + (*regularizer)(theta);
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
       const auto dE = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
-      const auto dR = total_variation.derivative(theta);
+      const auto dR = regularizer->derivative(theta);
       return DualField<2>(dE + dR);
     };
 
@@ -179,7 +200,7 @@ int main(int argc, char ** argv)
     cost_old = cost;
 
     const DualField<2> df = dF(theta);
-    const Field<2> p = -total_variation.filter(theta, df);
+    const Field<2> p = -regularizer->filter(theta, df);
 
     if (verbose) std::cout << rms_average(p) << ", ";
 
