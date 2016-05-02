@@ -9,7 +9,7 @@
 #include <deal.II/base/tensor_function.h>
 
 namespace icepack {
-  namespace util {
+  namespace internal {
 
     using dealii::Point;
     using dealii::Tensor;

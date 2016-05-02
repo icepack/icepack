@@ -9,10 +9,12 @@
 const unsigned int num_levels = 3;
 const double dx = 1.0 / (1 << num_levels);
 
-using namespace dealii;
 using namespace icepack;
 using std::abs;
 
+using dealii::Point;
+using dealii::Tensor;
+using dealii::Function;
 
 template <int dim>
 class F : public Function<dim>
@@ -43,15 +45,15 @@ public:
 int main()
 {
   const Point<2> p1(0.0, 0.0), p2(1.0, 1.0);
-  Triangulation<2> triangulation;
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
+  dealii::Triangulation<2> triangulation;
+  dealii::GridGenerator::hyper_rectangle(triangulation, p1, p2);
   triangulation.refine_global(num_levels);
 
   const F<2> f;
   const G<2> g;
 
   // Create a TensorFunction from two scalar Functions
-  const auto psi = util::TensorFunctionFromScalarFunctions<2>(f, g);
+  const auto psi = internal::TensorFunctionFromScalarFunctions<2>(f, g);
 
   // Generate a bunch of random poins in the unit square
   std::random_device device;
@@ -75,7 +77,7 @@ int main()
     w[0] = f.value(p);
     w[1] = g.value(p);
 
-    Assert((v - w).norm() < 1.0e-15, ExcInternalError());
+    Assert((v - w).norm() < 1.0e-15, dealii::ExcInternalError());
   }
 
   return 0;

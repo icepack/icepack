@@ -57,7 +57,8 @@ namespace icepack {
     const Function<2>& phi1
   ) const
   {
-    const auto phi = util::TensorFunctionFromScalarFunctions<2>(phi0, phi1);
+    const auto phi =
+      internal::TensorFunctionFromScalarFunctions<2>(phi0, phi1);
     return interpolate(phi);
   }
 

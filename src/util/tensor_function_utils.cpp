@@ -2,7 +2,7 @@
 #include <icepack/util/tensor_function_utils.hpp>
 
 namespace icepack {
-  namespace util {
+  namespace internal {
 
     // Cue unabashed boilerplate.
 

@@ -45,23 +45,23 @@ namespace icepack {
   }
 
 
-  /**
-   * This struct is just for getting the right finite element class for vector
-   * or scalar discretizations as the case may be.
-   */
-  template <int rank, int dim> struct fe_field;
+  // This struct is just for getting the right finite element class for vector
+  // or scalar discretizations as the case may be.
+  namespace internal {
+    template <int rank, int dim> struct fe_field;
 
-  template <int dim> struct fe_field<0, dim>
-  {
-    using FE = FE_Q<dim>;
-    static FE fe(const size_t p) { return FE(p); }
-  };
+    template <int dim> struct fe_field<0, dim>
+    {
+      using FE = FE_Q<dim>;
+      static FE fe(const size_t p) { return FE(p); }
+    };
 
-  template <int dim> struct fe_field<1, dim>
-  {
-    using FE = FESystem<dim>;
-    static FE fe(const size_t p) { return FE(FE_Q<dim>(p), dim); }
-  };
+    template <int dim> struct fe_field<1, dim>
+    {
+      using FE = FESystem<dim>;
+      static FE fe(const size_t p) { return FE(FE_Q<dim>(p), dim); }
+    };
+  }
 
 
   /**
@@ -72,7 +72,7 @@ namespace icepack {
   class FieldDiscretization
   {
   public:
-    using FE = typename fe_field<rank, dim>::FE;
+    using FE = typename internal::fe_field<rank, dim>::FE;
 
     /*
      * Constructors & destructor
@@ -80,7 +80,7 @@ namespace icepack {
 
     FieldDiscretization(const Triangulation<dim>& tria, const unsigned int p)
       :
-      fe(fe_field<rank, dim>::fe(p)),
+      fe(internal::fe_field<rank, dim>::fe(p)),
       dof_handler(tria)
     {
       dof_handler.distribute_dofs(fe);
