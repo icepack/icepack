@@ -8,6 +8,7 @@
 #include <deal.II/lac/solver_bicgstab.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_ilu.h>
+#include <deal.II/lac/sparse_direct.h>
 
 namespace icepack {
 
@@ -18,6 +19,7 @@ namespace icepack {
   using dealii::SolverCG;
   using dealii::SolverBicgstab;
   using dealii::SparseILU;
+  using dealii::SparseDirectUMFPACK;
 
   /**
    * Solve a linear system using sparse ILU and some Krylov subspace method,

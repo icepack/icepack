@@ -4,7 +4,8 @@ Finite element modeling of glaciers and ice sheets
 This library is for simulating the flow of glaciers and ice sheets using the finite element method.
 
 Icepack is not yet ready for use and should be considered pre-alpha quality.
-Features will break, frequently.
+The code is not optimized at all.
+The nonlinear solvers are not robust.
 
 Planned features:
 * multiple glacier models: shallow shelf, full Stokes, depth-averaged higher-order models
@@ -17,6 +18,9 @@ Planned features:
 You will first need a working deal.II installation and the environment variable `DEAL_II_DIR` must be set to the directory of your deal.II installation.
 For development purposes, I recommend disabling the use of Intel's Threading Building Blocks library when building deal.II by passing the flag `-DDEAL_II_WITH_THREADS:BOOL=False` to `cmake`.
 Using Intel TBB can cause valgrind to erroneously report memory leaks, and to generally confound debuggers.
+
+For the time being, icepack relies on the sparse direct linear algebra solver [UMFPACK](http://faculty.cse.tamu.edu/davis/suitesparse.html), so deal.II must be configured to use UMFPACK.
+When configuring deal.II with CMake, the flag `-DDEAL_II_WITH_UMFPACK:BOOL=True` must be added to enable UMFPACK.
 
 To build the icepack sources, run the following:
 

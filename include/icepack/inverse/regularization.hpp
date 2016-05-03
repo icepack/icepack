@@ -336,9 +336,11 @@ namespace icepack {
 
         A.compress(dealii::VectorOperation::add);
 
-        linear_solve(
-          A, v.get_coefficients(), f.get_coefficients(), u.get_constraints()
-        );
+        SparseDirectUMFPACK direct_solver;
+        direct_solver.initialize(A);
+
+        v.get_coefficients() = f.get_coefficients();
+        direct_solver.solve(v.get_coefficients());
 
         return v;
       }
