@@ -342,7 +342,7 @@ namespace icepack {
   ) const
   {
     auto u = picard_solve(h, theta, u0, *this, 0.1, 5);
-    return newton_solve(h, theta, u, *this, 1.0e-10, 100);
+    return newton_solve(h, theta, u, *this, 1.0e-6, 20);
   }
 
 
