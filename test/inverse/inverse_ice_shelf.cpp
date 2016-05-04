@@ -160,13 +160,13 @@ int main(int argc, char ** argv)
   // Create an object for computing the regularization functional.
   // Depending on command-line arguments, this is either the square gradient
   // or the total variation.
-  std::unique_ptr<inverse::Regularizer<0, 2> > regularizer;
+  std::unique_ptr<inverse::Regularizer<2> > regularizer;
   if (tv)
     regularizer =
-      std::make_unique<inverse::TotalVariation<0, 2> >(discretization, alpha);
+      std::make_unique<inverse::TotalVariation<2> >(discretization, alpha);
   else
     regularizer =
-      std::make_unique<inverse::SquareGradient<0, 2> >(discretization, alpha);
+      std::make_unique<inverse::SquareGradient<2> >(discretization, alpha);
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture

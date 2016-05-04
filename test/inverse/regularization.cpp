@@ -64,10 +64,10 @@ int main()
   // Pick a smoothing length for the regularizers
   const double alpha = 0.125;
 
-  if (not test_regularizer<inverse::SquareGradient<0, 2> >(dsc, alpha, dx*dx))
+  if (not test_regularizer<inverse::SquareGradient<2> >(dsc, alpha, dx*dx))
     return 1;
 
-  if (not test_regularizer<inverse::TotalVariation<0, 2> >(dsc, alpha, dx*dx))
+  if (not test_regularizer<inverse::TotalVariation<2> >(dsc, alpha, dx*dx))
     return 1;
 
   return 0;

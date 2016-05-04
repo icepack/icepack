@@ -13,7 +13,7 @@ namespace icepack {
     /**
      * Base class for all regularization methods
      */
-    template <int rank, int dim>
+    template <int dim>
     class Regularizer
     {
     public:
@@ -21,26 +21,21 @@ namespace icepack {
        * Compute the cost associated with this regularization method for a
        * field, i.e. how much it deviates from some defintion of smoothness
        */
-      virtual double
-      operator()(const FieldType<rank, dim>& u) const = 0;
+      virtual double operator()(const Field<dim>& u) const = 0;
 
       /**
        * Compute the derivative of the regularization functional about some
        * input field; this is a linear operator.
        */
-      virtual FieldType<rank, dim, dual>
-      derivative(const FieldType<rank, dim>& u) const = 0;
+      virtual DualField<dim> derivative(const Field<dim>& u) const = 0;
 
       /**
        * Given a dual field \f$f\f$ and a field \f$u\f$, compute the Hessian
        * of the regularization functional at \f$u\f$ and use this operator to
        * filter \f$\f$ for smoothness.
        */
-      virtual FieldType<rank, dim>
-      filter(
-        const FieldType<rank, dim>& u,
-        const FieldType<rank, dim, dual>& f
-      ) const = 0;
+      virtual Field<dim>
+      filter(const Field<dim>& u, const DualField<dim>& f) const = 0;
 
       /**
        * Implementations need to be able to override the destructor for any
@@ -60,16 +55,16 @@ namespace icepack {
      * Penalizing the square gradient is equivalent to applying a low-pass
      * filter to the solution with smoothing length \f$\alpha\f$.
      */
-    template <int rank, int dim>
-    class SquareGradient : public Regularizer<rank, dim>
+    template <int dim>
+    class SquareGradient : public Regularizer<dim>
     {
     public:
       SquareGradient(const Discretization<dim>& dsc, const double alpha)
         :
-        L(get<rank>(dsc).get_sparsity()),
-        M(&get<rank>(dsc).get_mass_matrix())
+        L(dsc.scalar().get_sparsity()),
+        M(&dsc.scalar().get_mass_matrix())
       {
-        const auto& field_dsc = get<rank>(dsc);
+        const auto& field_dsc = dsc.scalar();
 
         dealii::ConstantFunction<dim> Alpha2(alpha * alpha);
 
@@ -85,7 +80,7 @@ namespace icepack {
       /**
        * Evaluate the integrated square gradient of a field.
        */
-      double operator()(const FieldType<rank, dim>& u) const
+      double operator()(const Field<dim>& u) const
       {
         return 0.5 * L.matrix_norm_square(u.get_coefficients());
       }
@@ -94,10 +89,10 @@ namespace icepack {
        * Compute the derivative of the square gradient of a field, i.e. the
        * Laplace operator applied to the field
        */
-      FieldType<rank, dim, dual>
-      derivative(const FieldType<rank, dim>& u) const
+      DualField<dim>
+      derivative(const Field<dim>& u) const
       {
-        FieldType<rank, dim, dual> laplacian_u(u.get_discretization());
+        DualField<dim> laplacian_u(u.get_discretization());
         L.vmult(laplacian_u.get_coefficients(), u.get_coefficients());
         return laplacian_u;
       }
@@ -106,15 +101,11 @@ namespace icepack {
        * Compute the field \f$u\f$ such that \f$u^*\f$ is closest to \f$f\f$,
        * subject to a penalty on the square gradient
        */
-      FieldType<rank, dim>
-      filter(
-        const FieldType<rank, dim, primal>&,
-        const FieldType<rank, dim, dual>& f
-      ) const
+      Field<dim> filter(const Field<dim>&, const DualField<dim>& f) const
       {
         using dealii::linear_operator;
 
-        FieldType<rank, dim> u(f.get_discretization());
+        Field<dim> u(f.get_discretization());
 
         const auto A = linear_operator(*M) + linear_operator(L);
 
@@ -154,8 +145,8 @@ namespace icepack {
      * Instead, it tends to confine these interfaces to as small a perimeter as
      * possible where they do exist.
      */
-    template <int rank, int dim>
-    class TotalVariation : public Regularizer<rank, dim>
+    template <int dim>
+    class TotalVariation : public Regularizer<dim>
     {
     public:
       TotalVariation(const Discretization<dim>&, const double alpha)
@@ -166,14 +157,14 @@ namespace icepack {
       /**
        * Compute the total variation of a field.
        */
-      double operator()(const FieldType<rank, dim>& u) const
+      double operator()(const Field<dim>& u) const
       {
-        using gradient_type = typename FieldType<rank, dim>::gradient_type;
+        using gradient_type = typename Field<dim>::gradient_type;
 
         const QGauss<dim> quad = u.get_discretization().quad();
 
         FEValues<dim> fe_values(u.get_fe(), quad, DefaultUpdateFlags::flags);
-        const typename FieldType<rank, dim>::extractor_type ex(0);
+        const typename Field<dim>::extractor_type ex(0);
 
         const unsigned int n_q_points = quad.size();
         std::vector<gradient_type> du_values(n_q_points);
@@ -204,13 +195,12 @@ namespace icepack {
        * derivative of the total variation is a nonlinear elliptic operator,
        * which is related to the minimal surface equation, applied to \f$u\f$.
        */
-      FieldType<rank, dim, dual>
-      derivative(const FieldType<rank, dim>& u) const
+      DualField<dim> derivative(const Field<dim>& u) const
       {
-        using gradient_type = typename FieldType<rank, dim>::gradient_type;
+        using gradient_type = typename Field<dim>::gradient_type;
 
         const auto& discretization = u.get_discretization();
-        FieldType<rank, dim, dual> div_graph_normal(discretization);
+        DualField<dim> div_graph_normal(discretization);
 
         const auto& fe = u.get_fe();
         const auto& dof_handler = u.get_dof_handler();
@@ -218,7 +208,7 @@ namespace icepack {
         const QGauss<dim> quad = discretization.quad();
 
         FEValues<dim> fe_values(fe, quad, DefaultUpdateFlags::flags);
-        const typename FieldType<rank, dim>::extractor_type ex(0);
+        const typename Field<dim>::extractor_type ex(0);
 
         const unsigned int n_q_points = quad.size();
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
@@ -268,21 +258,17 @@ namespace icepack {
        * where the anisotropy is aligned with the gradient of the input field
        * \f$u\f$.
        */
-      FieldType<rank, dim>
-      filter(
-        const FieldType<rank, dim, primal>& u,
-        const FieldType<rank, dim, dual>& f
-      ) const
+      Field<dim> filter(const Field<dim>& u, const DualField<dim>& f) const
       {
         // TODO: use matrix-free method w. multigrid + Chebyshev preconditioner
 
-        using value_type = typename FieldType<rank, dim>::value_type;
-        using gradient_type = typename FieldType<rank, dim>::gradient_type;
+        using value_type = typename Field<dim>::value_type;
+        using gradient_type = typename Field<dim>::gradient_type;
 
         const auto& discretization = u.get_discretization();
-        FieldType<rank, dim> v(discretization);
+        Field<dim> v(discretization);
 
-        SparseMatrix<double> A(get<rank>(discretization).get_sparsity());
+        SparseMatrix<double> A(discretization.scalar().get_sparsity());
         A = 0;
 
         const auto& fe = u.get_fe();
@@ -291,7 +277,7 @@ namespace icepack {
         const QGauss<dim> quad = discretization.quad();
 
         FEValues<dim> fe_values(fe, quad, DefaultUpdateFlags::flags);
-        const typename FieldType<rank, dim>::extractor_type ex(0);
+        const typename Field<dim>::extractor_type ex(0);
 
         const unsigned int n_q_points = quad.size();
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
