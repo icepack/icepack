@@ -61,20 +61,22 @@ namespace icepack {
     public:
       SquareGradient(const Discretization<dim>& dsc, const double alpha)
         :
-        L(dsc.scalar().get_sparsity()),
-        M(&dsc.scalar().get_mass_matrix())
+        L(dsc.scalar().get_sparsity())
       {
         const auto& field_dsc = dsc.scalar();
-
-        dealii::ConstantFunction<dim> Alpha2(alpha * alpha);
 
         dealii::MatrixCreator::create_laplace_matrix(
           field_dsc.get_dof_handler(),
           dsc.quad(),
           L,
-          &Alpha2,
+          (dealii::Function<2> *)nullptr,
           field_dsc.get_constraints()
         );
+
+        SparseMatrix<double> G(dsc.scalar().get_sparsity());
+        G.copy_from(dsc.scalar().get_mass_matrix());
+        G.add(alpha*alpha, L);
+        solver.initialize(G);
       }
 
       /**
@@ -103,25 +105,16 @@ namespace icepack {
        */
       Field<dim> filter(const Field<dim>&, const DualField<dim>& f) const
       {
-        using dealii::linear_operator;
-
         Field<dim> u(f.get_discretization());
-
-        const auto A = linear_operator(*M) + linear_operator(L);
-
-        SolverControl solver_control(1000, 1.0e-10);
-        SolverCG<> solver(solver_control);
-
-        // TODO: use an actual preconditioner
-        dealii::PreconditionIdentity P;
-        solver.solve(A, u.get_coefficients(), f.get_coefficients(), P);
+        u.get_coefficients() = f.get_coefficients();
+        solver.solve(u.get_coefficients());
 
         return u;
       }
 
     protected:
       SparseMatrix<double> L;
-      SmartPointer<const SparseMatrix<double> > M;
+      SparseDirectUMFPACK solver;
     };
 
 
