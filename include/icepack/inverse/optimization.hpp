@@ -152,34 +152,90 @@ namespace icepack {
 
 
     /**
-     * Given a cost functional `F` and a method `dF` to compute its gradient,
-     * find an approximate minimizer starting from the guess `phi0`, stopping
-     * when the improvement in the cost functional is less than `eps`.
+     * Two-loop recursion for L-BFGS
      */
-    template <int rank, int dim, typename Functional, typename Gradient>
-    FieldType<rank, dim> gradient_descent(
+    template <int dim>
+    Field<dim> lbfgs_two_loop(
+      const DualField<dim>& df,
+      const std::vector<Field<dim> >& s,
+      const std::vector<DualField<dim> >& y,
+      const std::vector<double>& rho,
+      const double gamma
+    )
+    {
+      const size_t m = s.size();
+
+      DualField<dim> q(df);
+      std::vector<double> alpha(m);
+
+      for (int i = m - 1; i > 0; --i) {
+        alpha[i] = rho[i] * inner_product(q, s[i]);
+        q = q - alpha[i] * y[i];
+      }
+
+      Field<dim> r = gamma * transpose(q);
+      for (unsigned int i = 0; i < m; ++i) {
+        const double beta = rho[i] * inner_product(y[i], r);
+        r = r + (alpha[i] - beta) * s[i];
+      }
+
+      return r;
+    }
+
+
+    /**
+     * Given a cost functional `F` and a method `dF` to compute its gradient,
+     * find an approximate minimizer starting from the guess `phi_start`,
+     * stopping when the improvement in the cost functional is less than `eps`.
+     * This uses the limited-memory Broyden-Fletcher-Goldfarb-Shanno (BFGS)
+     * algorithm with the previous `m` steps.
+     */
+    template <int dim, typename Functional, typename Gradient>
+    Field<dim> lbfgs(
       const Functional& F,
       const Gradient& dF,
-      const FieldType<rank, dim>& phi0,
+      const Field<dim>& phi_start,
+      const unsigned int m,
       const double eps
     )
     {
       double cost_old = std::numeric_limits<double>::infinity();
-      double cost = F(phi0);
+      double cost = F(phi_start);
 
-      FieldType<rank, dim> phi(phi0);
+      Field<dim> phi(phi_start);
+      DualField<dim> df = dF(phi_start);
+      const auto& discretization = phi.get_discretization();
 
-      while (std::abs(cost_old - cost) > eps) {
+      // Create vectors for storing the last few differences of the guesses,
+      // differences of the gradients, and the inverses of their inner products
+      std::vector<Field<dim> > s(m, Field<dim>(discretization));
+      std::vector<DualField<dim> > y(m, DualField<dim>(discretization));
+      std::vector<double> rho(m);
+
+      // As an initial guess, we will assume that the Hessian inverse is a
+      // multiple of the inverse of the mass matrix
+      double gamma = 1.0;
+
+      for (unsigned int k = 0; std::abs(cost_old - cost) > eps; ++k) {
+        const Field<dim> p = -lbfgs_two_loop(df, s, y, rho, gamma);
+        const Field<dim> phi1 = line_search(F, phi, df, p, eps);
+        const DualField<dim> df1 = dF(phi1);
+
+        s[0] = phi1 - phi;
+        y[0] = df1 - df;
+
+        const double cos_angle = inner_product(y[0], s[0]);
+        const double norm_y = norm(y[0]);
+        rho[0] = 1.0 / cos_angle;
+        gamma = cos_angle / (norm_y * norm_y);
+
+        std::rotate(s.begin(), s.begin() + 1, s.end());
+        std::rotate(y.begin(), y.begin() + 1, y.end());
+        std::rotate(rho.begin(), rho.begin() + 1, rho.end());
+
+        phi = phi1;
+        df = df1;
         cost_old = cost;
-
-        // Compute the gradient of the objective functional.
-        const FieldType<rank, dim> df = dF(phi);
-
-        // Compute a search direction.
-        const FieldType<rank, dim> p = -rms_average(phi) * df / norm(df);
-
-        // Update the current guess.
-        phi = line_search(F, phi, df, p, eps);
         cost = F(phi);
       }
 

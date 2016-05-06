@@ -190,33 +190,11 @@ int main(int argc, char ** argv)
   // less than this tolerance.
   const double tolerance = 1.0e-3 * area;
 
-  // Use gradient descent to find the optimal value of the temperature field.
-  double cost_old = std::numeric_limits<double>::infinity();
-  double cost = F(theta_guess);
-
-  Field<2> theta(theta_guess);
-
-  for (size_t k = 0; k < 10 || std::abs(cost_old - cost) > tolerance; ++k) {
-    cost_old = cost;
-
-    const DualField<2> df = dF(theta);
-    const Field<2> p = -regularizer->filter(theta, df);
-
-    if (verbose) std::cout << rms_average(p) << ", ";
-
-    theta = inverse::line_search(F, theta, df, p, tolerance);
-
-    cost = F(theta);
-    if (verbose) {
-      std::cout << cost / area << std::endl;
-      std::string filename = "theta" + std::to_string(k) + ".ucd";
-      theta.write(filename, "theta");
-    }
-  }
-
-  u = ice_shelf.diagnostic_solve(h, theta, u);
+  // Use a descent algorithm to find a good value of the temperature
+  Field<2> theta = inverse::lbfgs(F, dF, theta_guess, 6, tolerance);
 
   // Compute the final misfits in velocity and temperature.
+  u = ice_shelf.diagnostic_solve(h, theta, u);
   mean_residual = inverse::square_error(u, u_true, sigma) / area;
   mean_error = dist(theta, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
 
