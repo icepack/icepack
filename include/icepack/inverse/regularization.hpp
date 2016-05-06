@@ -65,17 +65,18 @@ namespace icepack {
       {
         const auto& field_dsc = dsc.scalar();
 
+        const dealii::ConstantFunction<2> r(alpha*alpha);
         dealii::MatrixCreator::create_laplace_matrix(
           field_dsc.get_dof_handler(),
           dsc.quad(),
           L,
-          (dealii::Function<2> *)nullptr,
+          &r,
           field_dsc.get_constraints()
         );
 
         SparseMatrix<double> G(dsc.scalar().get_sparsity());
         G.copy_from(dsc.scalar().get_mass_matrix());
-        G.add(alpha*alpha, L);
+        G.add(1.0, L);
         solver.initialize(G);
       }
 
