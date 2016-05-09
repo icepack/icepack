@@ -13,6 +13,10 @@ using dealii::ConstantFunction;
 
 using namespace icepack;
 
+using icepack::inverse::Regularizer;
+using SG = icepack::inverse::SquareGradient<2>;
+using TV = icepack::inverse::TotalVariation<2>;
+
 
 // Some physical constants
 const double rho = rho_ice * (1 - rho_ice / rho_water);
@@ -160,13 +164,9 @@ int main(int argc, char ** argv)
   // Create an object for computing the regularization functional.
   // Depending on command-line arguments, this is either the square gradient
   // or the total variation.
-  std::unique_ptr<inverse::Regularizer<2> > regularizer;
-  if (tv)
-    regularizer =
-      std::make_unique<inverse::TotalVariation<2> >(discretization, alpha);
-  else
-    regularizer =
-      std::make_unique<inverse::SquareGradient<2> >(discretization, alpha);
+  std::unique_ptr<Regularizer<2> > regularizer;
+  if (tv) regularizer = std::unique_ptr<TV>(new TV(discretization, alpha));
+  else regularizer = std::unique_ptr<SG>(new SG(discretization, alpha));
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture

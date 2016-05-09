@@ -168,11 +168,10 @@ namespace icepack {
     Discretization(const Triangulation<dim>& tria, const unsigned int p)
       :
       p(p),
-      tria(&tria)
-    {
-      std::get<0>(ranks) = std::make_unique<Scalar>(tria, p);
-      std::get<1>(ranks) = std::make_unique<Vector>(tria, p);
-    }
+      tria(&tria),
+      ranks(std::unique_ptr<Scalar>(new Scalar(tria, p)),
+            std::unique_ptr<Vector>(new Vector(tria, p)))
+    {}
 
     Discretization(const Discretization<dim>&) = delete;
 
