@@ -21,6 +21,9 @@ project(icepack)
 
 enable_testing()
 
+find_package(GDAL)
+include_directories(${GDAL_INCLUDE_DIRS})
+
 set(LIBRARY_OUTPUT_PATH ${icepack_BINARY_DIR}/lib)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
