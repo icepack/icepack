@@ -165,7 +165,7 @@ int main(int argc, char ** argv)
   // Depending on command-line arguments, this is either the square gradient
   // or the total variation.
   std::unique_ptr<Regularizer<2> > regularizer;
-  if (tv) regularizer = std::unique_ptr<TV>(new TV(discretization, alpha));
+  if (tv) regularizer = std::unique_ptr<TV>(new TV(discretization, alpha, 0.5));
   else regularizer = std::unique_ptr<SG>(new SG(discretization, alpha));
 
   // Create some lambda functions which will calculate the objective functional

@@ -143,9 +143,11 @@ namespace icepack {
     class TotalVariation : public Regularizer<dim>
     {
     public:
-      TotalVariation(const Discretization<dim>&, const double alpha)
-        :
-        alpha(alpha)
+      TotalVariation(
+        const Discretization<dim>&,
+        const double alpha,
+        const double gamma
+      ) : alpha(alpha), gamma(gamma)
       {}
 
       /**
@@ -153,15 +155,13 @@ namespace icepack {
        */
       double operator()(const Field<dim>& u) const
       {
-        using gradient_type = typename Field<dim>::gradient_type;
-
         const QGauss<dim> quad = u.get_discretization().quad();
 
         FEValues<dim> fe_values(u.get_fe(), quad, DefaultUpdateFlags::flags);
         const typename Field<dim>::extractor_type ex(0);
 
         const unsigned int n_q_points = quad.size();
-        std::vector<gradient_type> du_values(n_q_points);
+        std::vector<Tensor<1, dim> > du_values(n_q_points);
 
         double total_variation = 0.0;
 
@@ -174,9 +174,9 @@ namespace icepack {
 
           for (unsigned int q = 0; q < n_q_points; ++q) {
             const double dx = fe_values.JxW(q);
-            const gradient_type du = alpha * du_values[q];
-            const double cell_graph_area = std::sqrt(du*du + 1) - 1;
-            total_variation += cell_graph_area * dx;
+            const Tensor<1, dim> du = alpha * du_values[q];
+            const double dA = std::sqrt(du*du + gamma*gamma) - gamma;
+            total_variation += dA * dx;
           }
         }
 
@@ -191,8 +191,6 @@ namespace icepack {
        */
       DualField<dim> derivative(const Field<dim>& u) const
       {
-        using gradient_type = typename Field<dim>::gradient_type;
-
         const auto& discretization = u.get_discretization();
         DualField<dim> div_graph_normal(discretization);
 
@@ -207,7 +205,7 @@ namespace icepack {
         const unsigned int n_q_points = quad.size();
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
 
-        std::vector<gradient_type> du_values(n_q_points);
+        std::vector<Tensor<1, dim> > du_values(n_q_points);
 
         Vector<double> cell_div_graph_normal(dofs_per_cell);
         std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
@@ -216,17 +214,15 @@ namespace icepack {
           cell_div_graph_normal = 0;
           fe_values.reinit(cell);
 
-          fe_values[ex].get_function_gradients(
-            u.get_coefficients(), du_values
-          );
+          fe_values[ex].get_function_gradients(u.get_coefficients(), du_values);
 
           for (unsigned int q = 0; q < n_q_points; ++q) {
             const double dx = fe_values.JxW(q);
-            const gradient_type du = alpha * du_values[q];
-            const double dA = std::sqrt(du*du + 1);
+            const Tensor<1, dim> du = alpha * du_values[q];
+            const double dA = std::sqrt(du*du + gamma*gamma);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-              const gradient_type dphi = fe_values[ex].gradient(i, q);
+              const Tensor<1, dim> dphi = fe_values[ex].gradient(i, q);
               cell_div_graph_normal(i) += alpha * du * dphi / dA * dx;
             }
           }
@@ -256,9 +252,6 @@ namespace icepack {
       {
         // TODO: use matrix-free method w. multigrid + Chebyshev preconditioner
 
-        using value_type = typename Field<dim>::value_type;
-        using gradient_type = typename Field<dim>::gradient_type;
-
         const auto& discretization = u.get_discretization();
         Field<dim> v(discretization);
 
@@ -276,7 +269,7 @@ namespace icepack {
         const unsigned int n_q_points = quad.size();
         const unsigned int dofs_per_cell = fe.dofs_per_cell;
 
-        std::vector<gradient_type> du_values(n_q_points);
+        std::vector<Tensor<1, dim> > du_values(n_q_points);
 
         dealii::FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
         std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
@@ -288,8 +281,8 @@ namespace icepack {
           fe_values.get_function_gradients(u.get_coefficients(), du_values);
           for (unsigned int q = 0; q < n_q_points; ++q) {
             const double dx = fe_values.JxW(q);
-            const gradient_type du = alpha * du_values[q];
-            const double dA = std::sqrt(du*du + 1);
+            const Tensor<1, dim> du = alpha * du_values[q];
+            const double dA = std::sqrt(du*du + gamma*gamma);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
               const auto phi_i = fe_values[ex].value(i, q);
@@ -326,7 +319,15 @@ namespace icepack {
       }
 
     protected:
+      /**
+       * Gradient scale for non-dimensionalization
+       */
       const double alpha;
+
+      /**
+       * Cutoff factor below which the square gradient is penalized
+       */
+      const double gamma;
     };
 
 

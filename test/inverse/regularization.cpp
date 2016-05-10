@@ -16,12 +16,10 @@ using Fn = dealii::ScalarFunctionFromFunctionObject<2>;
 template <class Regularizer>
 bool test_regularizer(
   const Discretization<2>& dsc,
-  const double alpha,
+  const Regularizer& regularizer,
   const double tolerance
 )
 {
-  const Regularizer regularizer(dsc, alpha);
-
   // Check that filtering a constant function gives the same function back
   {
     const Field<2> q = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
@@ -64,10 +62,12 @@ int main()
   // Pick a smoothing length for the regularizers
   const double alpha = 0.125;
 
-  if (not test_regularizer<inverse::SquareGradient<2> >(dsc, alpha, dx*dx))
+  const inverse::SquareGradient<2> square_gradient(dsc, alpha);
+  if (not test_regularizer(dsc, square_gradient, dx*dx))
     return 1;
 
-  if (not test_regularizer<inverse::TotalVariation<2> >(dsc, alpha, dx*dx))
+  const inverse::TotalVariation<2> total_variation(dsc, alpha, 0.5);
+  if (not test_regularizer(dsc, total_variation, dx*dx))
     return 1;
 
   return 0;
