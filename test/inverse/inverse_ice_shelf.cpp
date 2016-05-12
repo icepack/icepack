@@ -2,9 +2,9 @@
 #include <deal.II/grid/grid_generator.h>
 
 #include <icepack/physics/constants.hpp>
+#include <icepack/numerics/optimization.hpp>
 #include <icepack/inverse/error_functionals.hpp>
 #include <icepack/inverse/regularization.hpp>
-#include <icepack/inverse/optimization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
 
 using dealii::Tensor;
@@ -191,7 +191,7 @@ int main(int argc, char ** argv)
   const double tolerance = 1.0e-3 * area;
 
   // Use a descent algorithm to find a good value of the temperature
-  Field<2> theta = inverse::lbfgs(F, dF, theta_guess, 6, tolerance);
+  Field<2> theta = numerics::lbfgs(F, dF, theta_guess, 6, tolerance);
 
   // Compute the final misfits in velocity and temperature.
   u = ice_shelf.diagnostic_solve(h, theta, u);

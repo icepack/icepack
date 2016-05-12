@@ -1,11 +1,13 @@
 
-#ifndef ICEPACK_INVERSE_OPTIMIZATION_HPP
-#define ICEPACK_INVERSE_OPTIMIZATION_HPP
+#ifndef ICEPACK_NUMERICS_OPTIMIZATION_HPP
+#define ICEPACK_NUMERICS_OPTIMIZATION_HPP
 
 #include <map>
 
+#include <icepack/field.hpp>
+
 namespace icepack {
-  namespace inverse {
+  namespace numerics {
 
     /**
      * This procedure is for computing a bounding interval [a, b] in which to
@@ -242,7 +244,7 @@ namespace icepack {
       return phi;
     }
 
-  } // End of namespace inverse
+  } // End of namespace numerics
 } // End of namespace icepack
 
 #endif
