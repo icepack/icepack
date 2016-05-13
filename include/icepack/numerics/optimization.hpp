@@ -172,13 +172,13 @@ namespace icepack {
 
       for (int i = m - 1; i > 0; --i) {
         alpha[i] = rho[i] * inner_product(q, s[i]);
-        q = q - alpha[i] * y[i];
+        q -= alpha[i] * y[i];
       }
 
       Field<dim> r = gamma * transpose(q);
       for (unsigned int i = 0; i < m; ++i) {
         const double beta = rho[i] * inner_product(y[i], r);
-        r = r + (alpha[i] - beta) * s[i];
+        r += (alpha[i] - beta) * s[i];
       }
 
       return r;
