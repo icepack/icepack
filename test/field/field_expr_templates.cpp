@@ -77,6 +77,18 @@ int main()
     Assert(dist(phi, psi) < dx*dx, ExcInternalError());
   }
 
+  // Test assign and add/subtract expression templates to fields
+  {
+    Field<2> phi(discretization), psi(discretization);
+    phi = phi1;
+    phi += 2 * phi2;
+    phi -= phi2 + phi3;
+    psi = phi1;
+    psi += phi2;
+    psi -= phi3;
+    Assert(dist(phi, psi) < dx*dx, ExcInternalError());
+  }
+
   // Test initializing fields from expression templates
   {
     const Field<2> phi(phi1 + 2 * phi2);

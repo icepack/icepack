@@ -36,6 +36,21 @@ namespace icepack {
   }
 
 
+  template <int rank, int dim, Duality duality, class Expr>
+  FieldType<rank, dim, duality>&
+  operator +=(FieldType<rank, dim, duality>& phi,
+              const FieldExpr<rank, dim, duality, Expr>& expr)
+  {
+    Assert(have_same_discretization(phi, expr), ExcInternalError());
+
+    Vector<double>& Phi = phi.get_coefficients();
+    for (unsigned int i = 0; i < Phi.size(); ++i)
+      Phi(i) += expr.coefficient(i);
+
+    return phi;
+  }
+
+
   template <int rank, int dim, Duality duality>
   FieldType<rank, dim, duality>&
   operator -=(FieldType<rank, dim, duality>& phi,
@@ -46,6 +61,22 @@ namespace icepack {
     phi.get_coefficients().add(-1.0, psi.get_coefficients());
     return phi;
   }
+
+
+  template <int rank, int dim, Duality duality, class Expr>
+  FieldType<rank, dim, duality>&
+  operator -=(FieldType<rank, dim, duality>& phi,
+              const FieldExpr<rank, dim, duality, Expr>& expr)
+  {
+    Assert(have_same_discretization(phi, expr), ExcInternalError());
+
+    Vector<double>& Phi = phi.get_coefficients();
+    for (unsigned int i = 0; i < Phi.size(); ++i)
+      Phi(i) -= expr.coefficient(i);
+
+    return phi;
+  }
+
 
 
   /* ------------------------------
