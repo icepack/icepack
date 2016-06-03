@@ -1,9 +1,7 @@
 
 #include <random>
 
-#include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/manifold_lib.h>
 
 #include <icepack/inverse/regularization.hpp>
 
@@ -46,7 +44,7 @@ random_trigonometric_polynomial(
 
 
 template <class Regularizer>
-bool test_regularizer(
+void test_regularizer(
   const Discretization<2>& dsc,
   const Regularizer& regularizer,
   const double tolerance
@@ -54,7 +52,7 @@ bool test_regularizer(
 {
   // Check that the penalty for a constant function is 0
   const Field<2> one = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
-  if (std::abs(regularizer(one)) > tolerance) return false;
+  Assert(std::abs(regularizer(one)) < tolerance, ExcInternalError());
 
   // Check that computing the derivative of the functional works right
   const unsigned int degree = 5;
@@ -75,23 +73,23 @@ bool test_regularizer(
   for (const auto& diff: diffs) mean += diff;
   mean /= num_samples;
 
-  double std_dev = 0.0;
-  for (const auto& diff: diffs) std_dev += (diff - mean) * (diff - mean);
-  std_dev /= num_samples;
+  double variance = 0.0;
+  for (const auto& diff: diffs) variance += (diff - mean) * (diff - mean);
+  variance /= num_samples;
+  const double std_dev = std::sqrt(variance);
 
-  if (std::abs(std_dev - std::abs(mean)) > 1.0e-2) return false;
-
-  return true;
+  Assert(std_dev / mean < 1.0e-2, ExcInternalError());
 }
 
 
 int main()
 {
-  const SphericalManifold<2> circle(Point<2>(0.0, 0.0));
   Triangulation<2> triangulation;
-  GridGenerator::hyper_ball(triangulation);
-  triangulation.set_all_manifold_ids_on_boundary(0);
-  triangulation.set_manifold(0, circle);
+
+  const double width = 2.0, height = 1.0;
+  const Point<2> p1(0.0, 0.0), p2(width, height);
+  GridGenerator::hyper_rectangle(triangulation, p1, p2);
+
   const unsigned int num_levels = 5;
   triangulation.refine_global(num_levels);
 
@@ -102,13 +100,23 @@ int main()
   // Pick a smoothing length for the regularizers
   const double alpha = 0.125;
 
-  const inverse::SquareGradient<2> square_gradient(dsc, alpha);
-  if (not test_regularizer(dsc, square_gradient, dx*dx))
-    return 1;
+  // Pick a secondary length scale for the total variation
+  const double gamma = 0.5;
 
-  const inverse::TotalVariation<2> total_variation(dsc, alpha, 0.5);
-  if (not test_regularizer(dsc, total_variation, dx*dx))
-    return 1;
+  const inverse::SquareGradient<2> square_gradient(dsc, alpha);
+  test_regularizer(dsc, square_gradient, dx*dx);
+
+  const inverse::TotalVariation<2> total_variation(dsc, alpha, gamma);
+  test_regularizer(dsc, total_variation, dx*dx);
+
+  const double b = width;
+  const double a = b * gamma / alpha;
+  const Fn Cosh([&](const Point<2>& x){ return a * std::cosh(x[0] / b); });
+  const Field<2> cosh = interpolate(dsc, Cosh);
+
+  const double exact_tv = gamma * height * (b * std::sinh(width / b) - width);
+
+  Assert(std::abs(total_variation(cosh) - exact_tv) < dx, ExcInternalError());
 
   return 0;
 }
