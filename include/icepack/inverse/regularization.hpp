@@ -30,14 +30,6 @@ namespace icepack {
       virtual DualField<dim> derivative(const Field<dim>& u) const = 0;
 
       /**
-       * Given a dual field \f$f\f$ and a field \f$u\f$, compute the Hessian
-       * of the regularization functional at \f$u\f$ and use this operator to
-       * filter \f$\f$ for smoothness.
-       */
-      virtual Field<dim>
-      filter(const Field<dim>& u, const DualField<dim>& f) const = 0;
-
-      /**
        * Implementations need to be able to override the destructor for any
        * resource management
        */
@@ -77,7 +69,6 @@ namespace icepack {
         SparseMatrix<double> G(dsc.scalar().get_sparsity());
         G.copy_from(dsc.scalar().get_mass_matrix());
         G.add(1.0, L);
-        solver.initialize(G);
       }
 
       /**
@@ -100,22 +91,8 @@ namespace icepack {
         return laplacian_u;
       }
 
-      /**
-       * Compute the field \f$u\f$ such that \f$u^*\f$ is closest to \f$f\f$,
-       * subject to a penalty on the square gradient
-       */
-      Field<dim> filter(const Field<dim>&, const DualField<dim>& f) const
-      {
-        Field<dim> u(f.get_discretization());
-        u.get_coefficients() = f.get_coefficients();
-        solver.solve(u.get_coefficients());
-
-        return u;
-      }
-
     protected:
       SparseMatrix<double> L;
-      SparseDirectUMFPACK solver;
     };
 
 
@@ -125,7 +102,7 @@ namespace icepack {
      * inverse problem by penalizing the total variation:
      \f[
      R[u; \alpha] =
-     \int_\Omega\left(\sqrt{\alpha^2|\nabla u|^2 + 1} - 1\right)dx
+     \int_\Omega\left(\sqrt{\alpha^2|\nabla u|^2 + \gamma^2} - \gamma\right)dx
      \f]
      * Strictly speaking, this is the pseudo-Heuber total variation, which is
      * rounded off in order to make the functional differentiable.
@@ -236,86 +213,6 @@ namespace icepack {
         }
 
         return div_graph_normal;
-      }
-
-
-      /**
-       * Apply a filter to the dual field \f$f\f$ which matches it as best as
-       * possible subject to a constraint on the total variation of the output,
-       * which is linearized around an input field \f$u\f$.
-       *
-       * The Hessian of the total variation is an anisotropic elliptic operator
-       * where the anisotropy is aligned with the gradient of the input field
-       * \f$u\f$.
-       */
-      Field<dim> filter(const Field<dim>& u, const DualField<dim>& f) const
-      {
-        // TODO: use matrix-free method w. multigrid + Chebyshev preconditioner
-
-        const auto& discretization = u.get_discretization();
-        Field<dim> v(discretization);
-
-        SparseMatrix<double> A(discretization.scalar().get_sparsity());
-        A = 0;
-
-        const auto& fe = u.get_fe();
-        const auto& dof_handler = u.get_dof_handler();
-
-        const QGauss<dim> quad = discretization.quad();
-
-        FEValues<dim> fe_values(fe, quad, DefaultUpdateFlags::flags);
-        const typename Field<dim>::extractor_type ex(0);
-
-        const unsigned int n_q_points = quad.size();
-        const unsigned int dofs_per_cell = fe.dofs_per_cell;
-
-        std::vector<Tensor<1, dim> > du_values(n_q_points);
-
-        dealii::FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-        std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-        for (auto cell: dof_handler.active_cell_iterators()) {
-          cell_matrix = 0;
-          fe_values.reinit(cell);
-
-          fe_values.get_function_gradients(u.get_coefficients(), du_values);
-          for (unsigned int q = 0; q < n_q_points; ++q) {
-            const double dx = fe_values.JxW(q);
-            const Tensor<1, dim> du = alpha * du_values[q];
-            const double dA = std::sqrt(du*du + gamma*gamma);
-
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-              const auto phi_i = fe_values[ex].value(i, q);
-              const auto d_phi_i = fe_values[ex].gradient(i, q);
-              for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                const auto phi_j = fe_values[ex].value(j, q);
-                const auto d_phi_j = fe_values[ex].gradient(j, q);
-
-                const double cell_mass = phi_i * phi_j;
-                const auto tau = du / dA;
-                const double cell_div_graph_normal =
-                  (d_phi_i * d_phi_j - (d_phi_i * tau) * (tau * d_phi_j)) / dA;
-                cell_matrix(i, j) +=
-                  (cell_mass + alpha*alpha * cell_div_graph_normal) * dx;
-              }
-            }
-          }
-
-          cell->get_dof_indices(local_dof_indices);
-          u.get_constraints().distribute_local_to_global(
-            cell_matrix, local_dof_indices, A
-          );
-        }
-
-        A.compress(dealii::VectorOperation::add);
-
-        SparseDirectUMFPACK direct_solver;
-        direct_solver.initialize(A);
-
-        v.get_coefficients() = f.get_coefficients();
-        direct_solver.solve(v.get_coefficients());
-
-        return v;
       }
 
     protected:

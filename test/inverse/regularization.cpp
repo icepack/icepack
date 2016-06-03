@@ -13,6 +13,38 @@ using namespace icepack;
 using Fn = dealii::ScalarFunctionFromFunctionObject<2>;
 
 
+template <int dim>
+Field<dim>
+random_trigonometric_polynomial(
+  const Discretization<dim>& dsc,
+  const unsigned int degree
+)
+{
+  std::random_device device;
+  std::mt19937 rng(device());
+  std::normal_distribution<> v;
+
+  std::vector<Point<dim> > ks(degree);
+  std::vector<double> as(degree);
+  for (size_t n = 0; n < degree; ++n) {
+    for (size_t i = 0; i < dim; ++i)
+      ks[n][i] = v(rng);
+    as[n] = v(rng) / (1 + ks[n].norm_square());
+  }
+
+  const auto u = [&](const Point<dim>& x)
+    {
+      double z = 0.0;
+      for (size_t n = 0; n < degree; ++n)
+        z += as[n] * cos(ks[n] * x);
+
+      return z;
+    };
+
+  return interpolate(dsc, Fn(u));
+}
+
+
 template <class Regularizer>
 bool test_regularizer(
   const Discretization<2>& dsc,
@@ -20,26 +52,34 @@ bool test_regularizer(
   const double tolerance
 )
 {
-  // Check that filtering a constant function gives the same function back
-  {
-    const Field<2> q = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
-    const Field<2> p = regularizer.filter(q, transpose(q));
-    if (std::abs(regularizer(q)) > tolerance) return false;
-    if (dist(p, q) / norm(q) > tolerance) return false;
+  // Check that the penalty for a constant function is 0
+  const Field<2> one = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
+  if (std::abs(regularizer(one)) > tolerance) return false;
+
+  // Check that computing the derivative of the functional works right
+  const unsigned int degree = 5;
+  const Field<2> u = random_trigonometric_polynomial<2>(dsc, degree);
+  const Field<2> v = random_trigonometric_polynomial<2>(dsc, degree);
+
+  const DualField<2> p = regularizer.derivative(u);
+
+  const unsigned int num_samples = 10;
+  std::vector<double> diffs(num_samples);
+  for (size_t n = 0; n < num_samples; ++n) {
+    const double delta = 1.0 / (1 << n);
+    const double diff = (regularizer(u + delta*v) - regularizer(u)) / delta;
+    diffs[n] = (diff - inner_product(p, v)) / delta;
   }
 
-  // Check that filtering a noisy field reduces its energy
-  {
-    std::random_device device;
-    std::mt19937 rng(device());
-    std::normal_distribution<> normal_random_variable(0, 1);
+  double mean = 0.0;
+  for (const auto& diff: diffs) mean += diff;
+  mean /= num_samples;
 
-    Field<2> z(dsc);
-    for (auto& v: z.get_coefficients()) v = normal_random_variable(rng);
+  double std_dev = 0.0;
+  for (const auto& diff: diffs) std_dev += (diff - mean) * (diff - mean);
+  std_dev /= num_samples;
 
-    const Field<2> p = regularizer.filter(z, transpose(z));
-    if (regularizer(p) > regularizer(z)) return false;
-  }
+  if (std::abs(std_dev - std::abs(mean)) > 1.0e-2) return false;
 
   return true;
 }
