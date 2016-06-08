@@ -78,7 +78,8 @@ void test_regularizer(
   variance /= num_samples;
   const double std_dev = std::sqrt(variance);
 
-  Assert(std_dev / mean < 1.0e-2, ExcInternalError());
+  // TODO: This is just... laughably ad hoc, come up with a better test.
+  Assert(std_dev / mean < 5.0e-2, ExcInternalError());
 }
 
 
@@ -109,14 +110,20 @@ int main()
   const inverse::TotalVariation<2> total_variation(dsc, alpha, gamma);
   test_regularizer(dsc, total_variation, dx*dx);
 
+  // Compute the total variation of the cosh function and compare with exact
+  // value of the integral
   const double b = width;
   const double a = b * gamma / alpha;
   const Fn Cosh([&](const Point<2>& x){ return a * std::cosh(x[0] / b); });
   const Field<2> cosh = interpolate(dsc, Cosh);
 
   const double exact_tv = gamma * height * (b * std::sinh(width / b) - width);
-
   Assert(std::abs(total_variation(cosh) - exact_tv) < dx, ExcInternalError());
+
+  const double exact_square_gradient =
+    gamma*gamma * height * (0.5 * b * std::sinh(2 * width / b) - width) / 4.0;
+  Assert(std::abs(square_gradient(cosh) - exact_square_gradient) < dx,
+         ExcInternalError());
 
   return 0;
 }
