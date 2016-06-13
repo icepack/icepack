@@ -1,9 +1,13 @@
 
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_refinement.h>
+#include <deal.II/grid/grid_out.h>
 
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
+
+#include "../testing.hpp"
 
 using std::pow;
 using namespace dealii;
@@ -213,9 +217,11 @@ public:
 
 int main(int argc, char ** argv)
 {
-  const bool verbose = argc == 2 &&
-    (strcmp(argv[1], "-v") == 0 ||
-     strcmp(argv[1], "--verbose") == 0);
+  std::set<std::string> args = testing::get_cmdline_args(argc, argv);
+
+  const bool verbose = args.count("-v") || args.count("--verbose");
+  const bool refined = args.count("--refined");
+  const int q2 = args.count("--q2");
 
   /**
    * Create a triangulation on which to solve PDEs
@@ -234,16 +240,36 @@ int main(int argc, char ** argv)
         cell->face(face_number)->set_boundary_id(1);
   }
 
-  const unsigned int num_levels = 5;
+  const unsigned int num_levels = 5 - q2;
   triangulation.refine_global(num_levels);
   const double dx = 1.0 / (1 << num_levels);
+
+  if (refined) {
+    Vector<double> refinement_criteria(triangulation.n_active_cells());
+    for (const auto cell: triangulation.cell_iterators()) {
+      const unsigned int index = cell->index();
+      Point<2> x = cell->barycenter();
+      refinement_criteria[index] = x[0] / length;
+    }
+
+    GridRefinement::refine(triangulation, refinement_criteria, 0.5);
+    triangulation.execute_coarsening_and_refinement();
+
+    if (verbose) {
+      GridOut grid_out;
+      std::ofstream out("grid.msh");
+      grid_out.write_msh(triangulation, out);
+    }
+  }
 
 
   /**
    * Create a model object and input data
    */
 
-  IceStream ice_stream(triangulation, 1);
+  // The polynomial order is 1 by default, 2 if we use biquadratic elements
+  const unsigned int p = 1 + q2;
+  IceStream ice_stream(triangulation, p);
 
   const double h0 = 500, delta_h = 100;
   const Thickness thickness(h0, delta_h, length);
