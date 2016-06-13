@@ -1,10 +1,13 @@
 
+add_library(testing testing.cpp)
+DEAL_II_SETUP_TARGET(testing)
+
 # Build executables for each name in a list of source files
 function(icepack_exec)
   foreach(arg ${ARGN})
     add_executable(${arg} ${arg}.cpp)
     DEAL_II_SETUP_TARGET(${arg})
-    target_link_libraries(${arg} icepack)
+    target_link_libraries(${arg} icepack testing)
   endforeach(arg)
 endfunction(icepack_exec)
 

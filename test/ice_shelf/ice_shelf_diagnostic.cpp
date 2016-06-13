@@ -9,6 +9,8 @@
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
 
+#include "../testing.hpp"
+
 using namespace dealii;
 using namespace icepack;
 
@@ -88,22 +90,13 @@ public:
 };
 
 
-std::set<std::string> get_cmdline_args(int argc, char ** argv)
-{
-  std::set<std::string> args;
-  for (int k = 0; k < argc; ++k)
-    args.insert(std::string(argv[k]));
-
-  return args;
-}
-
 
 int main(int argc, char ** argv)
 {
   /**
    * Parse command-line arguments
    */
-  std::set<std::string> args = get_cmdline_args(argc, argv);
+  std::set<std::string> args = testing::get_cmdline_args(argc, argv);
 
   const bool verbose = args.count("-v") || args.count("--verbose");
   const bool refined = args.count("--refined");
