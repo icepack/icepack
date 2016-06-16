@@ -1,8 +1,8 @@
 
-#include <deal.II/grid/grid_generator.h>
-
 #include <icepack/field.hpp>
 #include <icepack/inverse/error_functionals.hpp>
+
+#include "../testing.hpp"
 
 using namespace dealii;
 using namespace icepack;
@@ -32,14 +32,10 @@ public:
 
 int main()
 {
-  const Point<2> p1(0.0, 0.0), p2(1.0, 1.0);
-  const unsigned int num_levels = 5;
-  const double dx = 1.0 / (1 << num_levels);
-  Triangulation<2> triangulation;
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
-  triangulation.refine_global(num_levels);
+  Triangulation<2> tria = testing::rectangular_glacier(1.0, 1.0);
+  const double dx = dealii::GridTools::minimal_cell_diameter(tria);
 
-  const Discretization<2> discretization(triangulation, 1);
+  const Discretization<2> discretization(tria, 1);
 
   const VectorField<2>
     u_true = interpolate(discretization, U_true),

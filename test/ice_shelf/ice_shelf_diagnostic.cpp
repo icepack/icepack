@@ -1,7 +1,6 @@
 
 #include <fstream>
 
-#include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_out.h>
 
@@ -106,48 +105,32 @@ int main(int argc, char ** argv)
   /**
    * Create a triangulation on which to solve PDEs
    */
-
-  Triangulation<2> triangulation;
-  const Point<2> p1(0.0, 0.0), p2(length, width);
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
-
-  // Mark the right side of the rectangle as the ice front
-  for (auto cell: triangulation.active_cell_iterators()) {
-    for (unsigned int face_number = 0;
-         face_number < GeometryInfo<2>::faces_per_cell;
-         ++face_number)
-      if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id(1);
-  }
-
-  // Refine the grid 5 times if we're using piecewise bilinear elements, and
-  // only 4 times if we're using piecewise biquadratic.
-  const unsigned int num_levels = 5 - q2;
-  triangulation.refine_global(num_levels);
+  const unsigned int levels = 5 - q2;
+  Triangulation<2> tria = testing::rectangular_glacier(length, width, levels);
 
   // Dimensionless mesh resolution; the finite element solution is accurate to
   // order O(dx^{p+1}), where dx is the mesh resolution and p is the polynomial
   // order, i.e. 1 if we're using piecewise bilinear elements and 2 if we're
   // using piecewise biquadratic.
-  const double dx = 1.0 / (1 << num_levels);
+  const double dx = 1.0 / (1 << levels);
 
   // If this test is using a non-uniform grid, refine everything on the right
   // side of the domain.
   if (refined) {
-    Vector<double> refinement_criteria(triangulation.n_active_cells());
-    for (const auto cell: triangulation.cell_iterators()) {
+    Vector<double> refinement_criteria(tria.n_active_cells());
+    for (const auto cell: tria.cell_iterators()) {
       const unsigned int index = cell->index();
       Point<2> x = cell->barycenter();
       refinement_criteria[index] = x[0] / length;
     }
 
-    GridRefinement::refine(triangulation, refinement_criteria, 0.5);
-    triangulation.execute_coarsening_and_refinement();
+    GridRefinement::refine(tria, refinement_criteria, 0.5);
+    tria.execute_coarsening_and_refinement();
 
     if (verbose) {
       GridOut grid_out;
       std::ofstream out("grid.msh");
-      grid_out.write_msh(triangulation, out);
+      grid_out.write_msh(tria, out);
     }
   }
 
@@ -158,7 +141,7 @@ int main(int argc, char ** argv)
 
   // The polynomial order is 1 by default, 2 if we use biquadratic elements
   const unsigned int p = 1 + q2;
-  IceShelf ice_shelf(triangulation, p);
+  IceShelf ice_shelf(tria, p);
 
   Field<2> h = ice_shelf.interpolate(Thickness());
   Field<2> theta = ice_shelf.interpolate(Temperature());

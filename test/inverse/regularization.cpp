@@ -1,9 +1,9 @@
 
 #include <random>
 
-#include <deal.II/grid/grid_generator.h>
-
 #include <icepack/inverse/regularization.hpp>
+
+#include "../testing.hpp"
 
 using namespace dealii;
 using namespace icepack;
@@ -85,18 +85,11 @@ void test_regularizer(
 
 int main()
 {
-  Triangulation<2> triangulation;
-
   const double width = 2.0, height = 1.0;
-  const Point<2> p1(0.0, 0.0), p2(width, height);
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
+  Triangulation<2> tria = testing::rectangular_glacier(width, height);
+  const double dx = dealii::GridTools::minimal_cell_diameter(tria);
 
-  const unsigned int num_levels = 5;
-  triangulation.refine_global(num_levels);
-
-  const Discretization<2> dsc(triangulation, 1);
-
-  const double dx = dealii::GridTools::minimal_cell_diameter(triangulation);
+  const Discretization<2> dsc(tria, 1);
 
   // Pick a smoothing length for the regularizers
   const double alpha = 0.125;

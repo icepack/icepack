@@ -1,9 +1,9 @@
 
-#include <deal.II/grid/grid_generator.h>
-
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
+
+#include "../testing.hpp"
 
 using namespace dealii;
 using namespace icepack;
@@ -82,35 +82,23 @@ int main(int argc, char ** argv)
      strcmp(argv[1], "--verbose") == 0);
 
   /**
-   * Create a triangulation for the domain geometry
-   */
-
-  Triangulation<2> triangulation;
-  const double length = 2000.0, width = 500.0;
-  const Point<2> p1(0.0, 0.0), p2(length, width);
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
-
-  for (auto cell: triangulation.active_cell_iterators()) {
-    for (unsigned int face_number = 0;
-         face_number < GeometryInfo<2>::faces_per_cell;
-         ++face_number)
-      if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id(1);
-  }
-
-  const unsigned int num_levels = 5;
-  triangulation.refine_global(num_levels);
-  const double dx = 1.0 / (1 << num_levels);
-
-  /**
    * Create a model object and input data
    */
 
-  const IceShelf ice_shelf(triangulation, 1);
+  const double length = 2000.0, width = 500.0;
+  Triangulation<2> tria = testing::rectangular_glacier(length, width);
+  const double dx = dealii::GridTools::minimal_cell_diameter(tria);
+
+  const IceShelf ice_shelf(tria, 1);
 
   const Field<2> h = ice_shelf.interpolate(Thickness());
   const Field<2> theta = ice_shelf.interpolate(Temperature());
   const VectorField<2> u0 = ice_shelf.interpolate(Velocity());
+
+
+  /**
+   * Solve for the model adjoint around some velocity field
+   */
 
   const DualVectorField<2> tau = ice_shelf.driving_stress(h);
   const DualVectorField<2> r = ice_shelf.residual(h, theta, u0, tau);

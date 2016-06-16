@@ -1,5 +1,4 @@
 
-#include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_out.h>
 
@@ -228,37 +227,25 @@ int main(int argc, char ** argv)
    */
 
   const double length = 2000, width = 500;
-  Triangulation<2> triangulation;
-  const Point<2> p1(0.0, 0.0), p2(length, width);
-  GridGenerator::hyper_rectangle(triangulation, p1, p2);
-
-  for (auto cell: triangulation.active_cell_iterators()) {
-    for (unsigned int face_number = 0;
-         face_number < GeometryInfo<2>::faces_per_cell;
-         ++face_number)
-      if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id(1);
-  }
-
-  const unsigned int num_levels = 5 - q2;
-  triangulation.refine_global(num_levels);
-  const double dx = 1.0 / (1 << num_levels);
+  const unsigned int levels = 5 - q2;
+  Triangulation<2> tria = testing::rectangular_glacier(length, width, levels);
+  const double dx = 1.0 / (1 << levels);
 
   if (refined) {
-    Vector<double> refinement_criteria(triangulation.n_active_cells());
-    for (const auto cell: triangulation.cell_iterators()) {
+    Vector<double> refinement_criteria(tria.n_active_cells());
+    for (const auto cell: tria.cell_iterators()) {
       const unsigned int index = cell->index();
       Point<2> x = cell->barycenter();
       refinement_criteria[index] = x[0] / length;
     }
 
-    GridRefinement::refine(triangulation, refinement_criteria, 0.5);
-    triangulation.execute_coarsening_and_refinement();
+    GridRefinement::refine(tria, refinement_criteria, 0.5);
+    tria.execute_coarsening_and_refinement();
 
     if (verbose) {
       GridOut grid_out;
       std::ofstream out("grid.msh");
-      grid_out.write_msh(triangulation, out);
+      grid_out.write_msh(tria, out);
     }
   }
 
@@ -269,7 +256,7 @@ int main(int argc, char ** argv)
 
   // The polynomial order is 1 by default, 2 if we use biquadratic elements
   const unsigned int p = 1 + q2;
-  IceStream ice_stream(triangulation, p);
+  IceStream ice_stream(tria, p);
 
   const double h0 = 500, delta_h = 100;
   const Thickness thickness(h0, delta_h, length);

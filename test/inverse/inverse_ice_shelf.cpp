@@ -1,11 +1,11 @@
 
-#include <deal.II/grid/grid_generator.h>
-
 #include <icepack/physics/constants.hpp>
 #include <icepack/numerics/optimization.hpp>
 #include <icepack/inverse/error_functionals.hpp>
 #include <icepack/inverse/regularization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
+
+#include "../testing.hpp"
 
 using dealii::Tensor;
 using dealii::Point;
@@ -54,42 +54,16 @@ public:
 };
 
 
-std::set<std::string> get_cmdline_args(int argc, char ** argv)
-{
-  std::set<std::string> args;
-  for (int k = 0; k < argc; ++k)
-    args.insert(std::string(argv[k]));
-
-  return args;
-}
-
 
 int main(int argc, char ** argv)
 {
   /**
    * Parse command-line arguments
    */
-  std::set<std::string> args = get_cmdline_args(argc, argv);
+  std::set<std::string> args = testing::get_cmdline_args(argc, argv);
 
   const bool verbose = args.count("-v") || args.count("--verbose");
   const bool tv = args.count("-tv") || args.count("--total-variation");
-
-
-  /* ---------------
-   * Generate a mesh
-   * --------------- */
-  dealii::Triangulation<2> mesh;
-  dealii::GridGenerator
-    ::hyper_rectangle(mesh, Point<2>(0.0, 0.0), Point<2>(length, width));
-
-  for (auto cell: mesh.active_cell_iterators())
-    for (unsigned int face_number = 0;
-         face_number < dealii::GeometryInfo<2>::faces_per_cell; ++face_number)
-      if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id(1);
-
-  const unsigned int num_levels = 5;
-  mesh.refine_global(num_levels);
 
 
   /* ------------------------------
@@ -114,7 +88,8 @@ int main(int argc, char ** argv)
   /* ----------------------------------------------
    * Make a model object and interpolate exact data
    * ---------------------------------------------- */
-  IceShelf ice_shelf(mesh, 1);
+  dealii::Triangulation<2> tria = testing::rectangular_glacier(length, width);
+  IceShelf ice_shelf(tria, 1);
   const auto& discretization = ice_shelf.get_discretization();
 
   const Field<2> h = ice_shelf.interpolate(thickness);
@@ -146,7 +121,7 @@ int main(int argc, char ** argv)
   VectorField<2> u(u_guess);
 
   // Compute the error of our crude guess
-  const double area = dealii::GridTools::volume(mesh);
+  const double area = dealii::GridTools::volume(tria);
   double mean_error =
     dist(theta_guess, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
   double mean_residual = inverse::square_error(u, u_true, sigma) / area;

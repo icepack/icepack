@@ -1,10 +1,9 @@
 
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/grid_tools.h>
-
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
+
+#include "../testing.hpp"
 
 using namespace dealii;
 using namespace icepack;
@@ -104,31 +103,12 @@ int main(int argc, char ** argv)
     (strcmp(argv[1], "-v") == 0 ||
      strcmp(argv[1], "--verbose") == 0);
 
-  /**
-   * Create a triangulation on which to solve PDEs
-   */
-
-  Triangulation<2> tria;
-  const Point<2> p1(0.0, 0.0), p2(length, width);
-  GridGenerator::hyper_rectangle(tria, p1, p2);
-
-  // Mark the right side of the rectangle as the ice front
-  for (auto cell: tria.active_cell_iterators()) {
-    for (unsigned int face_number = 0;
-         face_number < GeometryInfo<2>::faces_per_cell;
-         ++face_number)
-      if (cell->face(face_number)->center()(0) > length - 1.0)
-        cell->face(face_number)->set_boundary_id(1);
-  }
-
-  const unsigned int num_levels = 5;
-  tria.refine_global(num_levels);
-  const double dx = 1.0 / (1 << num_levels);
-
 
   /**
    * Create a model object and input data
    */
+  Triangulation<2> tria = testing::rectangular_glacier(length, width);
+  const double dx = dealii::GridTools::minimal_cell_diameter(tria);
 
   IceShelf ice_shelf(tria, 1);
 
@@ -137,9 +117,8 @@ int main(int argc, char ** argv)
   Field<2> a = ice_shelf.interpolate(accumulation);
   VectorField<2> u = ice_shelf.interpolate(velocity);
 
-  const double mesh_size = dealii::GridTools::minimal_cell_diameter(tria);
   const Point<2> x(width/2, length - 0.25);
-  const double dt = mesh_size / Velocity().value(x)[0] / 2;
+  const double dt = dx / Velocity().value(x)[0] / 2;
 
   Field<2> h(h0);
 
