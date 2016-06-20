@@ -7,6 +7,7 @@
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
+#include <deal.II/base/synchronous_iterator.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
@@ -30,6 +31,7 @@ namespace icepack {
   using dealii::ConstraintMatrix;
   using dealii::SparseMatrix;
   using dealii::SmartPointer;
+  using dealii::SynchronousIterators;
   using dealii::DoFTools::make_hanging_node_constraints;
   using dealii::DoFTools::make_sparsity_pattern;
 
@@ -207,6 +209,39 @@ namespace icepack {
 
     template <int rank, int _dim> friend
     const FieldDiscretization<rank, _dim>& get(const Discretization<_dim>& dsc);
+
+
+    /*
+     * Iterating over both scalar and vector fields
+     */
+
+    using dof_iterator = typename DoFHandler<dim>::active_cell_iterator;
+    using iterators = std::tuple<dof_iterator, dof_iterator>;
+    using iterator = SynchronousIterators<iterators>;
+
+    iterator begin() const
+    {
+      iterators its = {scalar().get_dof_handler().begin_active(),
+                       vector().get_dof_handler().begin_active()};
+      return iterator(its);
+    }
+
+    iterator end() const
+    {
+      iterators its = {scalar().get_dof_handler().end(),
+                       vector().get_dof_handler().end()};
+      return iterator(its);
+    }
+
+    const dof_iterator& scalar_cell_iterator(const iterator& it) const
+    {
+      return std::get<0>(it.iterators);
+    }
+
+    const dof_iterator& vector_cell_iterator(const iterator& it) const
+    {
+      return std::get<1>(it.iterators);
+    }
 
   protected:
     const unsigned int p;
