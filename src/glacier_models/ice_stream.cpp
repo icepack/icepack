@@ -4,6 +4,7 @@
 #include <icepack/physics/constants.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
+#include <icepack/util/face_iter.hpp>
 
 namespace icepack {
 
@@ -42,14 +43,15 @@ namespace icepack {
     const IceStream& ice_stream
   )
   {
-    SparseMatrix<double>
-      A(ice_stream.get_discretization().vector().get_sparsity());
+    const auto& discretization = ice_stream.get_discretization();
+
+    SparseMatrix<double> A(discretization.vector().get_sparsity());
     A = 0;
 
     const auto& u_fe = u0.get_fe();
     const auto& u_dof_handler = u0.get_dof_handler();
 
-    const QGauss<2> quad = ice_stream.get_discretization().quad();
+    const QGauss<2> quad = discretization.quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
     const FEValuesExtractors::Vector exv(0);
@@ -68,14 +70,12 @@ namespace icepack {
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    auto cell = u_dof_handler.begin_active();
-    auto h_cell = h.get_dof_handler().begin_active();
-    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+    for (const auto& it: discretization) {
       cell_matrix = 0;
-      u_fe_values.reinit(cell);
-      h_fe_values.reinit(h_cell);
+      u_fe_values.reinit(discretization.vector_cell_iterator(it));
+      h_fe_values.reinit(discretization.scalar_cell_iterator(it));
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
@@ -116,10 +116,9 @@ namespace icepack {
         }
       }
 
-      // Add the local stiffness matrix to the global stiffness matrix
-      cell->get_dof_indices(local_dof_indices);
+      discretization.vector_cell_iterator(it)->get_dof_indices(local_dof_ids);
       u0.get_constraints().distribute_local_to_global(
-        cell_matrix, local_dof_indices, A
+        cell_matrix, local_dof_ids, A
       );
     }
 
@@ -277,16 +276,15 @@ namespace icepack {
     std::vector<double> s_face_values(n_face_q_points);
 
     Vector<double> cell_rhs(dofs_per_cell);
-    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    // Create cell iterators from the tau and h DoFHandlers; these will be
-    // iterated jointly.
-    auto cell = tau_dof_handler.begin_active();
-    auto h_cell = h.get_dof_handler().begin_active();
-    for (; cell != tau_dof_handler.end(); ++cell, ++h_cell) {
+    for (const auto& it: discretization) {
+      const auto& its = discretization.scalar_cell_iterator(it);
+      const auto& itv = discretization.vector_cell_iterator(it);
+
       cell_rhs = 0;
-      tau_fe_values.reinit(cell);
-      h_fe_values.reinit(h_cell);
+      tau_fe_values.reinit(itv);
+      h_fe_values.reinit(its);
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_gradients(s.get_coefficients(), grad_s_values);
@@ -303,13 +301,10 @@ namespace icepack {
       }
 
       // If we're at the calving terminus, add in the frontal stress.
-      for (unsigned int face_number = 0;
-           face_number < GeometryInfo<2>::faces_per_cell; ++face_number)
-        if (cell->face(face_number)->at_boundary()
-            and
-            cell->face(face_number)->boundary_id() == 1) {
-          tau_fe_face_values.reinit(cell, face_number);
-          h_fe_face_values.reinit(h_cell, face_number);
+      for (unsigned int face = 0; face < GeometryInfo<2>::faces_per_cell; ++face)
+        if (at_boundary(itv, face, 1)) {
+          tau_fe_face_values.reinit(itv, face);
+          h_fe_face_values.reinit(its, face);
 
           h_fe_face_values[exs].get_function_values(h.get_coefficients(), h_face_values);
           h_fe_face_values[exs].get_function_values(s.get_coefficients(), s_face_values);
@@ -333,9 +328,9 @@ namespace icepack {
           }
         }
 
-      cell->get_dof_indices(local_dof_indices);
+      itv->get_dof_indices(local_dof_ids);
       tau.get_constraints().distribute_local_to_global(
-        cell_rhs, local_dof_indices, tau.get_coefficients()
+        cell_rhs, local_dof_ids, tau.get_coefficients()
       );
     }
 
@@ -376,14 +371,12 @@ namespace icepack {
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
     Vector<double> cell_residual(dofs_per_cell);
-    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    auto cell = u_dof_handler.begin_active();
-    auto h_cell = h.get_dof_handler().begin_active();
-    for (; cell != u_dof_handler.end(); ++cell, ++h_cell) {
+    for (const auto& it: discretization) {
       cell_residual = 0;
-      u_fe_values.reinit(cell);
-      h_fe_values.reinit(h_cell);
+      u_fe_values.reinit(discretization.vector_cell_iterator(it));
+      h_fe_values.reinit(discretization.scalar_cell_iterator(it));
 
       h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
       h_fe_values[exs].get_function_values(s.get_coefficients(), s_values);
@@ -418,9 +411,9 @@ namespace icepack {
         }
      }
 
-      cell->get_dof_indices(local_dof_indices);
+      discretization.vector_cell_iterator(it)->get_dof_indices(local_dof_ids);
       r.get_constraints().distribute_local_to_global(
-        cell_residual, local_dof_indices, r.get_coefficients()
+        cell_residual, local_dof_ids, r.get_coefficients()
       );
     }
 

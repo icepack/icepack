@@ -4,6 +4,7 @@
 #include <deal.II/lac/filtered_matrix.h>
 
 #include <icepack/util/tensor_function_utils.hpp>
+#include <icepack/util/face_iter.hpp>
 #include <icepack/glacier_models/depth_averaged_model.hpp>
 #include <icepack/numerics/linear_solve.hpp>
 
@@ -113,14 +114,15 @@ namespace icepack {
     const double tau = dx_min / u_max / 4.0;
 
     Vector<double> cell_dh(dofs_per_cell);
-    std::vector<dealii::types::global_dof_index> local_dof_indices(dofs_per_cell);
+    std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    auto cell = h_dof_handler.begin_active();
-    auto u_cell = u.get_dof_handler().begin_active();
-    for (; cell != h_dof_handler.end(); ++cell, ++u_cell) {
+    for (const auto& it: discretization) {
+      const auto& its = discretization.scalar_cell_iterator(it);
+      const auto& itv = discretization.vector_cell_iterator(it);
+
       cell_dh = 0;
-      h_fe_values.reinit(cell);
-      u_fe_values.reinit(u_cell);
+      h_fe_values.reinit(its);
+      u_fe_values.reinit(itv);
 
       h_fe_values[exs].get_function_values(h0.get_coefficients(), h_values);
       h_fe_values[exs].get_function_gradients(h0.get_coefficients(), dh_values);
@@ -145,11 +147,10 @@ namespace icepack {
         }
       }
 
-      for (unsigned int face_number = 0;
-           face_number < GeometryInfo<2>::faces_per_cell; ++face_number)
-        if (cell->face(face_number)->at_boundary()) {
-          h_fe_face_values.reinit(cell, face_number);
-          u_fe_face_values.reinit(u_cell, face_number);
+      for (unsigned int face = 0; face < GeometryInfo<2>::faces_per_cell; ++face)
+        if (at_boundary(its, face, 1)) {
+          h_fe_face_values.reinit(its, face);
+          u_fe_face_values.reinit(itv, face);
 
           h_fe_face_values[exs].get_function_values(h0.get_coefficients(), h_face_values);
           u_fe_face_values[exv].get_function_values(u.get_coefficients(), u_face_values);
@@ -172,9 +173,9 @@ namespace icepack {
           }
         }
 
-      cell->get_dof_indices(local_dof_indices);
+      its->get_dof_indices(local_dof_ids);
       dh.get_constraints().distribute_local_to_global(
-        cell_dh, local_dof_indices, dh.get_coefficients()
+        cell_dh, local_dof_ids, dh.get_coefficients()
       );
     }
 
