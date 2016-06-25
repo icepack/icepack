@@ -55,7 +55,7 @@ namespace icepack {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    for (auto it = discretization.begin(); it != discretization.end(); ++it) {
+    for (const auto& it: discretization) {
       cell_matrix = 0;
       u_fe_values.reinit(discretization.vector_cell_iterator(it));
       h_fe_values.reinit(discretization.scalar_cell_iterator(it));
@@ -220,7 +220,7 @@ namespace icepack {
 
     const double Rho = rho_ice * gravity * (1 - rho_ice / rho_water);
 
-    for (auto it = discretization.begin(); it != discretization.end(); ++it) {
+    for (const auto& it: discretization) {
       cell_rhs = 0;
       tau_fe_values.reinit(discretization.vector_cell_iterator(it));
       h_fe_values.reinit(discretization.scalar_cell_iterator(it));
@@ -278,7 +278,7 @@ namespace icepack {
     Vector<double> cell_residual(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
-    for (auto it = discretization.begin(); it != discretization.end(); ++it) {
+    for (const auto& it: discretization) {
       cell_residual = 0;
       u_fe_values.reinit(discretization.vector_cell_iterator(it));
       h_fe_values.reinit(discretization.scalar_cell_iterator(it));

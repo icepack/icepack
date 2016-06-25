@@ -233,14 +233,14 @@ namespace icepack {
       return iterator(its);
     }
 
-    const dof_iterator& scalar_cell_iterator(const iterator& it) const
+    const dof_iterator& scalar_cell_iterator(const iterators& its) const
     {
-      return std::get<0>(it.iterators);
+      return std::get<0>(its);
     }
 
-    const dof_iterator& vector_cell_iterator(const iterator& it) const
+    const dof_iterator& vector_cell_iterator(const iterators& its) const
     {
-      return std::get<1>(it.iterators);
+      return std::get<1>(its);
     }
 
   protected:
