@@ -221,15 +221,17 @@ namespace icepack {
 
     iterator begin() const
     {
-      iterators its = {scalar().get_dof_handler().begin_active(),
-                       vector().get_dof_handler().begin_active()};
+      iterators its =
+        std::make_tuple(scalar().get_dof_handler().begin_active(),
+                        vector().get_dof_handler().begin_active());
       return iterator(its);
     }
 
     iterator end() const
     {
-      iterators its = {scalar().get_dof_handler().end(),
-                       vector().get_dof_handler().end()};
+      iterators its =
+        std::make_tuple(scalar().get_dof_handler().end(),
+                        vector().get_dof_handler().end());
       return iterator(its);
     }
 
