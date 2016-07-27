@@ -17,7 +17,9 @@ namespace icepack {
      */
     IceShelf(
       const Triangulation<2>& triangulation,
-      const unsigned int polynomial_order
+      const unsigned int polynomial_order,
+      const double tolerance = 1.0e-6,
+      const unsigned int max_iterations = 20
     );
 
 
@@ -68,6 +70,9 @@ namespace icepack {
       const VectorField<2>& u0,
       const DualVectorField<2>& f
     ) const;
+
+    double tolerance;
+    unsigned int max_iterations;
   };
 
 }
