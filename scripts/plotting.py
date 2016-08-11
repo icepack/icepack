@@ -7,7 +7,7 @@ import ucd
 def _plot_field(x, y, q, png_filename):
     plt.figure()
     plt.gca().set_aspect('equal')
-    plt.tricontourf(x, y, q, 36, shading='faceted')
+    plt.tricontourf(x, y, q, 36, shading='faceted', cmap = 'viridis')
     plt.colorbar()
     plt.savefig(png_filename)
     return

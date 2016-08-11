@@ -63,3 +63,37 @@ def read(filename):
         u, v = _read2(f, num_points)
 
     return x, y, cell, u, v
+
+
+
+# ----------------------------------
+def fixup_triangles(x, y, triangles):
+    num_triangles, _ = np.shape(triangles)
+    for n in range(num_triangles):
+        i, j, k = triangles[n, :]
+        A = np.array([[1.0, x[i], y[i]],
+                      [1.0, x[j], y[j]],
+                      [1.0, x[k], y[k]]])
+        if np.linalg.det(A) < 0:
+            triangles[n, 0] = j
+            triangles[n, 1] = i
+
+    return triangles
+
+
+# -----------------------
+def subdivide_quads(cell):
+    num_cells, _ = np.shape(cell)
+    triangles = np.zeros((2 * num_cells, 3), dtype = int)
+
+    for n in range(num_cells):
+        i, j, k, l = cell[n, :]
+        triangles[2*n] = [i, j, k]
+        triangles[2*n+1] = [k, l, i]
+
+    return triangles
+
+
+# -------------------------------------
+def quad_cells_to_triangles(x, y, cell):
+    return fixup_triangles(x, y, subdivide_quads(cell))
