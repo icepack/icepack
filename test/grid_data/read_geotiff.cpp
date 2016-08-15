@@ -54,7 +54,8 @@ bool generateExampleGeoTIFF(const std::string& filename)
   CPLFree(SRS_WKT);
 
   GDALRasterBand * band = data->GetRasterBand(1);
-  band->RasterIO(GF_Write, 0, 0, nx, ny, raster, nx, ny, GDT_Float64, 0, 0);
+  CPLErr cpl_err =
+    band->RasterIO(GF_Write, 0, 0, nx, ny, raster, nx, ny, GDT_Float64, 0, 0);
   GDALClose((GDALDatasetH) data);
 
   return true;

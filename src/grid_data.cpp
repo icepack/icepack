@@ -121,18 +121,18 @@ namespace icepack {
     const double missing = band->GetNoDataValue();
 
     // Bro, do you even know how to C++?
-    double *scanline = (double *) CPLMalloc(sizeof(double) * nx);
+    double * line = (double *) CPLMalloc(sizeof(double) * nx);
 
     Table<2, double> table(nx, ny);
 
     for (unsigned int i = 0; i < ny; ++i) {
-      band->RasterIO( GF_Read, 0, i, nx, 1, scanline, nx, 1,
-                      GDT_Float64, 0, 0 );
+      CPLErr cpl_err =
+        band->RasterIO(GF_Read, 0, i, nx, 1, line, nx, 1, GDT_Float64, 0, 0);
       for (unsigned int j = 0; j < nx; ++j)
-        table[j][ny - i - 1] = scanline[j];
+        table[j][ny - i - 1] = line[j];
     }
 
-    CPLFree(scanline);
+    CPLFree(line);
     delete data;
 
     std::vector<double> x(nx);
