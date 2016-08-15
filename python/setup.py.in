@@ -15,6 +15,7 @@ setup(
         'scipy',
         'matplotlib'
     ],
+    package_dir={'': '${CMAKE_CURRENT_SOURCE_DIR}'},
     packages=[
         'icepack',
         'icepack.grid',

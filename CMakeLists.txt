@@ -31,3 +31,5 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/src")
 add_subdirectory("${CMAKE_SOURCE_DIR}/test")
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
+
+add_subdirectory("${CMAKE_SOURCE_DIR}/python")
