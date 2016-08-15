@@ -1,11 +1,25 @@
 
+# Compiled C/C++ object files or libraries
 *.o
 *.a
 *.so
 
+# Compiled python files
 *.pyc
 
+# Mesh file formats
 *.eps
 *.gpl
 *.geo
 *.msh
+
+# Ignore common file formats for geospatial data or simulation results
+*.txt
+*.ucd
+*.tif
+*.tiff
+*.vtk
+*.vtu
+
+# Don't ignore CMake build instructions
+!CMakeLists.txt
