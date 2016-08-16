@@ -11,10 +11,5 @@ and so forth.
 
 ### Installation
 
-To install this python library, run the command
-
-    python setup.py install --user
-
-The extra flag `--user` will install the library under `$HOME/.local` rather than a system directory.
-
+The icepack build system will install this package into the same installation directory as the core C++ library, provided you have python on your system.
 Note that these scripts are needed to run the pre- and post-processing scripts in the icepack examples.
