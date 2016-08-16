@@ -12,7 +12,7 @@ namespace icepack {
   )
   {
     return it->face(face_number)->at_boundary()
-      and it->face(face_number)->boundary_id() == 1;
+      and it->face(face_number)->boundary_id() == id;
   }
 
 }

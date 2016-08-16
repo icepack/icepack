@@ -60,13 +60,11 @@ namespace icepack {
       const Field<2>& sigma
     )
     {
-      const auto& u_fe = u_model.get_fe();
-      const auto& u_dof_handler = u_model.get_dof_handler();
-      const auto& discretization = u_model.get_discretization();
+      const auto& dsc = u_model.get_discretization();
+      DualVectorField<2> du(dsc);
 
-      DualVectorField<2> du(discretization);
-
-      const QGauss<2>& quad = discretization.quad();
+      const FiniteElement<2>& u_fe = u_model.get_fe();
+      const QGauss<2>& quad = dsc.quad();
 
       FEValues<2> s_fe_values(sigma.get_fe(), quad, DefaultUpdateFlags::flags);
       const FEValuesExtractors::Scalar exs(0);
@@ -83,12 +81,10 @@ namespace icepack {
       std::vector<dealii::types::global_dof_index>
         local_dof_indices(dofs_per_cell);
 
-      auto cell = u_dof_handler.begin_active();
-      auto s_cell = sigma.get_dof_handler().begin_active();
-      for (; cell != u_dof_handler.end(); ++cell, ++s_cell) {
+      for (const auto& it: dsc) {
         cell_du = 0;
-        u_fe_values.reinit(cell);
-        s_fe_values.reinit(s_cell);
+        u_fe_values.reinit(dsc.vector_cell_iterator(it));
+        s_fe_values.reinit(dsc.scalar_cell_iterator(it));
 
         s_fe_values[exs].get_function_values(
           sigma.get_coefficients(), sigma_values
@@ -109,7 +105,7 @@ namespace icepack {
           }
         }
 
-        cell->get_dof_indices(local_dof_indices);
+        dsc.vector_cell_iterator(it)->get_dof_indices(local_dof_indices);
         du.get_constraints().distribute_local_to_global(
           cell_du, local_dof_indices, du.get_coefficients()
         );

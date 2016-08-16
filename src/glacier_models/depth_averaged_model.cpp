@@ -75,10 +75,8 @@ namespace icepack {
   {
     Field<2> dh(discretization);
 
-    const auto& h_fe = dh.get_fe();
-    const auto& u_fe = u.get_fe();
-
-    const auto& h_dof_handler = dh.get_dof_handler();
+    const FiniteElement<2>& h_fe = dh.get_fe();
+    const FiniteElement<2>& u_fe = u.get_fe();
 
     const QGauss<2> quad = discretization.quad();
     const QGauss<1> f_quad = discretization.face_quad();
@@ -184,7 +182,7 @@ namespace icepack {
     solver_control.log_result(false);
     SolverCG<> solver(solver_control);
 
-    const auto& M = discretization.scalar().get_mass_matrix();
+    const SparseMatrix<double>& M = discretization.scalar().get_mass_matrix();
     solver.solve(M, dh.get_coefficients(), F, dealii::PreconditionIdentity());
     dh.get_constraints().distribute(dh.get_coefficients());
 

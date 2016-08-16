@@ -26,9 +26,7 @@ namespace icepack {
       const auto& discretization = ice_shelf.get_discretization();
       DualField<2> dJ(discretization);
 
-      const auto& s_fe = dJ.get_fe();
-      const auto& s_dof_handler = dJ.get_dof_handler();
-
+      const FiniteElement<2>& s_fe = dJ.get_fe();
       const QGauss<2> quad = discretization.quad();
 
       FEValues<2> s_fe_values(s_fe, quad, DefaultUpdateFlags::flags);

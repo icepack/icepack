@@ -34,9 +34,7 @@ namespace icepack {
     SparseMatrix<double> A(discretization.vector().get_sparsity());
     A = 0;
 
-    const auto& u_fe = u0.get_fe();
-    const auto& u_dof_handler = u0.get_dof_handler();
-
+    const FiniteElement<2>& u_fe = u0.get_fe();
     const QGauss<2> quad = discretization.quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
@@ -204,9 +202,8 @@ namespace icepack {
   {
     // Initialize the VectorField for the driving stress
     DualVectorField<2> tau(discretization);
-    const auto& tau_fe = tau.get_fe();
-    const auto& tau_dof_handler = tau.get_dof_handler();
 
+    const FiniteElement<2>& tau_fe = tau.get_fe();
     const QGauss<2> quad = discretization.quad();
 
     FEValues<2> tau_fe_values(tau_fe, quad, DefaultUpdateFlags::flags);
@@ -263,9 +260,7 @@ namespace icepack {
   {
     DualVectorField<2> r(tau_d);
 
-    const auto& u_fe = u.get_fe();
-    const auto& u_dof_handler = u.get_dof_handler();
-
+    const FiniteElement<2>& u_fe = u.get_fe();
     const QGauss<2> quad = discretization.quad();
 
     FEValues<2> u_fe_values(u_fe, quad, DefaultUpdateFlags::flags);
@@ -316,6 +311,7 @@ namespace icepack {
       );
     }
 
+    const DoFHandler<2>& u_dof_handler = u.get_dof_handler();
     const unsigned int n_dofs = u_dof_handler.n_dofs();
     std::vector<bool> boundary_dofs(n_dofs);
 
