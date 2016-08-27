@@ -66,8 +66,8 @@ def read(filename):
 
 
 
-# ----------------------------------
-def fixup_triangles(x, y, triangles):
+# -----------------------------------
+def _fixup_triangles(x, y, triangles):
     num_triangles, _ = np.shape(triangles)
     for n in range(num_triangles):
         i, j, k = triangles[n, :]
@@ -82,7 +82,7 @@ def fixup_triangles(x, y, triangles):
 
 
 # -----------------------
-def subdivide_quads(cell):
+def _subdivide_quads(cell):
     num_cells, _ = np.shape(cell)
     triangles = np.zeros((2 * num_cells, 3), dtype = int)
 
@@ -96,4 +96,4 @@ def subdivide_quads(cell):
 
 # -------------------------------------
 def quad_cells_to_triangles(x, y, cell):
-    return fixup_triangles(x, y, subdivide_quads(cell))
+    return _fixup_triangles(x, y, _subdivide_quads(cell))
