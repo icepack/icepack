@@ -1,13 +1,9 @@
 
-// C++ includes
 #include <fstream>
 #include <iostream>
-
-// deal.II includes
 #include <deal.II/base/function.h>
-
-// our includes
 #include <icepack/grid_data.hpp>
+#include "../testing.hpp"
 
 using namespace icepack;
 using dealii::Point;
@@ -63,14 +59,8 @@ int main (int argc, char **argv)
          ymin = example_data.yrange[0],
          ymax = example_data.yrange[1];
 
-  if (xmin != xo or xmax != xo + (nx - 1) * dx or
-      ymin != yo or ymax != yo + (ny - 1) * dy)
-  {
-    std::cout << "Failed to record spatial extent of data." << std::endl;
-    std::cout << xmin << ", " << xmax << std::endl;
-    std::cout << ymin << ", " << ymax << std::endl;
-    return 1;
-  }
+  check (xmin == xo & xmax == xo + (nx - 1) * dx &
+         ymin == yo & ymax == yo + (ny - 1) * dy);
 
   double x, y;
   double w, z;
@@ -85,13 +75,7 @@ int main (int argc, char **argv)
       z = 1 + x * y;
       w = example_data.value(p, 0);
 
-      if (fabs(w - z) > 1.0e-12)
-      {
-        std::cout << "Reading Arc data failed." << std::endl;
-        std::cout << "Correct value: " << z << std::endl;
-        std::cout << "Data read:     " << w << std::endl;
-        return 1;
-      }
+      check(fabs(w - z) < 1.0e-12);
     }
   }
 

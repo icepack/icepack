@@ -1,13 +1,11 @@
 
 #include <iostream>
-
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
-
 #include <icepack/field.hpp>
-
+#include "../testing.hpp"
 
 const unsigned int num_levels = 3;
 const double dx = 1.0/(1 << num_levels);
@@ -40,7 +38,7 @@ class F : public TensorFunction<1, dim>
 
 
 template <int dim>
-bool
+void
 test_field(const Discretization<dim>& discretization, const Function<dim>& phi)
 {
   Field<dim> psi = interpolate(discretization, phi);
@@ -60,23 +58,21 @@ test_field(const Discretization<dim>& discretization, const Function<dim>& phi)
     fe_values[ex].get_function_values(psi.get_coefficients(), psi_values);
 
     for (unsigned int q = 0; q < n_q_points; ++q)
-      Assert(abs(phi_values[q] - psi_values[q]) < 1.0e-6, ExcInternalError());
+      check(abs(phi_values[q] - psi_values[q]) < 1.0e-6);
   }
 
   const double n = norm(psi);
   const double exact_integral = 1.0/3;
-  Assert(abs(n - exact_integral) < dx*dx, ExcInternalError());
+  check(abs(n - exact_integral) < dx*dx);
 
   const double avg = rms_average(psi);
   const double exact_avg = 1.0/3;
-  Assert(abs(avg - exact_avg) < dx*dx, ExcInternalError());
-
-  return true;
+  check(abs(avg - exact_avg) < dx*dx);
 }
 
 
 template <int dim>
-bool test_vector_field(
+void test_vector_field(
   const Discretization<dim>& discretization,
   const TensorFunction<1, dim>& f
 )
@@ -98,14 +94,12 @@ bool test_vector_field(
     fe_values[ex].get_function_values(g.get_coefficients(), g_values);
 
     for (unsigned int q = 0; q < n_q_points; ++q)
-      Assert((f_values[q] - g_values[q]).norm() < 1.0e-6, ExcInternalError());
+      check((f_values[q] - g_values[q]).norm() < 1.0e-6);
   }
 
   const double n = norm(g);
   const double exact_integral = std::sqrt(dim/3.0);
-  Assert(abs(n - exact_integral) < dx, ExcInternalError());
-
-  return true;
+  check(abs(n - exact_integral) < dx);
 }
 
 
@@ -119,10 +113,10 @@ int main()
   const Discretization<2> discretization(triangulation, 1);
 
   Phi<2> phi;
-  if (!test_field(discretization, phi)) return 1;
+  test_field(discretization, phi);
 
   F<2> f;
-  if (!test_vector_field(discretization, f)) return 1;
+  test_vector_field(discretization, f);
 
   return 0;
 }

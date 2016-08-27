@@ -2,7 +2,6 @@
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
-
 #include "../testing.hpp"
 
 using namespace dealii;
@@ -102,7 +101,7 @@ int main(int argc, char ** argv)
 
   const DualVectorField<2> tau = ice_shelf.driving_stress(h);
   const DualVectorField<2> r = ice_shelf.residual(h, theta, u0, tau);
-  Assert(norm(r) / norm(tau) < dx*dx, ExcInternalError());
+  check(norm(r) / norm(tau) < dx*dx);
 
   const DualVectorField<2> d_tau = transpose(ice_shelf.interpolate(DeltaTau()));
   const VectorField<2> lambda = ice_shelf.adjoint_solve(h, theta, u0, d_tau);

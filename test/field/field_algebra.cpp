@@ -1,7 +1,7 @@
 
 #include <deal.II/grid/grid_generator.h>
-
 #include <icepack/field.hpp>
+#include "../testing.hpp"
 
 using dealii::Point;
 using dealii::Tensor;
@@ -22,7 +22,7 @@ namespace DefaultUpdateFlags = icepack::DefaultUpdateFlags;
 
 
 template <int rank, int dim>
-bool test_scalar_multiplication(
+void test_scalar_multiplication(
   const FieldType<rank, dim>& phi, const double tolerance
 )
 {
@@ -54,16 +54,14 @@ bool test_scalar_multiplication(
       // subtlety here! Computing the square of the value is the only way to
       // get its magnitude in the same way for scalars or vectors.
       const auto delta = 2*phi_values[q] - psi_values[q];
-      if (delta*delta > tolerance*tolerance) return false;
+      check(delta*delta < tolerance*tolerance);
     }
   }
-
-  return true;
 }
 
 
 template <int rank, int dim>
-bool test_addition(
+void test_addition(
   const FieldType<rank, dim>& phi1,
   const FieldType<rank, dim>& phi2,
   const double tolerance
@@ -89,12 +87,9 @@ bool test_addition(
 
     for (unsigned int q = 0; q < n_q_points; ++q) {
       const auto delta = psi_values[q] - phi1_values[q] - phi2_values[q];
-      if (delta*delta > tolerance*tolerance) return false;
+      check(delta*delta < tolerance*tolerance);
     }
   }
-
-  return true;
-
 }
 
 
@@ -147,14 +142,14 @@ int main()
   const Field<2> phi1 = interpolate(discretization, Phi1);
   const Field<2> phi2 = interpolate(discretization, Phi2);
 
-  if (!test_scalar_multiplication(phi1, dx*dx)) return 1;
-  if (!test_addition(phi1, phi2, dx*dx)) return 1;
+  test_scalar_multiplication(phi1, dx*dx);
+  test_addition(phi1, phi2, dx*dx);
 
   const VectorField<2> f1 = interpolate(discretization, F1<2>());
   const VectorField<2> f2 = interpolate(discretization, F2<2>());
 
-  if (!test_scalar_multiplication(f1, dx*dx)) return 1;
-  if (!test_addition(f1, f2, dx*dx)) return 1;
+  test_scalar_multiplication(f1, dx*dx);
+  test_addition(f1, f2, dx*dx);
 
   return 0;
 }

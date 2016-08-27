@@ -1,10 +1,8 @@
 
 #include <iostream>
-
 #include <deal.II/grid/grid_generator.h>
-
 #include <icepack/field.hpp>
-
+#include "../testing.hpp"
 
 const unsigned int num_levels = 6;
 const double dx = 1.0/(1 << num_levels);
@@ -53,11 +51,11 @@ int main()
 
   // Check that the finite element fields are approximately orthogonal
   double exact_inner_product = 0.0;
-  if (abs(inner_product(phi1, phi2) - exact_inner_product) > dx) return 1;
+  check(abs(inner_product(phi1, phi2) - exact_inner_product) < dx);
 
   // Check that the distance between the two fields of unit norm is 1
   const double exact_distance = 1.0;
-  if (abs(dist(phi1, phi2) - exact_distance) > dx) return 1;
+  check(abs(dist(phi1, phi2) - exact_distance) < dx);
 
   // Compute the Laplacian of one of the fields; this is a dual field
   SparseMatrix<double> L(discretization.scalar().get_sparsity());
@@ -74,8 +72,7 @@ int main()
 
   // Check that the fields are also conjugate w.r.t. the Laplace operator
   exact_inner_product = 0.0;
-  if (abs(inner_product(laplacian_phi1, phi2) - exact_inner_product) > dx)
-    return 1;
+  check(abs(inner_product(laplacian_phi1, phi2) - exact_inner_product) < dx);
 
   return 0;
 }

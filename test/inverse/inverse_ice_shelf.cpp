@@ -4,7 +4,6 @@
 #include <icepack/inverse/error_functionals.hpp>
 #include <icepack/inverse/regularization.hpp>
 #include <icepack/inverse/ice_shelf.hpp>
-
 #include "../testing.hpp"
 
 using dealii::Tensor;
@@ -177,7 +176,7 @@ int main(int argc, char ** argv)
     std::cout << "Final velocity error:      " << mean_residual << std::endl
               << "Final temperature error:   " << mean_error << std::endl;
 
-  Assert(mean_residual < 0.05, ExcInternalError());
+  check(mean_residual < 0.05);
 
   if (verbose) {
     theta_true.write("theta_true.ucd", "theta");

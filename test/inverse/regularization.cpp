@@ -1,8 +1,6 @@
 
 #include <random>
-
 #include <icepack/inverse/regularization.hpp>
-
 #include "../testing.hpp"
 
 using namespace dealii;
@@ -52,7 +50,7 @@ void test_regularizer(
 {
   // Check that the penalty for a constant function is 0
   const Field<2> one = interpolate(dsc, dealii::ConstantFunction<2>(1.0));
-  Assert(std::abs(regularizer(one)) < tolerance, ExcInternalError());
+  check(std::abs(regularizer(one)) < tolerance);
 
   // Check that computing the derivative of the functional works right
   const unsigned int degree = 5;
@@ -79,7 +77,7 @@ void test_regularizer(
   const double std_dev = std::sqrt(variance);
 
   // TODO: This is just... laughably ad hoc, come up with a better test.
-  Assert(std_dev / mean < 5.0e-2, ExcInternalError());
+  check(std_dev / mean < 5.0e-2);
 }
 
 
@@ -111,12 +109,11 @@ int main()
   const Field<2> cosh = interpolate(dsc, Cosh);
 
   const double exact_tv = gamma * height * (b * std::sinh(width / b) - width);
-  Assert(std::abs(total_variation(cosh) - exact_tv) < dx, ExcInternalError());
+  check(std::abs(total_variation(cosh) - exact_tv) < dx);
 
   const double exact_square_gradient =
     gamma*gamma * height * (0.5 * b * std::sinh(2 * width / b) - width) / 4.0;
-  Assert(std::abs(square_gradient(cosh) - exact_square_gradient) < dx,
-         ExcInternalError());
+  check(std::abs(square_gradient(cosh) - exact_square_gradient) < dx);
 
   return 0;
 }

@@ -8,9 +8,7 @@
  */
 
 #include <iostream>
-
 #include <deal.II/grid/grid_generator.h>
-
 #include <icepack/field.hpp>
 
 

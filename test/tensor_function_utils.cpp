@@ -1,10 +1,9 @@
 
 #include <random>
-
 #include <deal.II/base/function_lib.h>
 #include <deal.II/grid/grid_generator.h>
-
 #include <icepack/util/tensor_function_utils.hpp>
+#include "testing.hpp"
 
 const unsigned int num_levels = 3;
 const double dx = 1.0 / (1 << num_levels);
@@ -77,7 +76,7 @@ int main()
     w[0] = f.value(p);
     w[1] = g.value(p);
 
-    Assert((v - w).norm() < 1.0e-15, dealii::ExcInternalError());
+    check((v - w).norm() < 1.0e-15);
   }
 
   return 0;

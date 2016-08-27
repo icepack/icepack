@@ -3,9 +3,8 @@
 #include <cpl_conv.h>
 #include <cpl_string.h>
 #include <ogr_spatialref.h>
-
 #include <icepack/grid_data.hpp>
-
+#include "../testing.hpp"
 
 using namespace icepack;
 using dealii::Point;
@@ -72,8 +71,7 @@ int main(int argc, char **argv)
 
   GDALAllRegister();
 
-  bool successfully_wrote_example = generateExampleGeoTIFF(filename);
-  if (not successfully_wrote_example) return 1;
+  check(generateExampleGeoTIFF(filename));
   GridData example_data = readGeoTIFF(filename);
 
   double xmin = example_data.xrange[0],
@@ -81,23 +79,15 @@ int main(int argc, char **argv)
          ymin = example_data.yrange[0],
          ymax = example_data.yrange[1];
 
-  if (xmin != xo or xmax != xo + (nx - 1) * dx or
-      ymin != yo or ymax != yo + (ny - 1) * fabs(dy))
-  {
-    std::cout << "Failed to record spatial extent of data." << std::endl;
-    std::cout << xmin << ", " << xmax << std::endl;
-    std::cout << ymin << ", " << ymax << std::endl;
-    return 1;
-  }
+  check(xmin == xo & xmax == xo + (nx - 1) * dx &
+        ymin == yo & ymax == yo + (ny - 1) * fabs(dy));
 
   double x, y;
   double z, w;
   Point<2> p;
-  for (unsigned int i = 0; i < ny; ++i)
-  {
+  for (unsigned int i = 0; i < ny; ++i) {
     y = yo + i * fabs(dy);
-    for (unsigned int j = 0; j < ny; ++j)
-    {
+    for (unsigned int j = 0; j < ny; ++j) {
       x = xo + j * dx;
 
       p = {x, y};
@@ -105,13 +95,7 @@ int main(int argc, char **argv)
       z = 1 + x * y;
       w = example_data.value(p, 0);
 
-      if (fabs(w - z) > 1.0e-12)
-      {
-        std::cout << "Reading GeoTIFF data failed." << std::endl;
-        std::cout << "Correct value: " << z << std::endl;
-        std::cout << "Data read:     " << w << std::endl;
-        return 1;
-      }
+      check(fabs(w - z) < 1.0e-12);
     }
   }
 

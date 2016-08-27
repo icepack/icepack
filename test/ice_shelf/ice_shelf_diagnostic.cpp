@@ -1,13 +1,10 @@
 
 #include <fstream>
-
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_out.h>
-
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
-
 #include "../testing.hpp"
 
 using namespace dealii;
@@ -157,7 +154,7 @@ int main(int argc, char ** argv)
   const DualVectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
 
   // Residual of the exact solution should be < dx^2.
-  Assert(norm(r)/norm(tau) < dx*dx, ExcInternalError());
+  check(norm(r)/norm(tau) < dx*dx);
 
 
   /**
@@ -165,7 +162,7 @@ int main(int argc, char ** argv)
    */
 
   const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
-  Assert(dist(u, u_true)/norm(u_true) < std::pow(dx, p+1), ExcInternalError());
+  check(dist(u, u_true)/norm(u_true) < std::pow(dx, p+1));
 
 
   /**

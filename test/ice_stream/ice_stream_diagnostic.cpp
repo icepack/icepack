@@ -1,11 +1,9 @@
 
 #include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_out.h>
-
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_stream.hpp>
-
 #include "../testing.hpp"
 
 using std::pow;
@@ -300,7 +298,7 @@ int main(int argc, char ** argv)
   const DualVectorField<2> r = ice_stream.residual(s, h, theta, beta, u_true, tau);
 
   // Residual of the exact solution should be < dx^2.
-  Assert(norm(r)/norm(tau) < dx*dx, ExcInternalError());
+  check(norm(r)/norm(tau) < dx*dx);
 
 
   /**
@@ -309,7 +307,7 @@ int main(int argc, char ** argv)
 
   const VectorField<2> u =
     ice_stream.diagnostic_solve(s, h, theta, beta, u_init);
-  Assert(dist(u, u_true)/norm(u_true) < dx*dx, ExcInternalError());
+  check(dist(u, u_true)/norm(u_true) < dx*dx);
 
 
   /**

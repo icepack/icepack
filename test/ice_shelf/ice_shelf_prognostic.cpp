@@ -2,7 +2,6 @@
 #include <icepack/physics/constants.hpp>
 #include <icepack/physics/viscosity.hpp>
 #include <icepack/glacier_models/ice_shelf.hpp>
-
 #include "../testing.hpp"
 
 using namespace dealii;
@@ -139,7 +138,7 @@ int main(int argc, char ** argv)
   // velocity, the flow would be a steady state; check that the final thickness
   // is reasonably close to the initial thickness.
   const double dx = 1.0 / (1 << num_levels);
-  Assert(dist(h, h0) / norm(h0) < dx * dx, ExcInternalError());
+  check(dist(h, h0) / norm(h0) < dx * dx);
 
   return 0;
 }

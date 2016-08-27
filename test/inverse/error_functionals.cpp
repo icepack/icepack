@@ -1,7 +1,6 @@
 
 #include <icepack/field.hpp>
 #include <icepack/inverse/error_functionals.hpp>
-
 #include "../testing.hpp"
 
 using namespace dealii;
@@ -45,8 +44,7 @@ int main()
 
   const double error = 0.125;
 
-  Assert(abs(inverse::square_error(u_model, u_true, sigma) - error) < dx*dx,
-         ExcInternalError());
+  check(abs(inverse::square_error(u_model, u_true, sigma) - error) < dx*dx);
 
   return 0;
 }

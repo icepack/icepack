@@ -2,6 +2,17 @@
 #ifndef ICEPACK_TESTING_HPP
 #define ICEPACK_TESTING_HPP
 
+#include <cassert>
+
+#define check(cond)                                                     \
+  if (!(cond)) {                                                        \
+    std::cerr << "Test " << #cond << std::endl                          \
+              << "at   " << __FILE__ << ":" << __LINE__ << std::endl    \
+              << "failed." << std::endl;                                \
+    abort();                                                            \
+  }
+
+
 #include <set>
 #include <string>
 
