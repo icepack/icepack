@@ -18,7 +18,6 @@ namespace icepack {
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
   using DefaultUpdateFlags::flags;
-  using DefaultUpdateFlags::face_flags;
 
   namespace DefaultPhysicalParams {
     /**
@@ -81,6 +80,8 @@ namespace icepack {
     const QGauss<2> quad = discretization.quad();
     const QGauss<1> f_quad = discretization.face_quad();
 
+    const dealii::UpdateFlags face_flags =
+        DefaultUpdateFlags::face_flags | dealii::update_gradients;
     FEValues<2> h_fe_values(h_fe, quad, flags);
     FEFaceValues<2> h_fe_face_values(h_fe, f_quad, face_flags);
     const FEValuesExtractors::Scalar exs(0);
@@ -146,11 +147,12 @@ namespace icepack {
       }
 
       for (unsigned int face = 0; face < GeometryInfo<2>::faces_per_cell; ++face)
-        if (at_boundary(its, face, 1)) {
+        if (at_boundary(its, face)) {
           h_fe_face_values.reinit(its, face);
           u_fe_face_values.reinit(itv, face);
 
           h_fe_face_values[exs].get_function_values(h0.get_coefficients(), h_face_values);
+          h_fe_face_values[exs].get_function_gradients(h0.get_coefficients(), dh_face_values);
           u_fe_face_values[exv].get_function_values(u.get_coefficients(), u_face_values);
 
           for (unsigned int q = 0; q < n_face_q_points; ++q) {

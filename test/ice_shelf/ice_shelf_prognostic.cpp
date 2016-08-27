@@ -103,13 +103,9 @@ int main(int argc, char ** argv)
     (strcmp(argv[1], "-v") == 0 ||
      strcmp(argv[1], "--verbose") == 0);
 
-
-  /**
-   * Create a model object and input data
-   */
-  Triangulation<2> tria = testing::rectangular_glacier(length, width);
-  const double dx = dealii::GridTools::minimal_cell_diameter(tria);
-
+  // Create a model object and input data
+  const size_t num_levels = 5;
+  Triangulation<2> tria = testing::rectangular_glacier(length, width, num_levels);
   IceShelf ice_shelf(tria, 1);
 
   Field<2> h0 = ice_shelf.interpolate(thickness);
@@ -117,11 +113,15 @@ int main(int argc, char ** argv)
   Field<2> a = ice_shelf.interpolate(accumulation);
   VectorField<2> u = ice_shelf.interpolate(velocity);
 
+  // Pick a timestep which will satisfy the Courant-Friedrichs-Lewy condition
   const Point<2> x(width/2, length - 0.25);
-  const double dt = dx / Velocity().value(x)[0] / 2;
+  const double max_speed = velocity.value(x)[0];
+  const double dt =
+      dealii::GridTools::minimal_cell_diameter(tria) / max_speed / 2;
 
   Field<2> h(h0);
 
+  // Propagate the thickness field a few timesteps forward
   for (size_t k = 0; k < 32; ++k)
     h = ice_shelf.prognostic_solve(dt, h, a, u);
 
@@ -135,7 +135,11 @@ int main(int argc, char ** argv)
     dh_dt.write("dh_dt.ucd", "dh_dt");
   }
 
-  Assert(dist(h, h0) / norm(h0) < dx, ExcInternalError());
+  // The accumulation rate was chosen so that, with the given ice thickness and
+  // velocity, the flow would be a steady state; check that the final thickness
+  // is reasonably close to the initial thickness.
+  const double dx = 1.0 / (1 << num_levels);
+  Assert(dist(h, h0) / norm(h0) < dx * dx, ExcInternalError());
 
   return 0;
 }
