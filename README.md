@@ -9,9 +9,9 @@ The nonlinear solvers are not robust.
 
 Planned features:
 
-* multiple glacier models: shallow shelf, full Stokes, depth-averaged higher-order models
-* prognostic modeling of ice thickness and temperature evolution
-* inverse methods for basal shear stress, ice viscosity
+* multiple glacier models: full Stokes, depth-averaged higher-order models
+* prognostic modeling of temperature evolution
+* inverse methods for basal shear stress
 
 
 ## Compilation & installation
@@ -31,7 +31,7 @@ To build the icepack sources, run the following:
 
 Unit tests can be run by invoking `make test`.
 
-The directory `examples/` contains example programs demonstrating the use of icepack for real applications.
+The [examples repository](https://github.com/danshapero/icepack-examples) contains example programs demonstrating the use of icepack for real applications.
 These include pre- and post-processing scripts in python, which you should hopefully have.
 A helper library is included in the directory `python/`, which will be built and installed automatically along with the rest of icepack.
 
