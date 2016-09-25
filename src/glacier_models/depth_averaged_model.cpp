@@ -196,12 +196,6 @@ namespace icepack {
   ) const
   {
     Field<2> h_dot = dh_dt(h0, a, u);
-    const auto& boundary_values =
-      h0.get_field_discretization().zero_boundary_values();
-
-    for (const auto& p: boundary_values)
-      h_dot.get_coefficients()[p.first] = p.second;
-
     return h0 + dt * h_dot;
   }
 
