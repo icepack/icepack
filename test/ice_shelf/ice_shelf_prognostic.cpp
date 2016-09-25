@@ -7,10 +7,6 @@
 using namespace dealii;
 using namespace icepack;
 
-const double rho = rho_ice * (1 - rho_ice / rho_water);
-const double temp = 263.15;
-const double A = pow(rho * gravity / 4, 3) * rate_factor(temp);
-
 const double u0 = 100;
 const double length = 2000;
 const double width = 500;
@@ -40,17 +36,6 @@ public:
   }
 } dh_dx;
 
-class Temperature : public Function<2>
-{
-public:
-  Temperature() {}
-
-  double value(const Point<2>&, const unsigned int = 0) const
-  {
-    return temp;
-  }
-} temperature;
-
 class Velocity : public TensorFunction<1, 2>
 {
 public:
@@ -58,10 +43,9 @@ public:
 
   Tensor<1, 2> value(const Point<2>& x) const
   {
-    const double q = 1 - pow(1 - delta_h * x[0] / (length * h0), 4);
 
     Tensor<1, 2> v;
-    v[0] = u0 + 0.25 * A * q * length * pow(h0, 4) / delta_h;
+    v[0] = u0;
     v[1] = 0.0;
 
     return v;
@@ -75,8 +59,7 @@ public:
 
   double value(const Point<2>& x, const unsigned int = 0) const
   {
-    const double q = 1 - delta_h / h0 * x[0] / length;
-    return A * pow(h0 * q, 3);
+    return 0.0;
   }
 } du_dx;
 
@@ -108,7 +91,6 @@ int main(int argc, char ** argv)
   IceShelf ice_shelf(tria, 1);
 
   Field<2> h0 = ice_shelf.interpolate(thickness);
-  Field<2> theta = ice_shelf.interpolate(temperature);
   Field<2> a = ice_shelf.interpolate(accumulation);
   VectorField<2> u = ice_shelf.interpolate(velocity);
 
@@ -117,11 +99,18 @@ int main(int argc, char ** argv)
   const double max_speed = velocity.value(x)[0];
   const double dt =
       dealii::GridTools::minimal_cell_diameter(tria) / max_speed / 2;
+  const double residence_time = length / max_speed;
 
   Field<2> h(h0);
 
+  // Pick the number of timesteps so that ice from the inflow boundary will
+  // propagate most of the way through the domain
+  size_t num_timesteps = (size_t)(residence_time / dt);
+  if (verbose)
+    std::cout << "Number of timesteps: " << num_timesteps << std::endl;
+
   // Propagate the thickness field a few timesteps forward
-  for (size_t k = 0; k < 32; ++k)
+  for (size_t k = 0; k < num_timesteps; ++k)
     h = ice_shelf.prognostic_solve(dt, h, a, u);
 
   Field<2> dh_dt = ice_shelf.dh_dt(h0, a, u);
@@ -138,7 +127,7 @@ int main(int argc, char ** argv)
   // velocity, the flow would be a steady state; check that the final thickness
   // is reasonably close to the initial thickness.
   const double dx = 1.0 / (1 << num_levels);
-  check(dist(h, h0) / norm(h0) < dx * dx);
+  check(dist(h, h0) / norm(h0) < std::max(dx * dx, dt / residence_time));
 
   return 0;
 }
