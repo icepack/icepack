@@ -1,7 +1,5 @@
 
-#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/grid/grid_tools.h>
-#include <deal.II/lac/filtered_matrix.h>
 
 #include <icepack/util/tensor_function_utils.hpp>
 #include <icepack/util/face_iter.hpp>
@@ -10,11 +8,9 @@
 
 namespace icepack {
 
-  using dealii::FullMatrix;
   using dealii::FEValues;
   using dealii::FEFaceValues;
   using dealii::GeometryInfo;
-  using dealii::FilteredMatrix;
   namespace FEValuesExtractors = dealii::FEValuesExtractors;
 
   using DefaultUpdateFlags::flags;
