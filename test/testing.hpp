@@ -12,6 +12,30 @@
     abort();                                                            \
   }
 
+#define check_real(val1, val2, tol)                                     \
+  {                                                                     \
+    const double diff = std::abs(val1 - val2);                          \
+    if (diff > tol) {                                                   \
+      std::cerr << "|" << #val1 << " - " << #val2 << "| = " << diff     \
+                << std::endl                                            \
+                << "  > " << #tol << " = " << (tol) << std::endl        \
+                << "at " << __FILE__ << ":" << __LINE__ << std::endl;   \
+      abort();                                                          \
+    }                                                                   \
+  }
+
+#define check_fields(phi1, phi2, tol)                                   \
+  {                                                                     \
+    const double diff = icepack::dist(phi1, phi2) / norm(phi2);         \
+    if (diff > tol) {                                                   \
+      std::cerr << "||" << #phi1 << " - " << #phi2 << "|| "             \
+                << "/ ||" << #phi2 << "|| = " << diff << std::endl      \
+                << "   > " << #tol << " = " << (tol) << std::endl       \
+                << "at " << __FILE__ << ":" << __LINE__ << std::endl;   \
+      abort();                                                          \
+    }                                                                   \
+  }
+
 
 #include <set>
 #include <string>
