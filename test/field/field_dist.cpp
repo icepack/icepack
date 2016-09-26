@@ -51,11 +51,11 @@ int main()
 
   // Check that the finite element fields are approximately orthogonal
   double exact_inner_product = 0.0;
-  check(abs(inner_product(phi1, phi2) - exact_inner_product) < dx);
+  check_real(inner_product(phi1, phi2), exact_inner_product, dx);
 
   // Check that the distance between the two fields of unit norm is 1
   const double exact_distance = 1.0;
-  check(abs(dist(phi1, phi2) - exact_distance) < dx);
+  check_real(dist(phi1, phi2), exact_distance, dx);
 
   // Compute the Laplacian of one of the fields; this is a dual field
   SparseMatrix<double> L(discretization.scalar().get_sparsity());
@@ -72,7 +72,7 @@ int main()
 
   // Check that the fields are also conjugate w.r.t. the Laplace operator
   exact_inner_product = 0.0;
-  check(abs(inner_product(laplacian_phi1, phi2) - exact_inner_product) < dx);
+  check_real(inner_product(laplacian_phi1, phi2), exact_inner_product, dx);
 
   return 0;
 }

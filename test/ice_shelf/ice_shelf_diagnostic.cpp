@@ -154,7 +154,7 @@ int main(int argc, char ** argv)
   const DualVectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
 
   // Residual of the exact solution should be < dx^2.
-  check(norm(r)/norm(tau) < dx*dx);
+  check_real(norm(r)/norm(tau), 0, dx*dx);
 
 
   /**
@@ -162,7 +162,7 @@ int main(int argc, char ** argv)
    */
 
   const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
-  check(dist(u, u_true)/norm(u_true) < std::pow(dx, p+1));
+  check_fields(u, u_true, std::pow(dx, p+1));
 
 
   /**

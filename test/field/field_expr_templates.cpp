@@ -43,20 +43,20 @@ int main()
     phi = phi1 + phi2;
     psi = phi1;
     psi += phi2;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
 
     phi = 2 * phi1 + phi2;
     psi = phi1;
     psi *= 2;
     psi += phi2;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
 
     phi = phi1 + 3*phi2 + phi3;
     psi = phi2;
     psi *= 3;
     psi += phi1;
     psi += phi3;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
 
     phi = phi1 + 7*phi2 + 3*phi3;
     psi = phi2;
@@ -64,17 +64,17 @@ int main()
     psi += phi3;
     psi *= 3;
     psi += phi1;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
 
     phi = phi1 - phi2;
     psi = phi1;
     psi -= phi2;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
 
     phi = -phi1;
     psi = phi1;
     psi *= -1.0;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
   }
 
   // Test assign and add/subtract expression templates to fields
@@ -86,7 +86,7 @@ int main()
     psi = phi1;
     psi += phi2;
     psi -= phi3;
-    check(dist(phi, psi) < dx*dx);
+    check_fields(phi, psi, dx*dx);
   }
 
   // Test initializing fields from expression templates

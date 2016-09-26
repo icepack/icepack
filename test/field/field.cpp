@@ -58,16 +58,16 @@ test_field(const Discretization<dim>& discretization, const Function<dim>& phi)
     fe_values[ex].get_function_values(psi.get_coefficients(), psi_values);
 
     for (unsigned int q = 0; q < n_q_points; ++q)
-      check(abs(phi_values[q] - psi_values[q]) < 1.0e-6);
+      check_real(phi_values[q], psi_values[q], dx*dx);
   }
 
   const double n = norm(psi);
   const double exact_integral = 1.0/3;
-  check(abs(n - exact_integral) < dx*dx);
+  check_real(n, exact_integral, dx*dx);
 
   const double avg = rms_average(psi);
   const double exact_avg = 1.0/3;
-  check(abs(avg - exact_avg) < dx*dx);
+  check_real(avg, exact_avg, dx*dx);
 }
 
 
@@ -99,7 +99,7 @@ void test_vector_field(
 
   const double n = norm(g);
   const double exact_integral = std::sqrt(dim/3.0);
-  check(abs(n - exact_integral) < dx);
+  check_real(n, exact_integral, dx);
 }
 
 

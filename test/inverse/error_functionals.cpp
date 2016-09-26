@@ -44,7 +44,7 @@ int main()
 
   const double error = 0.125;
 
-  check(abs(inverse::square_error(u_model, u_true, sigma) - error) < dx*dx);
+  check_real(inverse::square_error(u_model, u_true, sigma), error, dx*dx);
 
   return 0;
 }

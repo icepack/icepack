@@ -54,7 +54,7 @@ void test_scalar_multiplication(
       // subtlety here! Computing the square of the value is the only way to
       // get its magnitude in the same way for scalars or vectors.
       const auto delta = 2*phi_values[q] - psi_values[q];
-      check(delta*delta < tolerance*tolerance);
+      check_real(delta*delta, 0.0, tolerance*tolerance);
     }
   }
 }
@@ -87,7 +87,7 @@ void test_addition(
 
     for (unsigned int q = 0; q < n_q_points; ++q) {
       const auto delta = psi_values[q] - phi1_values[q] - phi2_values[q];
-      check(delta*delta < tolerance*tolerance);
+      check_real(delta*delta, 0.0, tolerance*tolerance);
     }
   }
 }

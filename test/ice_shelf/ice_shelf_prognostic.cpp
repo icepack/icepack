@@ -127,7 +127,7 @@ int main(int argc, char ** argv)
   // velocity, the flow would be a steady state; check that the final thickness
   // is reasonably close to the initial thickness.
   const double dx = 1.0 / (1 << num_levels);
-  check(dist(h, h0) / norm(h0) < std::max(dx * dx, dt / residence_time));
+  check_fields(h, h0, std::max(dx * dx, dt / residence_time));
 
   return 0;
 }
