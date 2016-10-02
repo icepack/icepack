@@ -176,8 +176,7 @@ namespace icepack {
     }
 
     Vector<double> F(dh.get_coefficients());
-    SolverControl solver_control(1000, 1.0e-10);
-    solver_control.log_result(false);
+    SolverControl solver_control = discretization.linear_solver_control();
     SolverCG<> solver(solver_control);
 
     const SparseMatrix<double>& M = discretization.scalar().get_mass_matrix();

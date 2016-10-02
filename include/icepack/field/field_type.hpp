@@ -469,8 +469,7 @@ namespace icepack {
 
     const auto& M = f.get_field_discretization().get_mass_matrix();
 
-    SolverControl solver_control(1000, 1.0e-10);
-    solver_control.log_result(false);
+    SolverControl solver_control = f.get_discretization().linear_solver_control();
     SolverCG<> solver(solver_control);
     const auto id = dealii::PreconditionIdentity();
     solver.solve(M, phi.get_coefficients(), f.get_coefficients(), id);

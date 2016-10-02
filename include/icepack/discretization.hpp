@@ -16,6 +16,7 @@
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/solver_control.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 
@@ -30,6 +31,7 @@ namespace icepack {
   using dealii::DynamicSparsityPattern;
   using dealii::ConstraintMatrix;
   using dealii::SparseMatrix;
+  using dealii::SolverControl;
   using dealii::SmartPointer;
   using dealii::SynchronousIterators;
   using dealii::DoFTools::make_hanging_node_constraints;
@@ -167,10 +169,16 @@ namespace icepack {
     using Scalar = FieldDiscretization<0, dim>;
     using Vector = FieldDiscretization<1, dim>;
 
-    Discretization(const Triangulation<dim>& tria, const unsigned int p)
-      :
+    Discretization(
+      const Triangulation<dim>& tria,
+      unsigned int p,
+      double tolerance = 1.0e-6,
+      unsigned int max_iterations = 1000
+    ) :
       p(p),
       tria(&tria),
+      tolerance(tolerance),
+      max_iterations(max_iterations),
       ranks(std::unique_ptr<Scalar>(new Scalar(tria, p)),
             std::unique_ptr<Vector>(new Vector(tria, p)))
     {}
@@ -205,6 +213,13 @@ namespace icepack {
     unsigned int degree() const
     {
       return p;
+    }
+
+    SolverControl linear_solver_control() const
+    {
+      SolverControl solver_control(max_iterations, tolerance);
+      solver_control.log_result(false);
+      return solver_control;
     }
 
     template <int rank, int _dim> friend
@@ -248,6 +263,8 @@ namespace icepack {
   protected:
     const unsigned int p;
     SmartPointer<const Triangulation<dim>> tria;
+    const double tolerance;
+    const unsigned int max_iterations;
     std::tuple<std::unique_ptr<Scalar>, std::unique_ptr<Vector>> ranks;
   };
 
