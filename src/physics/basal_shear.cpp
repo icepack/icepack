@@ -11,7 +11,18 @@ namespace icepack {
 
   namespace {
     const SymmetricTensor<2, 2> I = unit_symmetric_tensor<2>();
+
+    namespace DefaultPhysicalParams {
+      const double m = 3.0, tau0 = 0.1, u0 = 100.0;
+    }
   }
+
+  BasalShear::BasalShear()
+    :
+    m(DefaultPhysicalParams::m),
+    tau0(DefaultPhysicalParams::tau0),
+    u0(DefaultPhysicalParams::u0)
+  {}
 
   BasalShear::BasalShear(const double m, const double tau0, const double u0)
     :

@@ -24,10 +24,16 @@ namespace icepack {
 
   DepthAveragedModel::DepthAveragedModel(
     const Triangulation<2>& tria,
-    const unsigned int p
+    const unsigned int polynomial_order,
+    const double newton_tolerance,
+    const double picard_tolerance,
+    const unsigned int max_iterations
   ) :
     constitutive_tensor(DefaultPhysicalParams::n),
-    discretization(tria, p)
+    discretization(tria, polynomial_order),
+    newton_tolerance(newton_tolerance),
+    picard_tolerance(picard_tolerance),
+    max_iterations(max_iterations)
   {}
 
 

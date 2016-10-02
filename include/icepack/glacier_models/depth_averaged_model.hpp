@@ -26,6 +26,18 @@ namespace icepack {
   {
   public:
     /**
+     * Construct a DepthAveragedModel for a given geometry and degree of the
+     * finite element basis functions.
+     */
+    DepthAveragedModel(
+      const Triangulation<2>& triangulation,
+      unsigned int polynomial_order,
+      double newton_tolerance = 1.0e-6,
+      double picard_tolerance = 1.0e-2,
+      unsigned int max_iterations = 20
+    );
+
+    /**
      * Given some observed data, represented by a `dealii::Function object``,
      * compute the finite element interpolation of the data using the basis
      * for this model.
@@ -86,18 +98,10 @@ namespace icepack {
     const ConstitutiveTensor constitutive_tensor;
 
   protected:
-    /**
-     * Construct a DepthAveragedModel for a given geometry and degree of the
-     * finite element basis functions. This constructor is not public; it is
-     * instead invoked in the constructor of child classes like `IceShelf` or
-     * `IceStream`.
-     */
-    DepthAveragedModel(
-      const Triangulation<2>& triangulation,
-      const unsigned int polynomial_order
-    );
-
     const Discretization<2> discretization;
+    const double newton_tolerance;
+    const double picard_tolerance;
+    const unsigned int max_iterations;
   };
 }
 

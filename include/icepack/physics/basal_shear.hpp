@@ -18,6 +18,12 @@ namespace icepack {
   struct BasalShear
   {
     /**
+     * Construct a basal friction function object using the default values of
+     * the sliding rheology, yield stress and yield speed
+     */
+    BasalShear();
+
+    /**
      * Construct a basal friction function object for a given sliding rheology,
      * yield stress and yield speed
      */

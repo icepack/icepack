@@ -182,18 +182,6 @@ namespace icepack {
    * Member functions of IceShelf
    * ============================ */
 
-  IceShelf::IceShelf(
-    const Triangulation<2>& tria,
-    const unsigned int p,
-    const double tolerance,
-    const unsigned int max_iterations
-  ) :
-    DepthAveragedModel(tria, p),
-    tolerance(tolerance),
-    max_iterations(max_iterations)
-  {}
-
-
   /*
    * Diagnostic/prognostic model solves
    */
@@ -335,8 +323,8 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(h, theta, u0, *this, 0.1, max_iterations / 4);
-    return newton_solve(h, theta, u, *this, tolerance, max_iterations);
+    auto u = picard_solve(h, theta, u0, *this, picard_tolerance, max_iterations/4);
+    return newton_solve(h, theta, u, *this, newton_tolerance, max_iterations);
   }
 
 

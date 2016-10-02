@@ -15,15 +15,7 @@ namespace icepack {
   class IceStream : public DepthAveragedModel
   {
   public:
-
-    /**
-     * Construct a model object for a given geometry and finite element basis.
-     */
-    IceStream(
-      const Triangulation<2>& triangulation,
-      const unsigned int polynomial_order
-    );
-
+    using DepthAveragedModel::DepthAveragedModel;
 
     /**
      * Compute the driving stress

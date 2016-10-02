@@ -21,16 +21,6 @@ namespace icepack {
    * ================ */
 
   /**
-   * Make some default BasalShear function objects
-   */
-  namespace {
-    namespace DefaultPhysicalParams {
-      const double m = 3.0, tau0 = 0.1, u0 = 100.0;
-    }
-  }
-
-
-  /**
    * Construct the system matrix for the ice stream equations.
    */
   template <Linearity linearity>
@@ -219,19 +209,6 @@ namespace icepack {
   /* =============================
    * Member functions of IceStream
    * ============================= */
-
-
-  IceStream::IceStream(const Triangulation<2>& tria, const unsigned int p)
-    :
-    DepthAveragedModel(tria, p),
-    basal_shear(
-      DefaultPhysicalParams::m,
-      DefaultPhysicalParams::u0,
-      DefaultPhysicalParams::tau0
-    )
-  {}
-
-
 
   /*
    * Diagnostic/prognostic model solves
@@ -438,8 +415,10 @@ namespace icepack {
     const VectorField<2>& u0
   ) const
   {
-    auto u = picard_solve(s, h, theta, beta, u0, *this, 0.1, 5);
-    return newton_solve(s, h, theta, beta, u, *this, 1.0e-6, 20);
+    auto u = picard_solve(s, h, theta, beta, u0, *this,
+                          picard_tolerance, max_iterations);
+    return newton_solve(s, h, theta, beta, u, *this,
+                        newton_tolerance, max_iterations);
   }
 
 
