@@ -73,8 +73,9 @@ namespace icepack {
       const double phi = 0.5 * (std::sqrt(5.0) - 1);
 
       double fa = f(a), fb = f(b);
+      assert(fa >= 0.0); assert(fb > 0.0);
 
-      while (std::abs(fa - fb) > eps) {
+      while (std::abs(fa - fb)/fb > eps) {
         const double L = b - a;
         const double A = a + L * (1 - phi);
         const double B = b - L * (1 - phi);
@@ -204,27 +205,27 @@ namespace icepack {
       double cost_old = std::numeric_limits<double>::infinity();
       double cost = F(phi_start);
 
-      Field<dim> phi(phi_start);
-      DualField<dim> df = dF(phi_start);
-      const auto& discretization = phi.get_discretization();
+      Field<dim> phi0(phi_start);
+      DualField<dim> df0 = dF(phi_start);
+      const auto& discretization = phi0.get_discretization();
 
       // Create vectors for storing the last few differences of the guesses,
       // differences of the gradients, and the inverses of their inner products
-      std::vector<Field<dim> > s(m, Field<dim>(discretization));
-      std::vector<DualField<dim> > y(m, DualField<dim>(discretization));
+      std::vector<Field<dim>> s(m, Field<dim>(discretization));
+      std::vector<DualField<dim>> y(m, DualField<dim>(discretization));
       std::vector<double> rho(m);
 
       // As an initial guess, we will assume that the Hessian inverse is a
       // multiple of the inverse of the mass matrix
       double gamma = 1.0;
 
-      for (unsigned int k = 0; std::abs(cost_old - cost) > eps; ++k) {
-        const Field<dim> p = -lbfgs_two_loop(df, s, y, rho, gamma);
-        const Field<dim> phi1 = line_search(F, phi, df, p, eps);
+      for (unsigned int k = 0; std::abs(cost_old - cost)/cost > eps; ++k) {
+        const Field<dim> p = -lbfgs_two_loop(df0, s, y, rho, gamma);
+        const Field<dim> phi1 = line_search(F, phi0, df0, p, eps);
         const DualField<dim> df1 = dF(phi1);
 
-        s[0] = phi1 - phi;
-        y[0] = df1 - df;
+        s[0] = phi1 - phi0;
+        y[0] = df1 - df0;
 
         const double cos_angle = inner_product(y[0], s[0]);
         const double norm_y = norm(y[0]);
@@ -235,13 +236,13 @@ namespace icepack {
         std::rotate(y.begin(), y.begin() + 1, y.end());
         std::rotate(rho.begin(), rho.begin() + 1, rho.end());
 
-        phi = phi1;
-        df = df1;
+        phi0 = phi1;
+        df0 = df1;
         cost_old = cost;
-        cost = F(phi);
+        cost = F(phi0);
       }
 
-      return phi;
+      return phi0;
     }
 
   } // End of namespace numerics

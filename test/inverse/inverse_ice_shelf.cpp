@@ -162,7 +162,7 @@ int main(int argc, char ** argv)
 
   // Stop the iteration when the improvement from one iterate to the next is
   // less than this tolerance.
-  const double tolerance = 1.0e-3 * area;
+  const double tolerance = 5.0e-2;
 
   // Use a descent algorithm to find a good value of the temperature
   Field<2> theta = numerics::lbfgs(F, dF, theta_guess, 6, tolerance);
@@ -176,7 +176,7 @@ int main(int argc, char ** argv)
     std::cout << "Final velocity error:      " << mean_residual << std::endl
               << "Final temperature error:   " << mean_error << std::endl;
 
-  check(mean_residual < 0.05);
+  check(mean_residual < 0.01);
 
   if (verbose) {
     theta_true.write("theta_true.ucd", "theta");
