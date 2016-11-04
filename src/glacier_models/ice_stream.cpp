@@ -144,7 +144,7 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double> dU(U.size());
 
-    double error = 1.0e16;
+    double error = std::numeric_limits<double>::infinity();
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       auto A = velocity_matrix<linearized>(s, h, theta, beta, u, ice_stream);
@@ -187,7 +187,7 @@ namespace icepack {
     Vector<double>& U = u.get_coefficients();
     Vector<double>& U_old = u_old.get_coefficients();
 
-    double error = 1.0e16;
+    double error = std::numeric_limits<double>::infinity();
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
       auto A = velocity_matrix<nonlinear>(s, h, theta, beta, u, ice_stream);
