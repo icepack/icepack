@@ -148,7 +148,7 @@ int main(int argc, char ** argv)
   const auto F =
     [&](const Field<2>& theta)
     {
-      u = ice_shelf.diagnostic_solve(h, theta, u);
+      u = ice_shelf.diagnostic_solve(h, theta, u_guess);
       return inverse::square_error(u, u_true, sigma) + (*regularizer)(theta);
     };
 
