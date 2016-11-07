@@ -37,5 +37,16 @@ namespace icepack {
       return triangulation;
     }
 
+
+    bool is_decreasing(const std::vector<double>& seq)
+    {
+      for (size_t k = 1; k < seq.size(); ++k)
+        if (seq[k] > seq[k - 1])
+          return false;
+
+      return true;
+    }
+
+
   } // End of namespace testing
 } // End of namespace icepack

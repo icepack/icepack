@@ -54,6 +54,7 @@ namespace icepack {
       unsigned int num_levels = 5
     );
 
+    bool is_decreasing(const std::vector<double>& seq);
   }
 }
 

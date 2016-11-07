@@ -2,6 +2,7 @@
 icepack_tests(
   error_functionals
   regularization
+  gradient
   )
 
 icepack_exec(

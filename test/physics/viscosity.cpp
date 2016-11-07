@@ -3,15 +3,6 @@
 #include <icepack/physics/viscosity.hpp>
 #include "../testing.hpp"
 
-bool is_decreasing(const std::vector<double>& seq)
-{
-  for (size_t k = 1; k < seq.size(); ++k)
-    if (seq[k] > seq[k - 1])
-      return false;
-
-  return true;
-}
-
 int main(int argc, char ** argv)
 {
   const auto args = icepack::testing::get_cmdline_args(argc, argv);
@@ -40,7 +31,7 @@ int main(int argc, char ** argv)
     }
     if (verbose) std::cout << std::endl;
 
-    check(is_decreasing(errors));
+    check(icepack::testing::is_decreasing(errors));
   }
 
   return 0;
