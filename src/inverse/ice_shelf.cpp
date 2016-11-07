@@ -12,9 +12,7 @@ namespace FEValuesExtractors = dealii::FEValuesExtractors;
 namespace icepack {
   namespace inverse {
 
-
-    // Compute the product of the mass matrix and the gradient of the
-    // objective functional.
+    // Compute the derivative of a functional around the adjoint state lambda.
     DualField<2> gradient(
       const IceShelf& ice_shelf,
       const Field<2>& h,
@@ -82,25 +80,6 @@ namespace icepack {
           cell_dJ, local_dof_ids, dJ.get_coefficients()
         );
       }
-
-      return dJ;
-    }
-
-
-
-    DualField<2> gradient(
-      const IceShelf& ice_shelf,
-      const Field<2>& h,
-      const Field<2>& theta,
-      const VectorField<2>& u0,
-      const Field<2>& sigma
-    )
-    {
-      const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u0);
-      const DualVectorField<2> du = misfit(u, u0, sigma);
-      const VectorField<2> lambda = ice_shelf.adjoint_solve(h, theta, u, du);
-
-      DualField<2> dJ = gradient(ice_shelf, h, theta, u, lambda);
 
       return dJ;
     }

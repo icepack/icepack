@@ -16,8 +16,8 @@ namespace icepack {
       const IceShelf& ice_shelf,
       const Field<2>& thickness,
       const Field<2>& temperature,
-      const VectorField<2>& u_observed,
-      const Field<2>& sigma
+      const VectorField<2>& u,
+      const VectorField<2>& lambda
     );
 
   }

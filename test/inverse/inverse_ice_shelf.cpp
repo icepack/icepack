@@ -19,7 +19,7 @@ using TV = icepack::inverse::TotalVariation<2>;
 
 // Some physical constants
 const double rho = rho_ice * (1 - rho_ice / rho_water);
-const double temp = 263.15;
+const double temp = 262.15;
 const double delta_temp = -10.0;
 const double A = pow(rho * gravity / 4, 3) * icepack::rate_factor(temp);
 
@@ -117,13 +117,12 @@ int main(int argc, char ** argv)
   /* -------------------------
    * Solve the inverse problem
    * ------------------------- */
-  VectorField<2> u(u_guess);
 
   // Compute the error of our crude guess
   const double area = dealii::GridTools::volume(tria);
   double mean_error =
     dist(theta_guess, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
-  double mean_residual = inverse::square_error(u, u_true, sigma) / area;
+  double mean_residual = inverse::square_error(u_guess, u_true, sigma) / area;
 
   if (verbose)
     std::cout << "Initial velocity error:    " << mean_residual << std::endl
@@ -148,15 +147,19 @@ int main(int argc, char ** argv)
   const auto F =
     [&](const Field<2>& theta)
     {
-      u = ice_shelf.diagnostic_solve(h, theta, u_guess);
+      const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
       return inverse::square_error(u, u_true, sigma) + (*regularizer)(theta);
     };
 
   const auto dF =
     [&](const Field<2>& theta)
     {
-      const auto dE = inverse::gradient(ice_shelf, h, theta, u_true, sigma);
-      const auto dR = regularizer->derivative(theta);
+      const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
+      const DualVectorField<2> du = icepack::inverse::misfit(u, u_true, sigma);
+      const VectorField<2> lambda = ice_shelf.adjoint_solve(h, theta, u, du);
+      const DualField<2>
+        dE = inverse::gradient(ice_shelf, h, theta, u_true, lambda),
+        dR = regularizer->derivative(theta);
       return DualField<2>(dE + dR);
     };
 
@@ -168,15 +171,13 @@ int main(int argc, char ** argv)
   Field<2> theta = numerics::lbfgs(F, dF, theta_guess, 6, tolerance);
 
   // Compute the final misfits in velocity and temperature.
-  u = ice_shelf.diagnostic_solve(h, theta, u);
+  VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
   mean_residual = inverse::square_error(u, u_true, sigma) / area;
   mean_error = dist(theta, theta_true) / (std::sqrt(area) * std::abs(delta_temp));
 
   if (verbose)
     std::cout << "Final velocity error:      " << mean_residual << std::endl
               << "Final temperature error:   " << mean_error << std::endl;
-
-  check(mean_residual < 0.01);
 
   if (verbose) {
     theta_true.write("theta_true.ucd", "theta");
@@ -187,6 +188,8 @@ int main(int argc, char ** argv)
     const Field<2> delta_theta = theta_true - theta;
     delta_theta.write("delta_theta.ucd", "delta_theta");
   }
+
+  check(mean_residual < 0.01);
 
   return 0;
 }
