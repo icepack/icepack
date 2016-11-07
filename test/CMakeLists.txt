@@ -32,6 +32,7 @@ icepack_tests(
 
 add_subdirectory(grid_data)
 add_subdirectory(field)
+add_subdirectory(physics)
 add_subdirectory(ice_shelf)
 add_subdirectory(ice_stream)
 add_subdirectory(inverse)

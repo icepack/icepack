@@ -16,7 +16,7 @@ namespace icepack {
    * viscosity of ice.
    */
 
-  const double transition_temperature = 263.215;
+  const double transition_temperature = 263.15;
   const double A0_cold = 3.985e-13 * year_in_sec * 1.0e18; // MPa^{-3} a^{-1}
   const double A0_warm = 1.916e3   * year_in_sec * 1.0e18;
   const double Q_cold  = 60;
@@ -59,7 +59,7 @@ namespace icepack {
   {
     const double A = rate_factor(theta);
     const double dA = d_rate_factor(theta);
-    return -1.0/(2*n) * std::pow(A, -1.0/n) * dA;
+    return -1.0/(2*n) * std::pow(A, -1.0/n - 1.0) * dA;
   }
 
 

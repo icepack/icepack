@@ -1,0 +1,4 @@
+
+icepack_tests(
+  viscosity
+  )
