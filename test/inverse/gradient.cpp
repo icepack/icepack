@@ -138,12 +138,16 @@ int main(int argc, char ** argv)
   const size_t num_samples = 16;
   std::vector<double> errors(num_samples);
   for (size_t n = 0; n < num_samples; ++n) {
-    const double delta_theta = std::pow(delta, n);
-    const double delta_F = (F(theta_guess + delta_theta * p) - cost) / delta;
-    errors[n] = std::abs(1.0 - delta_theta * prod / delta_F);
-    if (verbose) std::cout << errors[n] << " ";
+    const double delta_theta = std::pow(delta, n) * beta_max;
+    const double delta_F = (F(theta_guess + delta_theta * p) - cost) / delta_theta;
+    errors[n] = std::abs(1.0 - prod / delta_F);
+
+    if (verbose)
+      std::cout << delta_theta << " "
+                << delta_F << " "
+                << prod << " "
+                << 1.0 - prod / delta_F << std::endl;
   }
-  if (verbose) std::cout << std::endl;
 
   check(icepack::testing::is_decreasing(errors));
 

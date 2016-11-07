@@ -45,6 +45,8 @@ namespace icepack {
       std::vector<dealii::types::global_dof_index>
         local_dof_ids(dofs_per_cell);
 
+      const double n = ice_shelf.constitutive_tensor.rheology.n;
+
       for (const auto& it: discretization) {
         cell_dJ = 0;
         s_fe_values.reinit(discretization.scalar_cell_iterator(it));
@@ -63,15 +65,22 @@ namespace icepack {
           const double dx = s_fe_values.JxW(q);
           const double H = h_values[q];
           const double Theta = theta_values[q];
+
           const SymmetricTensor<2, 2> eps_u = eps_u_values[q];
+          const double tr = trace(eps_u);
+          const double eps_e = sqrt((eps_u * eps_u + tr * tr)/2);
+
           const SymmetricTensor<2, 2> eps_lambda = eps_lambda_values[q];
           const double u_dot_lambda =
-            eps_u * eps_lambda + trace(eps_u) * trace(eps_lambda);
+            eps_u * eps_lambda + tr * trace(eps_lambda);
+
           const double dB = ice_shelf.constitutive_tensor.rheology.dB(Theta);
+          const double dF_dtheta =
+              2 * dB * H * std::pow(eps_e, 1/n - 1) * u_dot_lambda;
 
           for (unsigned int i = 0; i < dofs_per_cell; ++i) {
             const auto phi_i = s_fe_values[exs].value(i, q);
-            cell_dJ(i) -= 2 * dB * H * u_dot_lambda * phi_i * dx;
+            cell_dJ(i) -= dF_dtheta * phi_i * dx;
           }
         }
 
