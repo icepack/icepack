@@ -46,5 +46,31 @@ int main()
 
   check_real(inverse::square_error(u_model, u_true, sigma), error, dx*dx);
 
+
+  const auto F =
+    [&](const VectorField<2>& u)
+    {
+      return inverse::square_error(u, u_true, sigma);
+    };
+
+  const DualVectorField<2> df = inverse::misfit(u_model, u_true, sigma);
+  const VectorField<2> p = -transpose(df);
+  const double df_times_p = icepack::inner_product(df, p);
+
+  const double beta_max = 1.0;
+
+  const double cost = F(u_model);
+  const double delta = 0.5;
+
+  const size_t num_samples = 16;
+  std::vector<double> errors(num_samples);
+  for (size_t n = 0; n < num_samples; ++n) {
+    const double delta_u = std::pow(delta, n) * beta_max;
+    const double delta_F = (F(u_model + delta_u * p) - cost) / delta_u;
+    errors[n] = std::abs(1.0 - delta_F / df_times_p);
+  }
+
+  check(icepack::testing::is_decreasing(errors));
+
   return 0;
 }
