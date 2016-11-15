@@ -89,22 +89,19 @@ int main()
 
   const Discretization<2> dsc(tria, 1);
 
-  // Pick a smoothing length for the regularizers
-  const double alpha = 0.125;
-
   // Pick a secondary length scale for the total variation
-  const double gamma = 0.5;
+  const double gamma = 1.0 / width;
 
-  const inverse::SquareGradient<2> square_gradient(dsc, alpha);
+  const inverse::SquareGradient<2> square_gradient(dsc);
   test_regularizer(dsc, square_gradient, dx*dx);
 
-  const inverse::TotalVariation<2> total_variation(dsc, alpha, gamma);
+  const inverse::TotalVariation<2> total_variation(dsc, gamma);
   test_regularizer(dsc, total_variation, dx*dx);
 
   // Compute the total variation of the cosh function and compare with exact
   // value of the integral
   const double b = width;
-  const double a = b * gamma / alpha;
+  const double a = 1.0;
   const Fn Cosh([&](const Point<2>& x){ return a * std::cosh(x[0] / b); });
   const Field<2> cosh = interpolate(dsc, Cosh);
 
@@ -112,7 +109,7 @@ int main()
   check_real(total_variation(cosh), exact_tv, dx);
 
   const double exact_square_gradient =
-    gamma*gamma * height * (0.5 * b * std::sinh(2 * width / b) - width) / 4.0;
+    std::pow(a/b, 2) * height * (b * std::sinh(2 * width / b) / 2 - width) / 4;
   check_real(square_gradient(cosh), exact_square_gradient, dx);
 
   return 0;

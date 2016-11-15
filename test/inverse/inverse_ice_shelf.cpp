@@ -133,13 +133,18 @@ int main(int argc, char ** argv)
   const double length_scale = length;
   const double theta_scale = 30.0;
   const double alpha = length_scale / theta_scale;
+  const double gamma = 0.5 / alpha;
 
   // Create an object for computing the regularization functional.
   // Depending on command-line arguments, this is either the square gradient
   // or the total variation.
   std::unique_ptr<Regularizer<2> > regularizer;
-  if (tv) regularizer = std::unique_ptr<TV>(new TV(discretization, alpha, 0.5));
-  else regularizer = std::unique_ptr<SG>(new SG(discretization, alpha));
+  if (tv)
+    regularizer = std::unique_ptr<TV>(new TV(discretization, gamma));
+  else
+    regularizer = std::unique_ptr<SG>(new SG(discretization));
+
+  const double p = tv ? 1 : 2;
 
   // Create some lambda functions which will calculate the objective functional
   // and its gradient for a given value of the temperature field, but capture
@@ -148,7 +153,8 @@ int main(int argc, char ** argv)
     [&](const Field<2>& theta)
     {
       const VectorField<2> u = ice_shelf.diagnostic_solve(h, theta, u_guess);
-      return inverse::square_error(u, u_true, sigma) + (*regularizer)(theta);
+      return inverse::square_error(u, u_true, sigma)
+        + std::pow(alpha, p) * (*regularizer)(theta);
     };
 
   const auto dF =
@@ -160,7 +166,7 @@ int main(int argc, char ** argv)
       const DualField<2>
         dE = inverse::gradient(ice_shelf, h, theta, u_true, lambda),
         dR = regularizer->derivative(theta);
-      return DualField<2>(dE + dR);
+      return DualField<2>(dE + std::pow(alpha, p) * dR);
     };
 
   // Stop the iteration when the improvement from one iterate to the next is

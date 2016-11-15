@@ -42,22 +42,22 @@ namespace icepack {
      * This class contains procedures for regularizing the solution of an
      * inverse problem by penalizing the square gradient:
      \f[
-     R[u; \alpha] = \frac{\alpha^2}{2}\int_\Omega|\nabla u|^2 dx.
+     R(u) = \frac{1}{2}\int_\Omega|\nabla u|^2 dx.
      \f]
      * Penalizing the square gradient is equivalent to applying a low-pass
-     * filter to the solution with smoothing length \f$\alpha\f$.
+     * filter to the solution.
      */
     template <int dim>
     class SquareGradient : public Regularizer<dim>
     {
     public:
-      SquareGradient(const Discretization<dim>& dsc, const double alpha)
+      SquareGradient(const Discretization<dim>& dsc)
         :
         L(dsc.scalar().get_sparsity())
       {
         const auto& field_dsc = dsc.scalar();
 
-        const dealii::ConstantFunction<2> r(alpha*alpha);
+        const dealii::ConstantFunction<2> r(1.0);
         dealii::MatrixCreator::create_laplace_matrix(
           field_dsc.get_dof_handler(),
           dsc.quad(),
@@ -65,10 +65,6 @@ namespace icepack {
           &r,
           field_dsc.get_constraints()
         );
-
-        SparseMatrix<double> G(dsc.scalar().get_sparsity());
-        G.copy_from(dsc.scalar().get_mass_matrix());
-        G.add(1.0, L);
       }
 
       /**
@@ -101,18 +97,15 @@ namespace icepack {
      * This class contains procedures for regularizing the solution of an
      * inverse problem by penalizing the total variation:
      \f[
-     R[u; \alpha] =
-     \int_\Omega\left(\sqrt{\alpha^2|\nabla u|^2 + \gamma^2} - \gamma\right)dx
+     R(u; \gamma) =
+     \int_\Omega\left(\sqrt{|\nabla u|^2 + \gamma^2} - \gamma\right)dx
      \f]
      * Strictly speaking, this is the pseudo-Heuber total variation, which is
      * rounded off in order to make the functional differentiable.
+     * The parameter \f$\gamma\f$ must have the same units as the gradient of
+     * \f$u\f$.
      *
-     * The total variation of a function can be visualized as the lateral
-     * surface area of its graph. Like the square gradient functional,
-     * penalizing the total variation is an effective way to eliminated
-     * spurious oscillations in the solution of an inverse problem constrained
-     * by noisy data. Unlike low-pass filtering, however, total variation
-     * filtering does not remove all steep gradients or jump discontinuities.
+     * TV filtering does not remove all steep gradients or jump discontinuities.
      * Instead, it tends to confine these interfaces to as small a perimeter as
      * possible where they do exist.
      */
@@ -122,9 +115,8 @@ namespace icepack {
     public:
       TotalVariation(
         const Discretization<dim>&,
-        const double alpha,
         const double gamma
-      ) : alpha(alpha), gamma(gamma)
+      ) : gamma(gamma)
       {}
 
       /**
@@ -151,7 +143,7 @@ namespace icepack {
 
           for (unsigned int q = 0; q < n_q_points; ++q) {
             const double dx = fe_values.JxW(q);
-            const Tensor<1, dim> du = alpha * du_values[q];
+            const Tensor<1, dim> du = du_values[q];
             const double dA = std::sqrt(du*du + gamma*gamma) - gamma;
             total_variation += dA * dx;
           }
@@ -195,12 +187,12 @@ namespace icepack {
 
           for (unsigned int q = 0; q < n_q_points; ++q) {
             const double dx = fe_values.JxW(q);
-            const Tensor<1, dim> du = alpha * du_values[q];
+            const Tensor<1, dim> du = du_values[q];
             const double dA = std::sqrt(du*du + gamma*gamma);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
               const Tensor<1, dim> dphi = fe_values[ex].gradient(i, q);
-              cell_div_graph_normal(i) += alpha * du * dphi / dA * dx;
+              cell_div_graph_normal(i) += du * dphi / dA * dx;
             }
           }
 
@@ -216,11 +208,6 @@ namespace icepack {
       }
 
     protected:
-      /**
-       * Gradient scale for non-dimensionalization
-       */
-      const double alpha;
-
       /**
        * Cutoff factor below which the square gradient is penalized
        */
