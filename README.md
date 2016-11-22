@@ -2,6 +2,7 @@
 Finite element modeling of glaciers and ice sheets
 
 This library is for simulating the flow of glaciers and ice sheets using the finite element method.
+The core library code is contained in this repository; examples and tutorials are available in a separate repo [here](https://github.com/danshapero/icepack-examples).
 
 Icepack is not yet ready for use and should be considered pre-alpha quality.
 The code is not optimized at all.
@@ -19,6 +20,10 @@ Planned features:
 You will first need a working deal.II installation.
 If deal.II is not installed in some standard directory, e.g. `/usr` or `/usr/local`, the environment variable `DEAL_II_DIR` can be set to the directory of your deal.II installation.
 
+We also rely on several C++11 features -- lambda, move semantics, etc. -- so you will need to compile deal.II with C++11 support.
+When configuring deal.II with CMake, add the flag `-DDEAL_II_WITH_CXX11:BOOL=True`.
+If your compiler supports C++11, this should be detected automatically, but adding this flag will make sure.
+
 For the time being, icepack relies on the sparse direct linear algebra solver [UMFPACK](http://faculty.cse.tamu.edu/davis/suitesparse.html), so deal.II must be configured to use UMFPACK.
 When configuring deal.II with CMake, the flag `-DDEAL_II_WITH_UMFPACK:BOOL=True` must be added to enable UMFPACK.
 
@@ -32,7 +37,7 @@ To build the icepack sources, run the following:
 Unit tests can be run by invoking `make test`.
 
 The [examples repository](https://github.com/danshapero/icepack-examples) contains example programs demonstrating the use of icepack for real applications.
-These include pre- and post-processing scripts in python, which you should hopefully have.
+These include pre- and post-processing scripts in python.
 A helper library is included in the directory `python/`, which will be built and installed automatically along with the rest of icepack.
 
 
@@ -59,11 +64,6 @@ Although not strictly necessary, you will also probably want to have:
 * [parmetis](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview) Graph partitioning library, for parallel computations.
 * [valgrind](http://valgrind.org/) memory debugger
 
-While the GCC compiler usually generates faster assembly code, we recommend using Clang for development purposes.
-Icepack uses the deal.II library for finite element computations, which relies quite heavily on C++ templates.
-Clang gives far more helpful error messages for mistakes in code than GCC does, especially when debugging improper use of templates.
-Additionally, the clang memory and address sanitizers can find subtle bugs easily.
-Configuring the MPI wrapper compilers to use clang instead of GCC is [straightforward](http://stackoverflow.com/questions/14464554/is-there-an-easy-way-to-use-clang-with-open-mpi).
-
 For development purposes, you may want to disable the use of Intel's Threading Building Blocks library when building deal.II by passing the flag `-DDEAL_II_WITH_THREADS:BOOL=False` to `cmake`.
 Using Intel TBB can cause valgrind to erroneously report memory leaks, and to generally confound debuggers.
+
