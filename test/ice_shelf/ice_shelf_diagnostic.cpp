@@ -147,6 +147,26 @@ int main(int argc, char ** argv)
 
 
   /**
+   * Test computing the power dissipation rate of the candidate fields
+   */
+
+  const double area = width * length;
+  const double B = ice_shelf.constitutive_tensor.rheology.B(temp);
+  const double n = ice_shelf.constitutive_tensor.rheology.n;
+  const double h_integral =
+    (std::pow(h0, n + 3) - std::pow(h0 - delta_h, n + 3))/((n + 3) * delta_h);
+  const double power =
+    area * std::pow(rho * gravity, n + 1) / std::pow(4 * B, n) * h_integral;
+  const double ice_stress_P = n/(n + 1) * power / 2;
+  const double driving_stress_P = -0.5 * power;
+  const double P_exact = ice_stress_P + driving_stress_P;
+
+  const double P = ice_shelf.action(h, theta, u_true);
+
+  check_real(P, P_exact, std::pow(dx, p + 1) * std::abs(P_exact));
+
+
+  /**
    * Test computing the residual of a candidate velocity
    */
 

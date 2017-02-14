@@ -23,6 +23,19 @@ namespace icepack {
      */
     DualVectorField<2> driving_stress(const Field<2>& thickness) const;
 
+
+    /**
+     * Computed the value of the action for the shallow shelf equations. The
+     * solution of the diagnostic equations is the unique extremizer of the
+     * action.
+     */
+    double action(
+      const Field<2>& thickness,
+      const Field<2>& temperature,
+      const VectorField<2>& velocity
+    ) const;
+
+
     /**
      * Compute the residual of a candidate solution to the diagnostic equation.
      * This vector is used to solve the system by Newton's method.

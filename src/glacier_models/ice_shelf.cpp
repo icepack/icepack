@@ -239,6 +239,59 @@ namespace icepack {
   }
 
 
+  double IceShelf::action(
+    const Field<2>& h,
+    const Field<2>& theta,
+    const VectorField<2>& u
+  ) const
+  {
+    double P = 0.0;
+
+    const QGauss<2>& quad = discretization.quad();
+    const unsigned int n_q_points = quad.size();
+
+    FEValues<2> u_fe_values(u.get_fe(), quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Vector exv(0);
+
+    FEValues<2> h_fe_values(h.get_fe(), quad, DefaultUpdateFlags::flags);
+    const FEValuesExtractors::Scalar exs(0);
+
+    std::vector<double> h_values(n_q_points);
+    std::vector<double> theta_values(n_q_points);
+    std::vector<SymmetricTensor<2, 2>> eps_values(n_q_points);
+
+    const double Rho = rho_ice * (1 - rho_ice / rho_water);
+    const double n = constitutive_tensor.rheology.n;
+
+    for (const auto& it: discretization) {
+      u_fe_values.reinit(discretization.vector_cell_iterator(it));
+      h_fe_values.reinit(discretization.scalar_cell_iterator(it));
+
+      h_fe_values[exs].get_function_values(h.get_coefficients(), h_values);
+      h_fe_values[exs].get_function_values(theta.get_coefficients(), theta_values);
+      u_fe_values[exv].get_function_symmetric_gradients(
+        u.get_coefficients(), eps_values
+      );
+
+      for (unsigned int q = 0; q < n_q_points; ++q) {
+        const double dx = u_fe_values.JxW(q);
+        const double H = h_values[q];
+        const double T = theta_values[q];
+        const SymmetricTensor<2, 2> eps = eps_values[q];
+        const SymmetricTensor<4, 2> C =
+          constitutive_tensor.C<nonlinear>(H, T, eps);
+
+        const double strain_power = n/(n + 1) * eps * C * eps;
+        const double driving_stress_power = -Rho * gravity * H*H * trace(eps)/2;
+
+        P += (strain_power + driving_stress_power) * dx;
+      }
+    }
+
+    return P;
+  }
+
+
   DualVectorField<2> IceShelf::residual(
     const Field<2>& h,
     const Field<2>& theta,
