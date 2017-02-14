@@ -52,14 +52,14 @@ namespace icepack {
   double Rheology::B(const double theta) const
   {
     const double A = rate_factor(theta);
-    return std::pow(A, -1.0/n) / 2;
+    return std::pow(A, -1.0/n);
   }
 
   double Rheology::dB(const double theta) const
   {
     const double A = rate_factor(theta);
     const double dA = d_rate_factor(theta);
-    return -1.0/(2*n) * std::pow(A, -1.0/n - 1.0) * dA;
+    return -1.0/n * std::pow(A, -1.0/n - 1.0) * dA;
   }
 
 
@@ -89,7 +89,7 @@ namespace icepack {
     const double n = rheology.n;
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
-    const double nu = h * rheology.B(theta) * std::pow(eps_e, 1/n - 1);
+    const double nu = 0.5 * h * rheology.B(theta) * std::pow(eps_e, 1/n - 1);
     return 2 * nu * CC;
   }
 
@@ -104,7 +104,7 @@ namespace icepack {
     const double tr = trace(eps);
     const double eps_e = sqrt((eps * eps + tr * tr)/2);
     const SymmetricTensor<2, 2> gamma = (eps + tr * I) / eps_e;
-    const double nu = h * rheology.B(theta) * std::pow(eps_e, 1/n - 1);
+    const double nu = 0.5 * h * rheology.B(theta) * std::pow(eps_e, 1/n - 1);
     return 2 * nu * (CC + (1-n)/(2*n) * outer_product(gamma, gamma));
   }
 
