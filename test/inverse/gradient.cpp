@@ -76,7 +76,6 @@ int main(int argc, char ** argv)
    * ---------------------------------------------- */
   auto tria = icepack::testing::rectangular_glacier(length, width);
   icepack::IceShelf ice_shelf(tria, 1);
-  const auto& discretization = ice_shelf.get_discretization();
 
   const Field<2> h = ice_shelf.interpolate(thickness);
 

@@ -41,7 +41,7 @@ class Velocity : public TensorFunction<1, 2>
 public:
   Velocity() {}
 
-  Tensor<1, 2> value(const Point<2>& x) const
+  Tensor<1, 2> value(const Point<2>&) const
   {
 
     Tensor<1, 2> v;
@@ -57,7 +57,7 @@ class DuDx : public Function<2>
 public:
   DuDx() {}
 
-  double value(const Point<2>& x, const unsigned int = 0) const
+  double value(const Point<2>&, const unsigned int = 0) const
   {
     return 0.0;
   }
