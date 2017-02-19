@@ -171,7 +171,7 @@ int main(int argc, char ** argv)
    */
 
   const DualVectorField<2> tau = ice_shelf.driving_stress(h);
-  const DualVectorField<2> r = ice_shelf.residual(h, theta, u_true, tau);
+  const DualVectorField<2> r = ice_shelf.derivative(h, theta, u_true);
 
   // Residual of the exact solution should be < dx^2.
   check_real(norm(r)/norm(tau), 0, dx*dx);

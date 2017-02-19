@@ -40,12 +40,23 @@ namespace icepack {
      * Compute the residual of a candidate solution to the diagnostic equation.
      * This vector is used to solve the system by Newton's method.
      */
-    DualVectorField<2> residual(
+    DualVectorField<2> derivative(
       const Field<2>& thickness,
       const Field<2>& temperature,
-      const VectorField<2>& u,
-      const DualVectorField<2>& tau_d
+      const VectorField<2>& velocity
     ) const;
+
+
+    /**
+     * Return a sparse matrix representing the Hessian of the action functional
+     * at a particular value of the thickness, temperature, and velocity.
+     */
+    SparseMatrix<double> hessian(
+      const Field<2>& thickness,
+      const Field<2>& temperature,
+      const VectorField<2>& velocity
+    ) const;
+
 
     /**
      * Compute the ice velocity from the thickness and temperature

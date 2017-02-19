@@ -115,7 +115,7 @@ namespace icepack {
     const DualVectorField<2> tau = ice_shelf.driving_stress(h);
     const double tau_norm = norm(tau);
 
-    DualVectorField<2> r = ice_shelf.residual(h, theta, u, tau);
+    DualVectorField<2> r = ice_shelf.derivative(h, theta, u);
     Vector<double>& R = r.get_coefficients();
 
     Vector<double>& U = u.get_coefficients();
@@ -124,15 +124,15 @@ namespace icepack {
     double error = std::numeric_limits<double>::infinity();
     for (unsigned int i = 0; i < max_iterations && error > tolerance; ++i) {
       // Fill the system matrix
-      auto A = velocity_matrix<linearized>(h, theta, u, ice_shelf);
+      auto A = ice_shelf.hessian(h, theta, u);
       MatrixTools::apply_boundary_values(boundary_values, A, dU, R, false);
 
       // Solve the linear system with the updated matrix
       linear_solve(A, dU, R, u.get_constraints());
-      U.add(1.0, dU);
+      U.add(-1.0, dU);
 
       // Compute the relative difference between the new and old solutions
-      r = ice_shelf.residual(h, theta, u, tau);
+      r = ice_shelf.derivative(h, theta, u);
       error = norm(r) / tau_norm;
     }
 
@@ -292,14 +292,13 @@ namespace icepack {
   }
 
 
-  DualVectorField<2> IceShelf::residual(
+  DualVectorField<2> IceShelf::derivative(
     const Field<2>& h,
     const Field<2>& theta,
-    const VectorField<2>& u,
-    const DualVectorField<2>& tau_d
+    const VectorField<2>& u
   ) const
   {
-    DualVectorField<2> r(tau_d);
+    DualVectorField<2> r = -driving_stress(h);
 
     const FiniteElement<2>& u_fe = u.get_fe();
     const QGauss<2> quad = discretization.quad();
@@ -317,11 +316,11 @@ namespace icepack {
     std::vector<double> theta_values(n_q_points);
     std::vector<SymmetricTensor<2, 2>> strain_rate_values(n_q_points);
 
-    Vector<double> cell_residual(dofs_per_cell);
+    Vector<double> cell_derivative(dofs_per_cell);
     std::vector<dealii::types::global_dof_index> local_dof_ids(dofs_per_cell);
 
     for (const auto& it: discretization) {
-      cell_residual = 0;
+      cell_derivative = 0;
       u_fe_values.reinit(discretization.vector_cell_iterator(it));
       h_fe_values.reinit(discretization.scalar_cell_iterator(it));
 
@@ -342,13 +341,13 @@ namespace icepack {
 
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
           const auto eps_phi_i = u_fe_values[exv].symmetric_gradient(i, q);
-          cell_residual(i) -= (eps_phi_i * C * eps) * dx;
+          cell_derivative(i) += (eps_phi_i * C * eps) * dx;
         }
       }
 
       discretization.vector_cell_iterator(it)->get_dof_indices(local_dof_ids);
       r.get_constraints().distribute_local_to_global(
-        cell_residual, local_dof_ids, r.get_coefficients()
+        cell_derivative, local_dof_ids, r.get_coefficients()
       );
     }
 
@@ -367,6 +366,16 @@ namespace icepack {
       if (boundary_dofs[i]) r.get_coefficients()(i) = 0;
 
     return r;
+  }
+
+
+  SparseMatrix<double> IceShelf::hessian(
+    const Field<2>& h,
+    const Field<2>& theta,
+    const VectorField<2>& u
+  ) const
+  {
+    return velocity_matrix<linearized>(h, theta, u, *this);
   }
 
 

@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
    */
 
   const DualVectorField<2> tau = ice_shelf.driving_stress(h);
-  const DualVectorField<2> r = ice_shelf.residual(h, theta, u0, tau);
+  const DualVectorField<2> r = ice_shelf.derivative(h, theta, u0);
   check(norm(r) / norm(tau) < dx*dx);
 
   const DualVectorField<2> d_tau = transpose(ice_shelf.interpolate(DeltaTau()));
