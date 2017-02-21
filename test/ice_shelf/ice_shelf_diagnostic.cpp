@@ -86,6 +86,89 @@ public:
 };
 
 
+void test_derivatives(
+  const IceShelf& ice_shelf,
+  const Field<2>& h,
+  const Field<2>& theta,
+  const VectorField<2>& u,
+  const VectorField<2>& du,
+  const bool verbose
+)
+{
+  const double P = ice_shelf.action(h, theta, u);
+  const DualVectorField<2> dP = ice_shelf.derivative(h, theta, u);
+  const SparseMatrix<double> d2P = ice_shelf.hessian(h, theta, u);
+
+  const double linear_term = inner_product(dP, du);
+
+  const size_t num_trials = 12;
+  std::vector<double> errors(num_trials);
+  for (size_t k = 0; k < num_trials; ++k) {
+    const double eps = 1.0 / pow(2.0, k);
+
+    const VectorField<2> v = u + eps * du;
+    const double action_exact = ice_shelf.action(h, theta, v);
+
+    const double action_approx = P + eps * linear_term;
+    const double error = std::abs(action_exact - action_approx);
+
+    errors[k] = error/(eps * std::abs(P));
+  }
+
+  if (verbose) {
+    std::cout << "Error in local quadratic approximation of shallow shelf "
+              << "action functional: " << std::endl;
+    for (size_t k = 0; k < num_trials; ++k)
+      std::cout << errors[k] << std::endl;
+
+    std::cout << std::endl;
+  }
+
+  check(icepack::testing::is_decreasing(errors));
+}
+
+
+void test_hessians(
+  const IceShelf& ice_shelf,
+  const Field<2>& h,
+  const Field<2>& theta,
+  const VectorField<2>& u,
+  const VectorField<2>& du,
+  const bool verbose
+)
+{
+  const DualVectorField<2> dP = ice_shelf.derivative(h, theta, u);
+  const SparseMatrix<double> d2P = ice_shelf.hessian(h, theta, u);
+
+  DualVectorField<2> d2P_times_du(dP.get_discretization());
+  d2P.vmult(d2P_times_du.get_coefficients(), du.get_coefficients());
+
+  const size_t num_trials = 12;
+  std::vector<double> errors(num_trials);
+  for (size_t k = 0; k < num_trials; ++k) {
+    const double eps = 1.0 / pow(2.0, k);
+    const VectorField<2> v = u + eps * du;
+
+    const DualVectorField<2> dP_exact = ice_shelf.derivative(h, theta, v);
+    const DualVectorField<2> dP_approx = dP + eps * d2P_times_du;
+
+    const DualVectorField<2> ddP = dP_exact - dP_approx;
+    errors[k] = norm(ddP);
+  }
+
+  if (verbose) {
+    std::cout << "Error in linearization of shallow shelf equations: "
+              << std::endl;
+    for (size_t k = 0; k < num_trials; ++k)
+      std::cout << errors[k] << std::endl;
+
+    std::cout << std::endl;
+  }
+
+  check(icepack::testing::is_decreasing(errors));
+}
+
+
 
 int main(int argc, char ** argv)
 {
@@ -163,6 +246,9 @@ int main(int argc, char ** argv)
 
   const double P = ice_shelf.action(h, theta, u_true);
 
+  if (verbose)
+    std::cout << "Energy dissipation per unit area: " << P / area << std::endl;
+
   check_real(P, P_exact, std::pow(dx, p + 1) * std::abs(P_exact));
 
 
@@ -171,11 +257,22 @@ int main(int argc, char ** argv)
    */
 
   const DualVectorField<2> tau = ice_shelf.driving_stress(h);
-  const DualVectorField<2> r = ice_shelf.derivative(h, theta, u_true);
+  const DualVectorField<2> dP = ice_shelf.derivative(h, theta, u_true);
 
   // Residual of the exact solution should be < dx^2.
-  check_real(norm(r)/norm(tau), 0, dx*dx);
+  check_real(norm(dP)/norm(tau), 0, dx*dx);
 
+
+  /**
+   * Check that the action can be approximated locally to 2nd order using the
+   * derivative and Hessian.
+   */
+
+  test_derivatives(ice_shelf, h, theta, u_true, u0 - u_true, verbose);
+  test_derivatives(ice_shelf, h, theta, u0, u_true - u0, verbose);
+
+  test_hessians(ice_shelf, h, theta, u_true, u0 - u_true, verbose);
+  test_hessians(ice_shelf, h, theta, u0, u_true - u0, verbose);
 
   /**
    * Test the diagnostic solve procedure
