@@ -63,21 +63,12 @@ void test_regularizer(
   std::vector<double> diffs(num_samples);
   for (size_t n = 0; n < num_samples; ++n) {
     const double delta = 1.0 / (1 << n);
-    const double diff = (regularizer(u + delta*v) - regularizer(u)) / delta;
-    diffs[n] = (diff - inner_product(p, v)) / delta;
+    const double exact = regularizer(u + delta * v);
+    const double approx = regularizer(u) + delta * inner_product(p, v);
+    diffs[n] = std::abs((exact - approx) / delta);
   }
 
-  double mean = 0.0;
-  for (const auto& diff: diffs) mean += diff;
-  mean /= num_samples;
-
-  double variance = 0.0;
-  for (const auto& diff: diffs) variance += (diff - mean) * (diff - mean);
-  variance /= num_samples;
-  const double std_dev = std::sqrt(variance);
-
-  // TODO: This is just... laughably ad hoc, come up with a better test.
-  check_real(std_dev/mean, 0.0, 5.0e-2);
+  check(icepack::testing::is_decreasing(diffs));
 }
 
 
