@@ -25,8 +25,8 @@ def compute_search_direction(E, u, bc):
     dF = derivative(F, u)
 
     p = Function(u.function_space())
-    solve(dF == -F, p, bc)
-
+    solve(dF == -F, p, bc,
+          solver_parameters={'ksp_type': 'cg', 'pc_type': 'ilu'})
     return p
 
 
