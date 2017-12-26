@@ -3,7 +3,7 @@ import firedrake
 from firedrake import grad, div, dx, sqrt, inner, sym, tr as trace
 from icepack.constants import rho_ice, rho_water, \
     gravity as g, glen_flow_law as n
-#from icepack.mass_transport import MassTransport
+from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
 
 
@@ -84,7 +84,7 @@ class IceShelf(object):
     The relevant physics can be found in Greve and Blatter.
     """
     def __init__(self, viscosity=viscosity, gravity=gravity):
-        #self.mass_transport = MassTransport()
+        self.mass_transport = MassTransport()
         self.viscosity = viscosity
         self.gravity = gravity
 
@@ -134,7 +134,7 @@ class IceShelf(object):
         # Solve the nonlinear optimization problem
         return newton_search(viscosity - gravity, u, bcs, tolerance)
 
-    def prognostic_solve(self, dt, h0, a, u, **kwargs):
+    def prognostic_solve(self, dt, h0=None, a=None, u=None, **kwargs):
         """Propagate the ice thickness forward one timestep
 
         Parameters
@@ -151,7 +151,7 @@ class IceShelf(object):
         h : firedrake.Function
             The new ice thickness at `t + dt`
         """
-        #return self.mass_transport.solve(dt, h0, a, u, **kwargs)
+        return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
     def suggested_elements(self, degree, cell=firedrake.triangle):
         """Return a dictionary of suggested finite elements for each field
