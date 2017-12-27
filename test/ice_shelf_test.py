@@ -36,7 +36,7 @@ def test_diagnostic_solver_convergence():
 
     # Create an ice shelf model
     ice_shelf = icepack.models.IceShelf()
-    opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
+    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
 
     # Solve the ice shelf model for successively higher mesh resolution
     delta_x, error = [], []
@@ -101,7 +101,7 @@ def test_diagnostic_solver_alternate_parameterization():
 
     # Make a model object with our new viscosity functional
     ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
-    opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
+    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
 
     # Same as before
     delta_x, error = [], []
