@@ -1,7 +1,6 @@
 
 import numpy as np
 import firedrake
-from firedrake import inner, grad, dx, assemble
 import icepack, icepack.models
 from icepack.constants import gravity, rho_ice, rho_water, glen_flow_law as n
 
@@ -9,11 +8,6 @@ from icepack.constants import gravity, rho_ice, rho_water, glen_flow_law as n
 L, W = 20.0e3, 20.0e3
 
 def test_diagnostic_solver_convergence():
-    def norm(u):
-        form = inner(u, u) * dx + L**2 * inner(grad(u), grad(u)) * dx
-        norm_squared = assemble(form)
-        return np.sqrt(norm_squared)
-
     h0, dh = 500.0, 100.0
 
     # This is an exact solution for the velocity of a floating ice shelf with
@@ -38,6 +32,7 @@ def test_diagnostic_solver_convergence():
     delta_x, error = [], []
     ice_shelf = icepack.models.IceShelf()
     opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
+    norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
         mesh = firedrake.RectangleMesh(N, N, L, W)
         V = firedrake.VectorFunctionSpace(mesh, 'CG', 2)
