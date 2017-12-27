@@ -11,7 +11,7 @@ def M(eps, A):
     """Calculate the membrane stress for a given strain rate and fluidity"""
     I = firedrake.Identity(2)
     tr = trace(eps)
-    eps_e = sqrt((inner(eps, eps) + tr * tr) / 2)
+    eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
     mu = 0.5 * A**(-1/n) * eps_e**(1/n - 1)
     return 2 * mu * (eps + tr * I)
 
