@@ -62,7 +62,7 @@ def gravity(u=None, h=None, **kwargs):
     .. math::
         E(u) = \\frac{1}{2}\int_\Omega \\varrho gh^2\\nabla\cdot u\hspace{2pt}dx
 
-    Paramters
+    Parameters
     ---------
     u : firedrake.Function
         ice velocity

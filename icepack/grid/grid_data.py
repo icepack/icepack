@@ -42,13 +42,19 @@ class GridData(object):
         self.data = ma.masked_equal(data, missing_data_value)
 
     def __getitem__(self, indices):
+        """Retrieve a given entry from the raw data
+        """
         i, j = indices
         return self.data[i, j]
 
     def is_masked(self, x):
+        """Returns `True` if the data cannot be interpolated to a point
+        """
         i, j = _index_of_point(self.x, self.y, x[0], x[1])
         return _is_missing(self.data, i, j)
 
     def __call__(self, x):
+        """Evaluate the gridded data set at a given point
+        """
         return _bilinear_interp(self, x[0], x[1])
 
