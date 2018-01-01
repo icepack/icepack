@@ -32,6 +32,9 @@ def _bilinear_interp(q, X, Y):
 
 
 class GridData(object):
+    """Class for data sets defined on a regular spatial grid
+    """
+
     def __init__(self, x, y, data, missing_data_value):
         ny, nx = data.shape
         if (len(x) != nx) or (len(y) != ny):

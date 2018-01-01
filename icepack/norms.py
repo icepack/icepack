@@ -9,6 +9,25 @@ def _diameter(mesh):
     return np.min(Ls)
 
 def norm(u, norm_type='L2'):
+    """Compute the norm of a field
+
+    Computes one of any number of norms of a scalar or vector field. The
+    available options are:
+
+    - ``L2``: :math:`\|u\|^2 = \int_\Omega|u|^2dx`
+
+    - ``H01``: :math:`\|u\|^2 = \int_\Omega|\\nabla u|^2dx`
+
+    - ``H1``: :math:`\|u\|^2 = \int_\Omega\\left(|u|^2 + L^2|\\nabla u|^2\\right)dx`
+
+    - ``L1``: :math:`\|u\| = \int_\Omega|u|dx`
+
+    - ``TV``: :math:`\|u\| = \int_\Omega|\\nabla u|dx`
+
+    The extra factor :math:`L` in the :math:`H^1` norm is the diameter of
+    the domain in the infinity metric. This extra factor is included to
+    make the norm scale appropriately with the size of the domain.
+    """
     if norm_type == 'L2':
         form, p = inner(u, u) * dx, 2
 

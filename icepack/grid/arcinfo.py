@@ -1,4 +1,12 @@
+"""Functions for reading/writing the ArcInfo ASCII format
 
+This module contains functions for reading and writing raster data in the
+`Arc/Info ASCII grid <https://en.wikipedia.org/wiki/Esri_grid>`_ format.
+The Center for Remote Sensing of Ice Sheets releases their `gridded data
+products <https://data.cresis.ku.edu/data/grids/>`_ in this format. The
+Arc/Info ASCII format has the virtue of being human readable, easy to
+parse, and readable by every geographic information system.
+"""
 import numpy as np
 from icepack.grid import GridData
 
