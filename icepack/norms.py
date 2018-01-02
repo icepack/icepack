@@ -24,6 +24,8 @@ def norm(u, norm_type='L2'):
 
     - ``TV``: :math:`\|u\| = \int_\Omega|\\nabla u|dx`
 
+    - ``Linfty``: :math:`\|u\| = \max_{x\in\Omega}|u(x)|`
+
     The extra factor :math:`L` in the :math:`H^1` norm is the diameter of
     the domain in the infinity metric. This extra factor is included to
     make the norm scale appropriately with the size of the domain.
@@ -46,6 +48,11 @@ def norm(u, norm_type='L2'):
     if norm_type == 'TV':
         form, p = sqrt(inner(grad(u), grad(u))) * dx, 1
 
-   #TODO: L-infinity norm
+    if norm_type == 'Linfty':
+        data = u.dat.data_ro
+        if len(data.shape) == 1:
+            return np.max(np.abs(data))
+        elif len(data.shape) == 2:
+            return np.max(np.sqrt(np.sum(data**2, 1)))
 
     return assemble(form)**(1/p)
