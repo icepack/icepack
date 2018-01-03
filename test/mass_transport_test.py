@@ -52,11 +52,11 @@ def test_mass_transport_solver_convergence():
     print(slope, intercept)
 
 
-# Test solving the coupled diagnostic/prognostic solvers with thickness and
-# velocity fields that are exactly insteady state.
-def test_coupled_diagnostic_prognostic_solver():
-    from icepack.constants import rho_ice, rho_water, gravity, \
-        glen_flow_law as n
+from icepack.constants import rho_ice, rho_water, gravity, glen_flow_law as n
+
+# Test solving the coupled diagnostic/prognostic equations for an ice shelf
+# with thickness and velocity fields that are exactly insteady state.
+def test_ice_shelf_coupled_diagnostic_prognostic_solver():
     from icepack.models import IceShelf
     rho = rho_ice * (1 - rho_ice/rho_water)
 
@@ -107,3 +107,74 @@ def test_coupled_diagnostic_prognostic_solver():
 
     print(slope, intercept)
     assert slope > degree - 0.05
+
+
+# Test solving the coupled diagnostic/prognostic equations for an ice stream
+# and check that it doesn't explode. TODO: Manufacture a solution.
+def test_ice_stream_coupled_diagnostic_prognostic_solve():
+    from icepack.models import IceStream
+
+    L, W = 20e3, 20e3
+
+    ice_stream = IceStream()
+    degree = 2
+    opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
+
+    N = 32
+    mesh = RectangleMesh(N, N, L, W)
+    V = VectorFunctionSpace(mesh, 'CG', degree)
+    Q = FunctionSpace(mesh, 'CG', degree)
+
+    h0, dh = 500.0, 100.0
+    def thickness(x):
+        return h0 - dh * x[0] / L
+
+    height_above_flotation = 10.0
+    d = -rho_ice / rho_water * thickness((L, W/2)) + height_above_flotation
+    rho = rho_ice - rho_water * d**2 / thickness((L, W/2))**2
+
+    T = 254.15
+    u0 = 100.0
+    def velocity_initial(x):
+        A = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
+        q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
+        du = A * q * L * (h0/dh) / (n + 1)
+        return (u0 + du, 0.0)
+
+    beta = 1/2
+    alpha = beta * rho / rho_ice * dh / L
+    def friction(x):
+        from icepack.constants import weertman_sliding_law as m
+        u = velocity_initial(x)[0]
+        h = thickness(x)
+        return alpha * (rho_ice * gravity * h) * u**(-1/m)
+
+    ds = (1 + beta) * rho/rho_ice * dh
+    def surface(x):
+        return d + h0 - dh + ds * (1 - x[0] / L)
+
+    def bed(x):
+        return surface(x) - thickness(x)
+
+    u = icepack.interpolate(velocity_initial, V)
+    h = icepack.interpolate(thickness, Q)
+    s = icepack.interpolate(surface, Q)
+    b = icepack.interpolate(bed, Q)
+    C = icepack.interpolate(friction, Q)
+    A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+
+    final_time, dt = 1.0, 1.0/12
+    num_timesteps = math.ceil(final_time / dt)
+
+    a = icepack.interpolate(lambda x: 0.0, Q)
+    a = (ice_stream.prognostic_solve(dt, h0=h, a=a, u=u) - h) / dt
+
+    import matplotlib.pyplot as plt
+
+    for k in range(num_timesteps):
+        u = ice_stream.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
+        h = ice_stream.prognostic_solve(dt, h0=h, a=a, u=u)
+        s = ice_stream.compute_surface(h=h, b=b)
+
+    assert icepack.norm(h, norm_type='Linfty') < np.inf
+

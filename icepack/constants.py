@@ -24,3 +24,6 @@ ideal_gas = 8.3144621e-3                # kJ / mol K
 #: exponent in the nonlinear constitutive law for ice
 glen_flow_law = 3.0
 
+#: exponent in the nonlinear friction law for ice sliding
+weertman_sliding_law = 3.0
+
