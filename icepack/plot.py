@@ -88,7 +88,7 @@ def plot(mesh_or_function, axes=None, **kwargs):
     boundary.
 
     .. seealso::
-    
+
        :py:func:`firedrake.plot.plot`
           Documentation for the firedrake plot function
     """

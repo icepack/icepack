@@ -1,57 +1,10 @@
 
 import firedrake
-from firedrake import grad, div, dx, sqrt, inner, sym, tr as trace
-from icepack.constants import rho_ice, rho_water, \
-    gravity as g, glen_flow_law as n
+from firedrake import div, dx
+from icepack.constants import rho_ice, rho_water, gravity as g
+from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
-
-
-def M(eps, A):
-    """Calculate the membrane stress for a given strain rate and fluidity"""
-    I = firedrake.Identity(2)
-    tr = trace(eps)
-    eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
-    mu = 0.5 * A**(-1/n) * eps_e**(1/n - 1)
-    return 2 * mu * (eps + tr * I)
-
-
-def eps(u):
-    """Calculate the strain rate for a given flow velocity"""
-    return sym(grad(u))
-
-
-def viscosity(u=None, h=None, A=None, **kwargs):
-    """Return the viscous part of the ice shelf action functional
-
-    The viscous component of the action for ice shelf flow is
-
-    .. math::
-        E(u) = \\frac{n}{n+1}\int_\Omega h\cdot M(\dot\\varepsilon, A):\dot\\varepsilon\hspace{2pt} dx
-
-    where :math:`M(\dot\\varepsilon, A)` is the membrane stress tensor
-
-    .. math::
-        M(\dot\\varepsilon, A) = A^{-1/n}|\dot\\varepsilon|^{1/n - 1}(\dot\\varepsilon + \\text{tr}\dot\\varepsilon\cdot I).
-
-    This form assumes that we're using the fluidity parameter instead
-    the rheology parameter, the temperature, etc. To use a different
-    variable, you can subclass `IceShelf` and override this method.
-
-    Parameters
-    ----------
-    u : firedrake.Function
-        ice velocity
-    h : firedrake.Function
-        ice thickness
-    A : firedrake.Function
-        ice fluidity parameter
-
-    Returns
-    -------
-    firedrake.Form
-    """
-    return n/(n + 1) * h * inner(M(eps(u), A), eps(u)) * dx
 
 
 def gravity(u=None, h=None, **kwargs):
@@ -63,7 +16,7 @@ def gravity(u=None, h=None, **kwargs):
         E(u) = \\frac{1}{2}\int_\Omega \\varrho gh^2\\nabla\cdot u\hspace{2pt}dx
 
     Parameters
-    ---------
+    ----------
     u : firedrake.Function
         ice velocity
     h : firedrake.Function
@@ -80,8 +33,13 @@ def gravity(u=None, h=None, **kwargs):
 class IceShelf(object):
     """Class for modelling the flow of floating ice shelves
 
-    This class provides functions that solve for the ice velocity and thickness.
-    The relevant physics can be found in Greve and Blatter.
+    This class provides functions that solve for the velocity and
+    thickness of a floating ice shelf. The relevant physics can be found
+    in ch. 6 of Greve and Blatter.
+
+    .. seealso::
+       :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
+          Default implementation of the ice shelf viscous action
     """
     def __init__(self, viscosity=viscosity, gravity=gravity):
         self.mass_transport = MassTransport()
@@ -115,15 +73,15 @@ class IceShelf(object):
         ----------------
         **kwargs
             All other keyword arguments will be passed on to the
-            `viscosity_functional` and `gravity_functional` methods used to
-            define the action.
+            `viscosity` and `gravity` functions that were set when this
+            model object was initialized
         """
         # Create the action functional for ice shelf flow
         u = u0.copy(deepcopy=True)
         viscosity = self.viscosity(u=u, h=h, **kwargs)
         gravity = self.gravity(u=u, h=h, **kwargs)
 
-        # Scale the (non-dimensional) convergence tolerance by the viscous power
+        # Scale the non-dimensional convergence tolerance by the viscous power
         scale = firedrake.assemble(viscosity)
         tolerance = tol * scale
 
