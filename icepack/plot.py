@@ -80,6 +80,73 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
     return axes
 
 
+def streamline(velocity, initial_point, resolution,
+               max_num_points=np.inf, backwards=False):
+    """Return a streamline of a 2D velocity field
+
+    A streamline :math:`\\gamma` of a velocity field :math:`v` is a curve
+    that solves the ordinary differential equation
+
+    .. math::
+       \\frac{d\\gamma}{dt} = v(\\gamma)
+
+    This function returns an approximate streamline for a velocity field.
+    Streamlines are primarily for plotting vector fields but are useful for
+    other kinds of postprocessing of vector field data.
+
+    Parameters
+    ----------
+    velocity : firedrake.Function or tuple of icepack.grid.GridData
+        the velocity field we are integrating
+    initial_point : pair of floats
+        the starting point for the streamline
+    resolution : float
+        the desired length of each segment of the streamline
+    max_num_points : int
+        maximum number of points of the streamline; can be necessary to set
+        if the trajectory can spiral around a center node
+    backwards : bool
+        whether to integrate the streamline in the reverse direction
+        (defaults to `False`)
+
+    Returns
+    -------
+    xs : numpy array of points
+    """
+    if isinstance(velocity, firedrake.Function):
+        def v(x):
+            return velocity.at(x, dont_raise=True)
+    else:
+        def v(x):
+            try:
+                if velocity[0].is_masked(x) or velocity[1].is_masked(x):
+                    return None
+            except ValueError:
+                return None
+
+            return np.array((velocity[0](x), velocity[1](x)))
+
+    sign = -1 if backwards else +1
+
+    vx = v(initial_point)
+    if vx is None:
+        raise ValueError("Initial point is not inside the domain!")
+
+    xs = [np.array(initial_point)]
+
+    n = 0
+    while n < max_num_points:
+        n += 1
+        speed = np.sqrt(sum(vx**2))
+        x = xs[-1] + sign * resolution / speed * vx
+        vx = v(x)
+        if vx is None:
+            break
+        xs.append(x)
+
+    return np.array(xs)
+
+
 def plot(mesh_or_function, axes=None, **kwargs):
     """Make a visualization of a mesh or a field
 
