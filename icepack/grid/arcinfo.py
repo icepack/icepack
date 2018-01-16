@@ -66,5 +66,5 @@ def read(file):
     for i in range(ny-1, -1, -1):
         data[i, :] = [float(q) for q in file.readline().split()]
 
-    return GridData(x, y, data, missing)
+    return GridData(x, y, data, missing_data_value=missing)
 

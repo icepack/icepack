@@ -1,5 +1,6 @@
 
 import numpy as np
+import numpy.ma as ma
 import pytest
 from icepack.grid import GridData
 
@@ -8,15 +9,30 @@ def test_manual_construction():
     y = np.array([0, 1, 2])
     data = np.array([[i + 3 * j for j in range(3)] for i in range(3)])
 
+    # Create a gridded data set by specifying a missing data value
     missing = -9999.0
-    dataset = GridData(x, y, data, missing)
+    data0 = np.copy(data)
+    data0[0, 0] = missing
+    dataset0 = GridData(x, y, data0, missing_data_value=missing)
 
-    for z in [(0.5, 0.5), (0.5, 1.5), (1.5, 0.5), (1.5, 1.5), (1.0, 1.0)]:
-        assert abs(dataset(z) - (3*z[0] + z[1])) < 1e-6
+    # Create a gridded data set by passing the missing data mask
+    mask = np.zeros((3, 3), dtype=bool)
+    mask[0, 0] = True
+    dataset1 = GridData(x, y, data, mask=mask)
 
-    z = (2.5, 0.5)
-    with pytest.raises(ValueError):
-        value = dataset(z)
+    #  Create a gridded data set by directly passing a numpy masked array
+    dataset2 = GridData(x, y, ma.MaskedArray(data=data, mask=mask))
+
+    for dataset in [dataset0, dataset1, dataset2]:
+        for z in [(0.5, 1.5), (1.5, 0.5), (1.5, 1.5)]:
+            assert abs(dataset(z) - (3*z[0] + z[1])) < 1e-6
+
+        assert dataset.is_masked((0.5, 0.5))
+
+        z = (2.5, 0.5)
+        with pytest.raises(ValueError):
+            value = dataset(z)
+
 
 
 def test_accessing_missing_data():
@@ -26,7 +42,7 @@ def test_accessing_missing_data():
     data = np.array([[0, 1, 2],
                      [1, 2, 3],
                      [2, 3, missing]])
-    dataset = GridData(x, y, data, missing)
+    dataset = GridData(x, y, data, missing_data_value=missing)
 
     assert abs(dataset((0.5, 0.5)) - 1) < 1e-6
 

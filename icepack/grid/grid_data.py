@@ -35,14 +35,43 @@ class GridData(object):
     """Class for data sets defined on a regular spatial grid
     """
 
-    def __init__(self, x, y, data, missing_data_value):
+    def __init__(self, x, y, data, *, mask=None, missing_data_value=None):
+        """Create a new gridded data set
+
+        There are several ways to specify the missing data mask:
+        * pass in a numpy masked array for the `data` argument
+        * pass in the array `mask` of boolean values to indicate where data
+          is missing
+        * pass in a specific value `missing_data_value` indicating that any
+          entry in `data` with this exact value is actually a missing data
+          point
+
+        Parameters
+        ----------
+        x, y : np.ndarray
+            coordinates of the grid points
+        data : np.ndarray or ma.MaskedArray
+            values of the gridded data set
+        mask : ndarray of bool, optional
+            array describing missing data values; `True` indicates missing
+        missing_data_value : float, optional
+            value in `data` to indicate missing data
+        """
         ny, nx = data.shape
         if (len(x) != nx) or (len(y) != ny):
             raise ValueError('Incompatible input array sizes')
 
         self.x = x
         self.y = y
-        self.data = ma.masked_equal(data, missing_data_value)
+
+        if isinstance(data, ma.MaskedArray):
+            self.data = data
+        elif missing_data_value is not None:
+            self.data = ma.masked_equal(data, missing_data_value)
+        elif mask is not None:
+            self.data = ma.MaskedArray(data=data, mask=mask)
+        else:
+            raise ValueError()
 
     def __getitem__(self, indices):
         """Retrieve a given entry from the raw data

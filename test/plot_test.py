@@ -49,8 +49,8 @@ def test_streamline_grid_data():
             data_vy[i, j] = X
 
     from icepack.grid import GridData
-    vx = GridData(x, y, data_vx, np.nan)
-    vy = GridData(x, y, data_vy, np.nan)
+    vx = GridData(x, y, data_vx, missing_data_value=np.nan)
+    vy = GridData(x, y, data_vy, missing_data_value=np.nan)
 
     resolution = min(dx, dy)
     radius = 0.5
