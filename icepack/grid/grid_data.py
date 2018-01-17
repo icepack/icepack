@@ -1,15 +1,16 @@
 
+import numpy as np
 import numpy.ma as ma
 
 def _index_of_point(x, y, X, Y):
+    if not ((x[0] <= X <= x[-1]) and (y[0] <= Y <= y[-1])):
+        raise ValueError('Point ({0}, {1}) not contained in the gridded data'
+                         .format(X, Y))
+
     i = int((Y - y[0]) / (y[1] - y[0]))
     j = int((X - x[0]) / (x[1] - x[0]))
 
-    if (0 <= i < len(y) - 1) and (0 <= j < len(x) - 1):
-        return i, j
-
-    raise ValueError('Point ({0}, {1}) not contained in the gridded data'
-                     .format(X, Y))
+    return min(i, len(y) - 2), min(j, len(x) - 2)
 
 
 def _is_missing(q, i, j):
@@ -84,6 +85,21 @@ class GridData(object):
         """
         i, j = _index_of_point(self.x, self.y, x[0], x[1])
         return _is_missing(self.data, i, j)
+
+    def subset(self, xmin, ymin, xmax, ymax):
+        """Return a sub-sample of a gridded dataset for the region between
+        two points
+        """
+        Xmin, Ymin = max(xmin, self.x[0]), max(ymin, self.y[0])
+        Xmax, Ymax = min(xmax, self.x[-1]), min(ymax, self.y[-1])
+
+        imin, jmin = _index_of_point(self.x, self.y, Xmin, Ymin)
+        imax, jmax = _index_of_point(self.x, self.y, Xmax, Ymax)
+
+        x = self.x[jmin:jmax + 2]
+        y = self.y[imin:imax + 2]
+        data = self.data[imin:imax + 2, jmin:jmax + 2]
+        return GridData(x, y, data)
 
     def __call__(self, x):
         """Evaluate the gridded data set at a given point

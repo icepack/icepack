@@ -24,7 +24,7 @@ def test_manual_construction():
     dataset2 = GridData(x, y, ma.MaskedArray(data=data, mask=mask))
 
     for dataset in [dataset0, dataset1, dataset2]:
-        for z in [(0.5, 1.5), (1.5, 0.5), (1.5, 1.5)]:
+        for z in [(0.5, 1.5), (1.5, 0.5), (1.5, 1.5), (0.5, 2.0)]:
             assert abs(dataset(z) - (3*z[0] + z[1])) < 1e-6
 
         assert dataset.is_masked((0.5, 0.5))
@@ -32,7 +32,6 @@ def test_manual_construction():
         z = (2.5, 0.5)
         with pytest.raises(ValueError):
             value = dataset(z)
-
 
 
 def test_accessing_missing_data():
@@ -50,6 +49,33 @@ def test_accessing_missing_data():
     assert dataset.is_masked(z)
     with pytest.raises(ValueError):
         value = dataset(z)
+
+
+def test_subset():
+    N = 4
+    x = np.array(range(N))
+    y = np.array(range(N))
+    data = np.array([[i + N * j for j in range(N)] for i in range(N)])
+
+    dataset = GridData(x, y, data, missing_data_value=-9999.0)
+
+    def check_subset(subset, xmin, ymin, xmax, ymax):
+        assert subset.x[0] <= max(xmin, dataset.x[0])
+        assert subset.y[0] <= max(ymin, dataset.y[0])
+        assert subset.x[-1] >= min(xmax, dataset.x[-1])
+        assert subset.y[-1] >= min(ymax, dataset.y[-1])
+
+    xmin, ymin = -0.5, 0.5
+    xmax, ymax = 1.5, 2.5
+    subset = dataset.subset(xmin, ymin, xmax, ymax)
+    check_subset(subset, xmin, ymin, xmax, ymax)
+    assert subset.data.shape == (4, 3)
+
+    xmin, ymin = 1.5, 2.5
+    xmax, ymax = 3.5, 3.5
+    subset = dataset.subset(xmin, ymin, xmax, ymax)
+    check_subset(subset, xmin, ymin, xmax, ymax)
+    assert subset.data.shape == (2, 3)
 
 
 def test_arcinfo():
