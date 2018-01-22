@@ -1,42 +1,11 @@
 
-import numpy as np
 import numpy.ma as ma
 
-def _index_of_point(x, y, X, Y):
-    if not ((x[0] <= X <= x[-1]) and (y[0] <= Y <= y[-1])):
-        raise ValueError('Point ({0}, {1}) not contained in the gridded data'
-                         .format(X, Y))
-
-    i = int((Y - y[0]) / (y[1] - y[0]))
-    j = int((X - x[0]) / (x[1] - x[0]))
-
-    return min(i, len(y) - 2), min(j, len(x) - 2)
-
-
-def _is_missing(q, i, j):
-    return any([q[k, l] is ma.masked for k in (i, i+1) for l in (j, j+1)])
-
-
-def _bilinear_interp(q, X, Y):
-    x, y = q.x, q.y
-    i, j = _index_of_point(x, y, X, Y)
-    if _is_missing(q.data, i, j):
-        raise ValueError('Not enough data to interpolate value at ({0}, {1})'
-                         .format(X, Y))
-
-    ax, ay = (X - x[j])/(x[1] - x[0]), (Y - y[i])/(y[1] - y[0])
-    dq_dx = q[i, j+1] - q[i, j]
-    dq_dy = q[i+1, j] - q[i, j]
-    d2q_dx_dy = q[i, j] + q[i+1, j+1] - q[i+1, j] - q[i, j+1]
-
-    return q[i, j] + ax*dq_dx + ay*dq_dy + ax*ay*d2q_dx_dy
-
-
 class GridData(object):
-    """Class for data sets defined on a regular spatial grid
-    """
+    """Class for data sets defined on a regular spatial grid"""
 
-    def __init__(self, x, y, data, *, mask=None, missing_data_value=None):
+    def __init__(self, origin, grid_spacing, data,
+                 *, mask=None, missing_data_value=None):
         """Create a new gridded data set
 
         There are several ways to specify the missing data mask:
@@ -49,8 +18,10 @@ class GridData(object):
 
         Parameters
         ----------
-        x, y : np.ndarray
-            coordinates of the grid points
+        origin : tuple of float
+            coordinates of the lower-left point of the gridded data
+        grid_spacing : float
+            the width of a grid cell in either coordinate direction
         data : np.ndarray or ma.MaskedArray
             values of the gridded data set
         mask : ndarray of bool, optional
@@ -58,12 +29,8 @@ class GridData(object):
         missing_data_value : float, optional
             value in `data` to indicate missing data
         """
-        ny, nx = data.shape
-        if (len(x) != nx) or (len(y) != ny):
-            raise ValueError('Incompatible input array sizes')
-
-        self.x = x
-        self.y = y
+        self._origin = origin
+        self._delta = grid_spacing
 
         if isinstance(data, ma.MaskedArray):
             self.data = data
@@ -72,37 +39,77 @@ class GridData(object):
         elif mask is not None:
             self.data = ma.MaskedArray(data=data, mask=mask)
         else:
-            raise ValueError()
+            raise TypeError()
 
     def __getitem__(self, indices):
-        """Retrieve a given entry from the raw data
-        """
+        """Retrieve a given entry from the raw data"""
         i, j = indices
         return self.data[i, j]
 
+    @property
+    def shape(self):
+        return self.data.shape
+
+    def coordinate(self, i, j):
+        """Return the coordinates of a given grid cell"""
+        ny, nx = self.shape
+        if not ((0 <= i < ny) and (0 <= j < nx)):
+            raise IndexError()
+
+        x0, delta = self._origin, self._delta
+        return (x0[0] + j * delta, x0[1] + i * delta)
+
+    def _index_of_point(self, x):
+        """Return the index of the grid point to the lower left of a point"""
+        ny, nx = self.shape
+        x0, x1 = self.coordinate(0, 0), self.coordinate(ny - 1, nx - 1)
+
+        if not ((x0[0] <= x[0] <= x1[0]) and (x0[1] <= x[1] <= x1[1])):
+            raise ValueError("{0} not contained in gridded data".format(x))
+
+        i = int((x[1] - x0[1]) / self._delta)
+        j = int((x[0] - x0[0]) / self._delta)
+        return min(i, ny - 2), min(j, nx - 2)
+
+    def _is_missing(self, i, j):
+        """Returns `True` if there is data missing around an index"""
+        return any([self.data[k, l] is ma.masked
+                    for k in (i, i + 1) for l in (j, j + 1)])
+
     def is_masked(self, x):
-        """Returns `True` if the data cannot be interpolated to a point
-        """
-        i, j = _index_of_point(self.x, self.y, x[0], x[1])
-        return _is_missing(self.data, i, j)
+        """Returns `True` if the data cannot be interpolated to a point"""
+        i, j = self._index_of_point(x)
+        return self._is_missing(i, j)
 
-    def subset(self, xmin, ymin, xmax, ymax):
-        """Return a sub-sample of a gridded dataset for the region between
-        two points
-        """
-        Xmin, Ymin = max(xmin, self.x[0]), max(ymin, self.y[0])
-        Xmax, Ymax = min(xmax, self.x[-1]), min(ymax, self.y[-1])
+    def subset(self, xmin, xmax):
+        """Return a sub-sample for the region between two points"""
+        ny, nx = self.shape
+        x0, x1 = self.coordinate(0, 0), self.coordinate(ny - 1, nx - 1)
 
-        imin, jmin = _index_of_point(self.x, self.y, Xmin, Ymin)
-        imax, jmax = _index_of_point(self.x, self.y, Xmax, Ymax)
+        Xmin = (max(xmin[0], x0[0]), max(xmin[1], x0[1]))
+        Xmax = (min(xmax[0], x1[0]), min(xmax[1], x1[1]))
 
-        x = self.x[jmin:jmax + 2]
-        y = self.y[imin:imax + 2]
-        data = self.data[imin:imax + 2, jmin:jmax + 2]
-        return GridData(x, y, data)
+        imin, jmin = self._index_of_point(Xmin)
+        imax, jmax = self._index_of_point(Xmax)
+
+        data = self.data[imin: imax + 2, jmin: jmax + 2]
+        return GridData(self.coordinate(imin, jmin), self._delta, data)
 
     def __call__(self, x):
-        """Evaluate the gridded data set at a given point
-        """
-        return _bilinear_interp(self, x[0], x[1])
+        """Evaluate the gridded data set at a given point"""
+        i, j = self._index_of_point(x)
+        if self._is_missing(i, j):
+            raise ValueError("Not enough data to interpolate value at {0}"
+                             .format(x))
+        x0 = self.coordinate(i, j)
+
+        delta = self._delta
+        a = (x[0] - x0[0]) / delta, (x[1] - x0[1]) / delta
+
+        data = self.data
+        dq_dx = data[i, j + 1] - data[i, j]
+        dq_dy = data[i + 1, j] - data[i, j]
+        d2q_dx_dy = data[i, j] + data[i+1, j+1] - data[i, j+1] - data[i+1, j]
+
+        return data[i, j] + a[0]*dq_dx + a[1]*dq_dy + a[0]*a[1]*d2q_dx_dy
 

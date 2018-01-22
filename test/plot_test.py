@@ -33,34 +33,29 @@ def test_streamline_finite_element_field():
 
 
 def test_streamline_grid_data():
-    Nx, Ny = 32, 32
-    x = np.linspace(0, 1, Nx + 1)
-    y = np.linspace(0, 1, Ny + 1)
-    dx, dy = 1 / Nx, 1 / Ny
+    N = 32
+    data_vx = np.zeros((N + 1, N + 1))
+    data_vy = np.zeros((N + 1, N + 1))
 
-    data_vx = np.zeros((Ny + 1, Nx + 1))
-    data_vy = np.zeros((Ny + 1, Nx + 1))
-
-    for i in range(Ny + 1):
-        Y = i * dy
-        for j in range(Nx + 1):
-            X = j * dx
+    for i in range(N + 1):
+        Y = i / N
+        for j in range(N + 1):
+            X = j / N
             data_vx[i, j] = -Y
             data_vy[i, j] = X
 
     from icepack.grid import GridData
-    vx = GridData(x, y, data_vx, missing_data_value=np.nan)
-    vy = GridData(x, y, data_vy, missing_data_value=np.nan)
+    vx = GridData((0, 0), 1/N, data_vx, missing_data_value=np.nan)
+    vy = GridData((0, 0), 1/N, data_vy, missing_data_value=np.nan)
 
-    resolution = min(dx, dy)
     radius = 0.5
     x0 = (radius, 0)
-    xs = streamline((vx, vy), x0, resolution)
+    xs = streamline((vx, vy), x0, 1/N)
 
     num_points, _ = xs.shape
     assert num_points > 1
 
     for n in range(num_points):
         z = xs[n, :]
-        assert abs(sum(z**2) - radius**2) < resolution
+        assert abs(sum(z**2) - radius**2) < 1/N
 

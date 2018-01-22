@@ -5,23 +5,23 @@ import pytest
 from icepack.grid import GridData
 
 def test_manual_construction():
-    x = np.array([0, 1, 2])
-    y = np.array([0, 1, 2])
+    x0 = (0, 0)
+    dx = 1
     data = np.array([[i + 3 * j for j in range(3)] for i in range(3)])
 
     # Create a gridded data set by specifying a missing data value
     missing = -9999.0
     data0 = np.copy(data)
     data0[0, 0] = missing
-    dataset0 = GridData(x, y, data0, missing_data_value=missing)
+    dataset0 = GridData(x0, dx, data0, missing_data_value=missing)
 
     # Create a gridded data set by passing the missing data mask
     mask = np.zeros((3, 3), dtype=bool)
     mask[0, 0] = True
-    dataset1 = GridData(x, y, data, mask=mask)
+    dataset1 = GridData(x0, dx, data, mask=mask)
 
     #  Create a gridded data set by directly passing a numpy masked array
-    dataset2 = GridData(x, y, ma.MaskedArray(data=data, mask=mask))
+    dataset2 = GridData(x0, dx, ma.MaskedArray(data=data, mask=mask))
 
     for dataset in [dataset0, dataset1, dataset2]:
         for z in [(0.5, 1.5), (1.5, 0.5), (1.5, 1.5), (0.5, 2.0)]:
@@ -35,13 +35,13 @@ def test_manual_construction():
 
 
 def test_accessing_missing_data():
-    x = np.array([0, 1, 2])
-    y = np.array([0, 1, 2])
+    x0 = (0, 0)
+    dx = 1
     missing = -9999.0
     data = np.array([[0, 1, 2],
                      [1, 2, 3],
                      [2, 3, missing]])
-    dataset = GridData(x, y, data, missing_data_value=missing)
+    dataset = GridData(x0, dx, data, missing_data_value=missing)
 
     assert abs(dataset((0.5, 0.5)) - 1) < 1e-6
 
@@ -53,29 +53,38 @@ def test_accessing_missing_data():
 
 def test_subset():
     N = 4
-    x = np.array(range(N))
-    y = np.array(range(N))
+    x0 = (0, 0)
+    dx = 1
     data = np.array([[i + N * j for j in range(N)] for i in range(N)])
 
-    dataset = GridData(x, y, data, missing_data_value=-9999.0)
+    dataset = GridData(x0, dx, data, missing_data_value=-9999.0)
 
-    def check_subset(subset, xmin, ymin, xmax, ymax):
-        assert subset.x[0] <= max(xmin, dataset.x[0])
-        assert subset.y[0] <= max(ymin, dataset.y[0])
-        assert subset.x[-1] >= min(xmax, dataset.x[-1])
-        assert subset.y[-1] >= min(ymax, dataset.y[-1])
+    def check_subset(subset, xmin, xmax):
+        x0_original = dataset.coordinate(0, 0)
+        x0_subset = subset.coordinate(0, 0)
+        assert x0_subset[0] <= max(xmin[0], x0_original[0])
+        assert x0_subset[1] <= max(xmin[1], x0_original[1])
 
-    xmin, ymin = -0.5, 0.5
-    xmax, ymax = 1.5, 2.5
-    subset = dataset.subset(xmin, ymin, xmax, ymax)
-    check_subset(subset, xmin, ymin, xmax, ymax)
-    assert subset.data.shape == (4, 3)
+        ny, nx = dataset.shape
+        x1_original = dataset.coordinate(ny - 1, nx - 1)
 
-    xmin, ymin = 1.5, 2.5
-    xmax, ymax = 3.5, 3.5
-    subset = dataset.subset(xmin, ymin, xmax, ymax)
-    check_subset(subset, xmin, ymin, xmax, ymax)
-    assert subset.data.shape == (2, 3)
+        ny, nx = subset.shape
+        x1_subset = subset.coordinate(ny - 1, nx - 1)
+
+        assert x1_subset[0] >= min(xmax[0], x1_original[0])
+        assert x1_subset[1] >= min(xmax[1], x1_original[1])
+
+    xmin = (-0.5, 0.5)
+    xmax = (1.5, 2.5)
+    subset = dataset.subset(xmin, xmax)
+    check_subset(subset, xmin, xmax)
+    assert subset.shape == (4, 3)
+
+    xmin = (1.5, 2.5)
+    xmax = (3.5, 3.5)
+    subset = dataset.subset(xmin, xmax)
+    check_subset(subset, xmin, xmax)
+    assert subset.shape == (2, 3)
 
 
 def test_arcinfo():

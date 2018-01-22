@@ -20,13 +20,13 @@ def write(file, q, missing):
     q : icepack.grid.GridData
        the gridded data set to be written
     """
-    nx, ny = len(q.x), len(q.y)
+    ny, nx = q.shape
 
     file.write("ncols           {0}\n".format(nx))
     file.write("nrows           {0}\n".format(ny))
-    file.write("xllcorner       {0}\n".format(q.x[0]))
-    file.write("yllcorner       {0}\n".format(q.y[0]))
-    file.write("cellsize        {0}\n".format(q.x[1] - q.x[0]))
+    file.write("xllcorner       {0}\n".format(q._origin[0]))
+    file.write("yllcorner       {0}\n".format(q._origin[1]))
+    file.write("cellsize        {0}\n".format(q._delta))
     file.write("NODATA_value    {0}\n".format(missing))
 
     for i in range(ny - 1, -1, -1):
@@ -59,12 +59,9 @@ def read(file):
     dx = float(rd())
     missing = float(rd())
 
-    x = np.array([xo + dx * i for i in range(nx)], dtype = np.float64)
-    y = np.array([yo + dx * i for i in range(ny)], dtype = np.float64)
     data = np.zeros((ny, nx), dtype = np.float64)
-
     for i in range(ny-1, -1, -1):
         data[i, :] = [float(q) for q in file.readline().split()]
 
-    return GridData(x, y, data, missing_data_value=missing)
+    return GridData((xo, yo), dx, data, missing_data_value=missing)
 
