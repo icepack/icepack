@@ -5,6 +5,7 @@ import matplotlib.colors
 from matplotlib.collections import LineCollection
 import numpy as np
 import firedrake
+from icepack.grid import GridData
 
 def _get_coordinates(mesh):
     """Return the coordinates of a mesh if the mesh is piecewise linear,
@@ -76,6 +77,23 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
         amax += extra
         getattr(axes, setter)(amin, amax)
     axes.set_aspect("equal")
+
+    return axes
+
+
+def plot_grid_data(grid_data, axes=None, **kwargs):
+    """Plot a gridded data object"""
+    figure = plt.figure()
+    if axes is None:
+        axes = figure.add_subplot(111, **kwargs)
+
+    ny, nx = grid_data.shape
+    x0, x1 = grid_data.coordinate(0, 0), grid_data.coordinate(ny - 1, nx - 1)
+
+    x = np.linspace(x0[0], x1[0], nx)
+    y = np.linspace(x0[1], x1[1], ny)
+
+    axes.contourf(x, y, grid_data.data, **kwargs)
 
     return axes
 
@@ -161,6 +179,9 @@ def plot(mesh_or_function, axes=None, **kwargs):
     """
     if isinstance(mesh_or_function, firedrake.mesh.MeshGeometry):
         return plot_mesh(mesh_or_function, axes=axes, **kwargs)
+
+    if isinstance(mesh_or_function, GridData):
+        return plot_grid_data(mesh_or_function, axes=axes, **kwargs)
 
     return firedrake.plot(mesh_or_function, axes=axes, **kwargs)
 

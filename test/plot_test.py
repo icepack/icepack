@@ -3,12 +3,30 @@ import numpy as np
 import firedrake
 import icepack
 from icepack.plot import streamline
+from icepack.grid import GridData
 
 def test_plot_mesh():
     N = 32
     mesh = firedrake.UnitSquareMesh(N, N)
     axes = icepack.plot(mesh)
-    assert not (axes.legend_ is None)
+    assert axes.legend_ is not None
+
+
+def test_plot_grid_data():
+    x0 = (0, 0)
+    N = 32
+    delta = 1 / N
+    data = np.zeros((N + 1, N + 1))
+
+    for i in range(N):
+        y = i * delta
+        for j in range(N):
+            x = j * delta
+            data[i, j] = (x - 0.5) * (y - 0.5)
+
+    dataset = GridData(x0, delta, data, missing_data_value=np.nan)
+    axes = icepack.plot(dataset)
+    assert axes is not None
 
 
 def test_streamline_finite_element_field():
