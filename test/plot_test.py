@@ -25,7 +25,7 @@ def test_plot_grid_data():
             data[i, j] = (x - 0.5) * (y - 0.5)
 
     dataset = GridData(x0, delta, data, missing_data_value=np.nan)
-    axes = icepack.plot(dataset)
+    axes = icepack.plot(dataset, levels=[-0.5 + 0.25 * n for n in range(5)])
     assert axes is not None
 
 

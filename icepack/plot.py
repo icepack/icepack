@@ -41,9 +41,9 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
     coordinates = _get_coordinates(mesh)
     coords = coordinates.dat.data_ro
 
-    figure = plt.figure()
     if axes is None:
-        axes = figure.add_subplot(111, **kwargs)
+        figure = plt.figure()
+        axes = figure.add_subplot(111)
 
     # Add lines for all of the edges, internal or boundary
     cell = coordinates.cell_node_map().values
@@ -83,9 +83,9 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
 
 def plot_grid_data(grid_data, axes=None, **kwargs):
     """Plot a gridded data object"""
-    figure = plt.figure()
     if axes is None:
-        axes = figure.add_subplot(111, **kwargs)
+        figure = plt.figure()
+        axes = figure.add_subplot(111)
 
     ny, nx = grid_data.shape
     x0, x1 = grid_data.coordinate(0, 0), grid_data.coordinate(ny - 1, nx - 1)
