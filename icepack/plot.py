@@ -48,7 +48,7 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
     # Add lines for all of the edges, internal or boundary
     cell = coordinates.cell_node_map().values
     vertices = coords[cell[:, (0, 1, 2, 0)]]
-    lines = LineCollection(vertices, colors=(0.0, 0.0, 0.0))
+    lines = LineCollection(vertices, colors=(0.0, 0.0, 0.0), **kwargs)
     axes.add_collection(lines)
 
     # Add colored lines for the boundary edges
@@ -64,7 +64,8 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
         cell = coordinates.exterior_facet_node_map().values[indices, :]
         edges = np.array([np.roll(cell[k,:], roll[k]) for k in range(n)])[:,:2]
         vertices = coords[edges]
-        lines = LineCollection(vertices, color=clrs[marker-1], label=marker)
+        lines = LineCollection(vertices, color=clrs[marker-1], label=marker,
+                               **kwargs)
         axes.add_collection(lines)
     axes.legend()
 
@@ -78,6 +79,7 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
         getattr(axes, setter)(amin, amax)
     axes.set_aspect("equal")
 
+    axes.tick_params(axis='x', rotation=-30)
     return axes
 
 
@@ -95,6 +97,7 @@ def plot_grid_data(grid_data, axes=None, **kwargs):
 
     axes.contourf(x, y, grid_data.data, **kwargs)
 
+    axes.tick_params(axis='x', rotation=-30)
     return axes
 
 
@@ -183,5 +186,7 @@ def plot(mesh_or_function, axes=None, **kwargs):
     if isinstance(mesh_or_function, GridData):
         return plot_grid_data(mesh_or_function, axes=axes, **kwargs)
 
-    return firedrake.plot(mesh_or_function, axes=axes, **kwargs)
+    axes = firedrake.plot(mesh_or_function, axes=axes, **kwargs)
+    axes.tick_params(axis='x', rotation=-30)
+    return axes
 
