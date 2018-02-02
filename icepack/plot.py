@@ -57,14 +57,14 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
     markers = facets.unique_markers
     clrs = _get_colors(colors, len(markers))
 
-    for marker in markers:
+    for i, marker in enumerate(markers):
         indices = facets.subset(int(marker)).indices
         n = len(indices)
         roll = 2 - local_facet_id[indices]
         cell = coordinates.exterior_facet_node_map().values[indices, :]
         edges = np.array([np.roll(cell[k,:], roll[k]) for k in range(n)])[:,:2]
         vertices = coords[edges]
-        lines = LineCollection(vertices, color=clrs[marker-1], label=marker,
+        lines = LineCollection(vertices, color=clrs[i], label=marker,
                                **kwargs)
         axes.add_collection(lines)
     axes.legend()
