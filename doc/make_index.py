@@ -1,7 +1,8 @@
-.. icepack documentation master file, created by sphinx-quickstart
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
+import sys
+import os.path
+
+text = r"""
 icepack
 =======
 
@@ -31,6 +32,12 @@ extensibility
 
 .. toctree::
    :maxdepth: 1
+   :caption: Demos:
+
+{0}
+
+.. toctree::
+   :maxdepth: 1
    :caption: API Reference:
 
    modules.rst
@@ -39,4 +46,12 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
+"""
 
+if __name__ == "__main__":
+    filenames = [os.path.basename(arg).replace("ipynb", "rst")
+                 for arg in sys.argv[1:]]
+    file_list = "".join(["   icepack.demo.{}\n".format(f) for f in filenames])
+
+    with open("source/index.rst", 'w') as index:
+        index.write(text.format(file_list))
