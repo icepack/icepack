@@ -5,9 +5,10 @@ from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
+from icepack.utilities import add_kwarg_wrapper
 
 
-def gravity(u=None, h=None, **kwargs):
+def gravity(u=None, h=None):
     """Return the gravitational part of the ice shelf action functional
 
     The gravitational part of the ice shelf action functional is
@@ -43,8 +44,8 @@ class IceShelf(object):
     """
     def __init__(self, viscosity=viscosity, gravity=gravity):
         self.mass_transport = MassTransport()
-        self.viscosity = viscosity
-        self.gravity = gravity
+        self.viscosity = add_kwarg_wrapper(viscosity)
+        self.gravity = add_kwarg_wrapper(gravity)
 
 
     def diagnostic_solve(self, u0=None, h=None,

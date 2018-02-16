@@ -54,7 +54,7 @@ def eps(u):
     return sym(grad(u))
 
 
-def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
+def viscosity_depth_averaged(u=None, h=None, A=None):
     """Return the viscous part of the action for depth-averaged models
 
     The viscous component of the action for depth-averaged ice flow is
@@ -89,5 +89,3 @@ def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
     firedrake.Form
     """
     return n/(n + 1) * h * inner(M(eps(u), A), eps(u)) * dx
-
-

@@ -6,6 +6,7 @@ from icepack.constants import rho_ice, rho_water, \
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
+from icepack.utilities import add_kwarg_wrapper
 
 
 def tau_b(u, C):
@@ -14,7 +15,7 @@ def tau_b(u, C):
     return -C * sqrt(inner(u, u))**(1/m - 1) * u
 
 
-def friction(u=None, C=None, **kwargs):
+def friction(u=None, C=None):
     """Return the frictional part of the ice stream action functional
 
     The frictional part of the ice stream action functional is
@@ -30,7 +31,7 @@ def friction(u=None, C=None, **kwargs):
     return -m/(m + 1) * inner(tau_b(u, C), u) * dx
 
 
-def gravity(u=None, h=None, s=None, **kwargs):
+def gravity(u=None, h=None, s=None):
     """Return the gravitational part of the ice stream action functional
 
     The gravitational part of the ice stream action functional is
@@ -50,7 +51,7 @@ def gravity(u=None, h=None, s=None, **kwargs):
     return -rho_ice * g * h * inner(grad(s), u) * dx
 
 
-def terminus(u=None, h=None, s=None, ice_front_ids=None, **kwargs):
+def terminus(u=None, h=None, s=None, ice_front_ids=None):
     """Return the terminal stress part of the ice stream action functional
 
     The power exerted due to stress at the ice calving terminus :math:`\Gamma`
@@ -101,10 +102,10 @@ class IceStream(object):
     def __init__(self, viscosity=viscosity, friction=friction,
                        gravity=gravity, terminus=terminus):
         self.mass_transport = MassTransport()
-        self.viscosity = viscosity
-        self.friction = friction
-        self.gravity = gravity
-        self.terminus = terminus
+        self.viscosity = add_kwarg_wrapper(viscosity)
+        self.friction = add_kwarg_wrapper(friction)
+        self.gravity = add_kwarg_wrapper(gravity)
+        self.terminus = add_kwarg_wrapper(terminus)
 
     def diagnostic_solve(self, u0=None, h=None, s=None,
                          dirichlet_ids=[], tol=1e-6, **kwargs):
@@ -177,4 +178,3 @@ class IceStream(object):
         Q = h.ufl_function_space()
         s_expr = firedrake.max_value(h + b, (1 - rho_ice / rho_water) * h)
         return firedrake.interpolate(s_expr, Q)
-
