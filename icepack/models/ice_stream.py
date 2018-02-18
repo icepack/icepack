@@ -107,6 +107,17 @@ class IceStream(object):
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
 
+    def action(self, u=None, h=None, s=None, ice_front_ids=[], **kwargs):
+        """Return the action functional that gives the ice stream diagnostic
+        model as the Euler-Lagrange equations"""
+        viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
+        friction = self.friction(u=u, h=h, s=s, **kwargs)
+        gravity = self.gravity(u=u, h=h, s=s, **kwargs)
+        terminus = self.terminus(u=u, h=h, s=s,
+                                 ice_front_ids=ice_front_ids, **kwargs)
+
+        return viscosity + friction - gravity - terminus
+
     def diagnostic_solve(self, u0=None, h=None, s=None,
                          dirichlet_ids=[], tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness and surface
@@ -142,20 +153,16 @@ class IceStream(object):
         u = u0.copy(deepcopy=True)
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
         friction = self.friction(u=u, **kwargs)
-        gravity = self.gravity(u=u, h=h, s=s, **kwargs)
+        scale = firedrake.assemble(viscosity + friction)
+        tolerance = tol * scale
 
         mesh = u.ufl_domain()
         boundary_ids = list(mesh.topology.exterior_facets.unique_markers)
         IDs = list(set(boundary_ids) - set(dirichlet_ids))
-        terminus = self.terminus(u=u, h=h, s=s, ice_front_ids=IDs, **kwargs)
-
-        scale = firedrake.assemble(viscosity + friction)
-        tolerance = tol * scale
-
         bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
                for k in dirichlet_ids]
 
-        action = viscosity + friction - gravity - terminus
+        action = self.action(u=u, h=h, s=s, ice_front_ids=IDs, **kwargs)
         return newton_search(action, u, bcs, tolerance)
 
     def prognostic_solve(self, dt, h0=None, a=None, u=None, **kwargs):
@@ -171,7 +178,7 @@ class IceStream(object):
         will go afloat. The surface elevation of a floating ice shelf is
 
         .. math::
-           s = (1 - rho_I / rho_W)h,
+           s = (1 - \rho_I / \rho_W)h,
 
         provided everything is in hydrostatic balance.
         """

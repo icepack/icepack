@@ -114,9 +114,7 @@ def test_ice_shelf_rheology():
         u = ice_shelf.diagnostic_solve(u0=u0, h=h, A=A0, **opts)
 
         # Create the weak form of the PDE
-        viscosity = ice_shelf.viscosity(u=u, h=h, A=A0)
-        gravity = ice_shelf.gravity(u=u, h=h)
-        E = viscosity - gravity
+        E = ice_shelf.action(u=u, h=h, A=A0)
         F = firedrake.derivative(E, u)
 
         # Make the perturbation to the fluidity field
