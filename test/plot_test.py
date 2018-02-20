@@ -77,3 +77,20 @@ def test_streamline_grid_data():
         z = xs[n, :]
         assert abs(sum(z**2) - radius**2) < 1/N
 
+
+def test_plotting_vector_fields():
+    N = 32
+    mesh = firedrake.UnitSquareMesh(N, N)
+    V = firedrake.VectorFunctionSpace(mesh, 'CG', 1)
+
+    x, y = firedrake.SpatialCoordinate(mesh)
+    v = firedrake.Function(V).interpolate(firedrake.as_vector((1, 1)))
+
+    axes = icepack.plot(v, method='streamline')
+    assert axes is not None
+
+    axes = icepack.plot(v, method='magnitude')
+    assert axes is not None
+
+    axes = icepack.plot(v, method='quiver')
+    assert axes is not None
