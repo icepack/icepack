@@ -10,8 +10,8 @@ services:
     - docker
 
 before_install:
-    - docker pull icepack/firedrake:latest
-    - docker run --interactive --tty --detach --volume $TRAVIS_BUILD_DIR:/repo --name build icepack/firedrake:latest
+    - docker pull icepack/icepack:latest
+    - docker run --interactive --tty --detach --volume $TRAVIS_BUILD_DIR:/repo --name build icepack/icepack:latest
 
 install:
     - docker exec -i build bash -c ". /firedrake/bin/activate && cd /repo && python3 setup.py install"

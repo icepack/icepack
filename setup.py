@@ -10,6 +10,6 @@ setup(
     description='ice sheet flow modelling with the finite element method',
     author='Daniel Shapero',
     url='https://github.com/icepack/icepack',
-    packages=find_packages(exclude=['doc', 'test'])
+    packages=find_packages(exclude=['doc', 'test']),
+    install_requires=['firedrake', 'numpy', 'scipy', 'matplotlib', 'GDAL']
 )
-
