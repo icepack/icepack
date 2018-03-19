@@ -1,3 +1,14 @@
+# Copyright (C) 2017-2018 by Daniel Shapero <shapero@uw.edu>
+#
+# This file is part of icepack.
+#
+# icepack is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The full text of the license can be found in the file LICENSE in the
+# icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy.ma as ma
 
@@ -112,4 +123,3 @@ class GridData(object):
         d2q_dx_dy = data[i, j] + data[i+1, j+1] - data[i, j+1] - data[i+1, j]
 
         return data[i, j] + a[0]*dq_dx + a[1]*dq_dy + a[0]*a[1]*d2q_dx_dy
-
