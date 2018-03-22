@@ -1,9 +1,14 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-# vim:fenc=utf-8
+# Copyright (C) 2018 by David Lilien <dlilien90@gmail.com>
 #
-# David Lilien <dlilien90@gmail.com>
+# This file is part of icepack.
 #
+# icepack is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The full text of the license can be found in the file LICENSE in the
+# icepack source directory or at <http://www.gnu.org/licenses/>.
 
 """
 Utility for reading geotifs into the GridData class
