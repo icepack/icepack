@@ -21,6 +21,7 @@ parse, and readable by every geographic information system.
 """
 import os.path
 import numpy as np
+import numpy.ma as ma
 from icepack.grid import GridData
 
 def write(filename_or_file, q, missing):
@@ -49,7 +50,7 @@ def write(filename_or_file, q, missing):
 
     for i in range(ny - 1, -1, -1):
         for j in range(nx):
-            value = q[i, j] if not q.data.mask[i, j] else missing
+            value = q[i, j] if not q.data[i, j] is ma.masked else missing
             output_file.write("{0} ".format(value))
         output_file.write("\n")
 
