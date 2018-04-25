@@ -19,34 +19,26 @@ grounded glaciers will also need to update the ice surface elevation in a
 manner consistent with the bed elevation and where the ice may go afloat.
 """
 
-import firedrake as fe
+import firedrake
 from firedrake import grad, div, dx, ds, inner
 
 class MassTransport(object):
     def solve(self, dt, h0=None, a=None, u=None, **kwargs):
         Q = h0.ufl_function_space()
-        h, phi = fe.TrialFunction(Q), fe.TestFunction(Q)
+        h, phi = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
         mesh = Q.mesh()
 
-        def outflow(v, n):
-            vn = inner(v, n)
-            return fe.conditional(fe.gt(vn, 0), vn, 0)
-
-        def inflow(v, n):
-            vn = inner(v, n)
-            return fe.conditional(fe.le(vn, 0), vn, 0)
-
-        n = fe.FacetNormal(mesh)
+        n = firedrake.FacetNormal(mesh)
+        outflow = firedrake.max_value(inner(u, n), 0)
+        inflow = firedrake.min_value(inner(u, n), 0)
 
         F = (h * (phi - dt * inner(u, grad(phi))) * dx
-             + dt * h * phi * outflow(u, n) * ds)
+             + dt * h * phi * outflow * ds)
+        A = (h0 + dt * a) * phi * dx - dt * h0 * phi * inflow * ds
 
-        A = ((h0 + dt * a) * phi * dx
-             - dt * h0 * phi * inflow(u, n) * ds)
+        h = h0.copy(deepcopy=True)
+        solver_parameters = {'ksp_type': 'preonly', 'pc_type' :'lu'}
+        firedrake.solve(F == A, h, solver_parameters=solver_parameters)
 
-        h = fe.Function(Q)
-        h.assign(h0)
-        fe.solve(F == A, h,
-                 solver_parameters={'ksp_type': 'gmres', 'pc_type': 'ilu'})
         return h
 
