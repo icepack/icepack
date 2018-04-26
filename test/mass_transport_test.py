@@ -58,6 +58,7 @@ def test_mass_transport_solver_convergence():
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
+    assert slope > degree - 0.05
     print(slope, intercept)
 
 
