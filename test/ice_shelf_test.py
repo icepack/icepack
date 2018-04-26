@@ -12,39 +12,38 @@
 
 import numpy as np
 import firedrake
+from firedrake import interpolate, as_vector
 import icepack, icepack.models
 from icepack.constants import gravity, rho_ice, rho_water, glen_flow_law as n
 
 # The domain is a 20km x 20km square, with ice flowing in from the left.
 L, W = 20.0e3, 20.0e3
 
+# The inflow velocity is 100 m/year; the ice shelf decreases from 500m thick
+# to 100m; and the temperature is a constant -19C.
+u0 = 100.0
+h0, dh = 500.0, 100.0
+T = 254.15
+
 # This is an exact solution for the velocity of a floating ice shelf with
 # constant temperature and linearly decreasing thickness. See Greve and
 # Blatter for the derivation.
-def make_exact_velocity(u0, h0, dh, T):
+def exact_u(x):
     rho = rho_ice * (1 - rho_ice / rho_water)
-    A = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
-    def velocity_exact(x):
-        q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
-        du = A * q * L * (h0/dh) / (n + 1)
-        return (u0 + du, 0.0)
-    return velocity_exact
+    Z = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
+    q = 1 - (1 - (dh/h0) * (x/L))**(n + 1)
+    du = Z * q * L * (h0/dh) / (n + 1)
+    return u0 + du
+
+# We'll use the same perturbation to `u` throughout these tests.
+def perturb_u(x, y):
+    px, py = x/L, y/W
+    q = 16 * px * (1 - px) * py * (1 - py)
+    return 60 * q * (px - 0.5)
 
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined using an exact solution of the ice shelf model.
 def test_diagnostic_solver_convergence():
-    u0 = 100.0
-    h0, dh = 500.0, 100.0
-    T = 254.15
-    velocity_exact = make_exact_velocity(u0, h0, dh, T)
-
-    # Perturb the exact velocity for an initial guess.
-    def velocity_guess(x):
-        px, py = x[0] / L, x[1] / W
-        q = 16 * px * (1 - px) * py * (1 - py)
-        v = velocity_exact(x)
-        return (v[0] + 60 * q * (px - 0.5), v[1])
-
     # Create an ice shelf model
     ice_shelf = icepack.models.IceShelf()
     opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
@@ -54,14 +53,17 @@ def test_diagnostic_solver_convergence():
     norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
         mesh = firedrake.RectangleMesh(N, N, L, W)
+        x, y = firedrake.SpatialCoordinate(mesh)
+
         degree = 2
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        u_exact = icepack.interpolate(velocity_exact, V)
-        u_guess = icepack.interpolate(velocity_guess, V)
-        h = icepack.interpolate(lambda x: h0 - dh * x[0] / L, Q)
-        A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
+
+        h = interpolate(h0 - dh * x / L, Q)
+        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
         u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
@@ -82,18 +84,6 @@ def test_diagnostic_solver_convergence():
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined when we use an alternative parameterization of the model.
 def test_diagnostic_solver_alternate_parameterization():
-    u0 = 100.0
-    h0, dh = 500.0, 100.0
-    T = 254.15
-    velocity_exact = make_exact_velocity(u0, h0, dh, T)
-
-    # Perturb the exact velocity for an initial guess.
-    def velocity_guess(x):
-        px, py = x[0] / L, x[1] / W
-        q = 16 * px * (1 - px) * py * (1 - py)
-        v = velocity_exact(x)
-        return (v[0] + 60 * q * (px - 0.5), v[1])
-
     # Define a new viscosity functional, parameterized in terms of the
     # rheology `B` instead of the fluidity `A`
     from firedrake import inner, grad, sym, dx, tr as trace, Identity, sqrt
@@ -119,14 +109,16 @@ def test_diagnostic_solver_alternate_parameterization():
     norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 65, 4):
         mesh = firedrake.RectangleMesh(N, N, L, W)
+        x, y = firedrake.SpatialCoordinate(mesh)
+
         degree = 2
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        u_exact = icepack.interpolate(velocity_exact, V)
-        u_guess = icepack.interpolate(velocity_guess, V)
-        h = icepack.interpolate(lambda x: h0 - dh * x[0] / L, Q)
-        B = icepack.interpolate(lambda x: icepack.rate_factor(T)**(-1/n), Q)
+        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
+        h = interpolate(h0 - dh * x / L, Q)
+        B = interpolate(firedrake.Constant(icepack.rate_factor(T)**(-1/n)), Q)
 
         u = ice_shelf.diagnostic_solve(h=h, B=B, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))

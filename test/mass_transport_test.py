@@ -12,7 +12,8 @@
 
 import math
 import numpy as np
-from firedrake import RectangleMesh, FunctionSpace, VectorFunctionSpace
+import firedrake
+from firedrake import interpolate
 import icepack
 from icepack.models.mass_transport import MassTransport
 
@@ -24,27 +25,22 @@ def test_mass_transport_solver_convergence():
     u0 = 1.0
     h_in, dh = 1.0, 0.2
 
-    def thickness_initial(x):
-        return h_in - dh * x[0] / L
-
-    def thickness_exact(x, t):
-        z = (x[0] - u0 * t, x[1])
-        return h_in if z[0] < 0 else thickness_initial(z)
-
     delta_x, error = [], []
     mass_transport = MassTransport()
     norm = lambda v: icepack.norm(v, norm_type='L1')
     for N in range(16, 97, 4):
-        mesh = RectangleMesh(N, N, L, W)
         delta_x.append(L / N)
 
-        degree = 1
-        V = VectorFunctionSpace(mesh, 'CG', degree)
-        Q = FunctionSpace(mesh, 'CG', degree)
+        mesh = firedrake.RectangleMesh(N, N, L, W)
+        x, y = firedrake.SpatialCoordinate(mesh)
 
-        h = icepack.interpolate(thickness_initial, Q)
-        a = icepack.interpolate(lambda x: 0.0, Q)
-        u = icepack.interpolate(lambda x: (u0, 0.0), V)
+        degree = 1
+        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+
+        h = interpolate(h_in - dh * x / L, Q)
+        a = firedrake.Function(Q)
+        u = interpolate(firedrake.as_vector((u0, 0)), V)
         T = 0.5
         num_timesteps = math.ceil(0.5 * N * u0 * T / L)
         dt = T / num_timesteps
@@ -52,7 +48,8 @@ def test_mass_transport_solver_convergence():
         for k in range(num_timesteps):
             h = mass_transport.solve(dt, h0=h, a=a, u=u)
 
-        h_exact = icepack.interpolate(lambda x: thickness_exact(x, T), Q)
+        z = x - u0 * T
+        h_exact = interpolate(h_in - dh/L * firedrake.max_value(0, z), Q)
         error.append(norm(h - h_exact) / norm(h_exact))
 
         print(delta_x[-1], error[-1])
@@ -64,7 +61,8 @@ def test_mass_transport_solver_convergence():
     print(slope, intercept)
 
 
-from icepack.constants import rho_ice, rho_water, gravity, glen_flow_law as n
+from icepack.constants import rho_ice, rho_water, \
+    gravity as g, glen_flow_law as n
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
 # with thickness and velocity fields that are exactly insteady state.
@@ -75,33 +73,30 @@ def test_ice_shelf_coupled_diagnostic_prognostic_solver():
     L, W = 20.0e3, 20.0e3
     h0, dh = 500.0, 100.0
     u0 = 100.0
-
     T = 254.15
-    def velocity(x):
-        q = (n + 1) * (rho * gravity * h0 * u0 / 4)**n * icepack.rate_factor(T)
-        return ((u0**(n + 1) + q * x[0])**(1/(n + 1)), 0)
-
-    def thickness(x):
-        return h0 * u0 / velocity(x)[0]
 
     ice_shelf = IceShelf()
-    degree = 2
     opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
     norm = lambda h: icepack.norm(h, norm_type='L1')
 
     delta_x, error = [], []
     for N in range(16, 65, 4):
-        mesh = RectangleMesh(N, N, L, W)
         delta_x.append(L / N)
 
-        V = VectorFunctionSpace(mesh, 'CG', degree)
-        Q = FunctionSpace(mesh, 'CG', degree)
+        mesh = firedrake.RectangleMesh(N, N, L, W)
+        x, y = firedrake.SpatialCoordinate(mesh)
 
-        u = icepack.interpolate(velocity, V)
-        h = icepack.interpolate(thickness, Q)
+        degree = 2
+        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+
+        q = (n + 1) * (rho * g * h0 * u0 / 4)**n * icepack.rate_factor(T)
+        ux = (u0**(n + 1) + q * x)**(1/(n + 1))
+        u = interpolate(firedrake.as_vector((ux, 0)), V)
+        h = interpolate(h0 * u0 / ux, Q)
         h_init = h.copy(deepcopy=True)
         A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
-        a = icepack.interpolate(lambda x: 0.0, Q)
+        a = firedrake.Function(Q)
 
         final_time, dt = 1.0, 1.0/12
         num_timesteps = math.ceil(final_time / dt)
@@ -127,61 +122,47 @@ def test_ice_stream_coupled_diagnostic_prognostic_solve():
     from icepack.models import IceStream
 
     L, W = 20e3, 20e3
+    h0, dh = 500.0, 100.0
+    T = 254.15
+    u0 = 100.0
 
     ice_stream = IceStream()
-    degree = 2
     opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
 
     N = 32
-    mesh = RectangleMesh(N, N, L, W)
-    V = VectorFunctionSpace(mesh, 'CG', degree)
-    Q = FunctionSpace(mesh, 'CG', degree)
+    mesh = firedrake.RectangleMesh(N, N, L, W)
+    x, y = firedrake.SpatialCoordinate(mesh)
 
-    h0, dh = 500.0, 100.0
-    def thickness(x):
-        return h0 - dh * x[0] / L
+    degree = 2
+    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
     height_above_flotation = 10.0
-    d = -rho_ice / rho_water * thickness((L, W/2)) + height_above_flotation
-    rho = rho_ice - rho_water * d**2 / thickness((L, W/2))**2
+    d = -rho_ice / rho_water * (h0 - dh) + height_above_flotation
+    rho = rho_ice - rho_water * d**2 / (h0 - dh)**2
 
-    T = 254.15
-    u0 = 100.0
-    def velocity_initial(x):
-        A = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
-        q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
-        du = A * q * L * (h0/dh) / (n + 1)
-        return (u0 + du, 0.0)
+    Z = icepack.rate_factor(T) * (rho * g * h0 / 4)**n
+    q = 1 - (1 - (dh/h0) * (x/L))**(n + 1)
+    ux = u0 + Z * q * L * (h0/dh) / (n + 1)
+    u = interpolate(firedrake.as_vector((ux, 0)), V)
 
+    thickness = h0 - dh * x / L
     beta = 1/2
     alpha = beta * rho / rho_ice * dh / L
-    def friction(x):
-        from icepack.constants import weertman_sliding_law as m
-        u = velocity_initial(x)[0]
-        h = thickness(x)
-        return alpha * (rho_ice * gravity * h) * u**(-1/m)
-
+    h = interpolate(h0 - dh * x / L, Q)
     ds = (1 + beta) * rho/rho_ice * dh
-    def surface(x):
-        return d + h0 - dh + ds * (1 - x[0] / L)
+    s = interpolate(d + h0 - dh + ds * (1 - x / L), Q)
+    b = interpolate(s - h, Q)
 
-    def bed(x):
-        return surface(x) - thickness(x)
-
-    u = icepack.interpolate(velocity_initial, V)
-    h = icepack.interpolate(thickness, Q)
-    s = icepack.interpolate(surface, Q)
-    b = icepack.interpolate(bed, Q)
-    C = icepack.interpolate(friction, Q)
-    A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+    from icepack.constants import weertman_sliding_law as m
+    C = interpolate(alpha * (rho_ice * g * thickness) * ux**(-1/m), Q)
+    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
     final_time, dt = 1.0, 1.0/12
     num_timesteps = math.ceil(final_time / dt)
 
-    a = icepack.interpolate(lambda x: 0.0, Q)
+    a = firedrake.Function(Q)
     a = (ice_stream.prognostic_solve(dt, h0=h, a=a, u=u) - h) / dt
-
-    import matplotlib.pyplot as plt
 
     for k in range(num_timesteps):
         u = ice_stream.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)

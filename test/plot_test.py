@@ -45,7 +45,7 @@ def test_streamline_finite_element_field():
     mesh = firedrake.UnitSquareMesh(N, N)
     V = firedrake.VectorFunctionSpace(mesh, 'CG', 1)
 
-    x, y = mesh.coordinates
+    x, y = firedrake.SpatialCoordinate(mesh)
     v = firedrake.interpolate(firedrake.as_vector((-y, x)), V)
 
     resolution = 1 / N

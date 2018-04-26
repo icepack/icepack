@@ -12,18 +12,19 @@
 
 import numpy as np
 import firedrake
-from firedrake import inner, grad, dx, ds
+from firedrake import inner, grad, dx, ds, interpolate
 import icepack, icepack.models, icepack.adjoint
 
 def test_poisson_rhs():
     for N in range(32, 65, 4):
-        degree = 2
         mesh = firedrake.UnitSquareMesh(N, N)
+        x, y = firedrake.SpatialCoordinate(mesh)
+
+        degree = 2
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        x, y = mesh.coordinates
         expr = x * (1 - x) * y * (1 - y)
-        f = firedrake.interpolate(expr, Q)
+        f = interpolate(expr, Q)
 
         u = firedrake.Function(Q)
         v = firedrake.TestFunction(Q)
@@ -41,7 +42,7 @@ def test_poisson_rhs():
         dJ_df = firedrake.assemble(firedrake.action(dJ, f))
         for n in range(num_samples):
             delta = 2**(-n)
-            f.assign(firedrake.interpolate((1 + delta) * expr, Q))
+            f.assign(interpolate((1 + delta) * expr, Q))
             firedrake.solve(F == 0, u, bc)
             errors[n] = abs(firedrake.assemble(J) - (J0 + delta * dJ_df))
 
@@ -53,16 +54,15 @@ def test_poisson_rhs():
 
 def test_poisson_conductivity():
     for N in range(32, 65, 4):
-        degree = 2
         mesh = firedrake.UnitSquareMesh(N, N)
+        x, y = firedrake.SpatialCoordinate(mesh)
+
+        degree = 2
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        x, y = mesh.coordinates
-        f = firedrake.interpolate(x*(1 - x)*y*(1 - y), Q)
-        a = firedrake.Function(Q)
-        a.assign(1)
-        b_expr = 0.25 * firedrake.exp(-((x - 0.5)**2 + (y - 0.5)**2)/2)
-        b = firedrake.interpolate(b_expr, Q)
+        f = interpolate(x * (1 - x) * y * (1 - y), Q)
+        a = interpolate(firedrake.Constant(1), Q)
+        b = interpolate(firedrake.exp(-((x - 0.5)**2 + (y - 0.5)**2)/2) / 4, Q)
 
         u = firedrake.Function(Q)
         v = firedrake.TestFunction(Q)
@@ -92,21 +92,13 @@ def test_poisson_conductivity():
 
 def test_ice_shelf_rheology():
     L, W = 20e3, 20e3
-    def make_exact_velocity(u0, h0, dh, T):
-        from icepack.constants import rho_ice, rho_water, \
-            glen_flow_law as n, gravity as g
-        rho = rho_ice * (1 - rho_ice / rho_water)
-        A = icepack.rate_factor(T) * (rho * g * h0 / 4)**n
-        def velocity_exact(x):
-            q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
-            du = A * q * L * (h0/dh) / (n + 1)
-            return (u0 + du, 0.0)
-        return velocity_exact
-
     u_inflow = 100.0
     h0, dh = 500.0, 100.0
     T = 254.15
-    velocity_exact = make_exact_velocity(u_inflow, h0, dh, T)
+
+    from icepack.constants import rho_ice, rho_water, \
+        glen_flow_law as n, gravity as g
+    rho = rho_ice * (1 - rho_ice / rho_water)
 
     ice_shelf = icepack.models.IceShelf()
     opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
@@ -114,14 +106,20 @@ def test_ice_shelf_rheology():
     for N in range(32, 65, 4):
         # Set up the mesh and function spaces
         mesh = firedrake.RectangleMesh(N, N, L, W)
+        x, y = firedrake.SpatialCoordinate(mesh)
+
         degree = 2
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
         # Make the fields for the basic state
-        u0 = icepack.interpolate(velocity_exact, V)
-        h = icepack.interpolate(lambda x: h0 - dh * x[0] / L, Q)
-        A0 = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+        Z = icepack.rate_factor(T) * (rho * g * h0 / 4)**n
+        q = 1 - (1 - (dh/h0) * (x/L))**(n + 1)
+        du = Z * q * L * (h0/dh) / (n + 1)
+        u0 = interpolate(firedrake.as_vector((u_inflow + du, 0)), V)
+
+        h = interpolate(h0 - dh * x / L, Q)
+        A0 = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
         u = ice_shelf.diagnostic_solve(u0=u0, h=h, A=A0, **opts)
 
         # Create the weak form of the PDE
@@ -131,10 +129,8 @@ def test_ice_shelf_rheology():
         # Make the perturbation to the fluidity field
         delta_T = 5.0
         delta_A = icepack.rate_factor(T + delta_T) - icepack.rate_factor(T)
-        def fluidity_perturbation(x):
-            px, py = x[0]/L, x[1]/W
-            return 16 * px * (1 - px) * py * (1 - py) * delta_A
-        B = icepack.interpolate(fluidity_perturbation, Q)
+        px, py = x/L, y/W
+        B = interpolate(16 * px * (1 - px) * py * (1 - py) * delta_A, Q)
 
         # Make the error functional and calculate its derivative
         nu = firedrake.FacetNormal(mesh)
