@@ -66,7 +66,7 @@ def eps(u):
     return sym(grad(u))
 
 
-def viscosity_depth_averaged(u=None, h=None, A=None):
+def viscosity_depth_averaged(u, h, A):
     """Return the viscous part of the action for depth-averaged models
 
     The viscous component of the action for depth-averaged ice flow is

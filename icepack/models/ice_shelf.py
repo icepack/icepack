@@ -19,7 +19,7 @@ from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
 
 
-def gravity(u=None, h=None):
+def gravity(u, h):
     """Return the gravitational part of the ice shelf action functional
 
     The gravitational part of the ice shelf action functional is
@@ -58,7 +58,7 @@ class IceShelf(object):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.gravity = add_kwarg_wrapper(gravity)
 
-    def action(self, u=None, h=None, **kwargs):
+    def action(self, u, h, **kwargs):
         """Return the action functional that gives the ice shelf diagnostic
         model as the Euler-Lagrange equations
 
@@ -95,8 +95,7 @@ class IceShelf(object):
         gravity = self.gravity(u=u, h=h, **kwargs)
         return viscosity - gravity
 
-    def diagnostic_solve(self, u0=None, h=None,
-                         dirichlet_ids=[], tol=1e-6, **kwargs):
+    def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness
 
         Parameters
@@ -138,7 +137,7 @@ class IceShelf(object):
         # Solve the nonlinear optimization problem
         return newton_search(self.action(u=u, h=h, **kwargs), u, bcs, tolerance)
 
-    def prognostic_solve(self, dt, h0=None, a=None, u=None, **kwargs):
+    def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
 
         Parameters

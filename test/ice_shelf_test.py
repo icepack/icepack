@@ -97,7 +97,7 @@ def test_diagnostic_solver_alternate_parameterization():
     def eps(u):
         return sym(grad(u))
 
-    def viscosity(u=None, h=None, B=None):
+    def viscosity(u, h, B):
         return n/(n + 1) * h * inner(M(eps(u), B), eps(u)) * dx
 
     # Make a model object with our new viscosity functional

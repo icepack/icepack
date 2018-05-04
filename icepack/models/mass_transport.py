@@ -23,7 +23,7 @@ import firedrake
 from firedrake import grad, div, dx, ds, inner
 
 class MassTransport(object):
-    def solve(self, dt, h0=None, a=None, u=None, **kwargs):
+    def solve(self, dt, h0, a, u, **kwargs):
         Q = h0.ufl_function_space()
         h, phi = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
         mesh = Q.mesh()

@@ -26,7 +26,7 @@ def tau_b(u, C):
     return -C * sqrt(inner(u, u))**(1/m - 1) * u
 
 
-def friction(u=None, C=None):
+def friction(u, C):
     """Return the frictional part of the ice stream action functional
 
     The frictional part of the ice stream action functional is
@@ -42,7 +42,7 @@ def friction(u=None, C=None):
     return -m/(m + 1) * inner(tau_b(u, C), u) * dx
 
 
-def gravity(u=None, h=None, s=None):
+def gravity(u, h, s):
     """Return the gravitational part of the ice stream action functional
 
     The gravitational part of the ice stream action functional is
@@ -62,7 +62,7 @@ def gravity(u=None, h=None, s=None):
     return -rho_ice * g * h * inner(grad(s), u) * dx
 
 
-def terminus(u=None, h=None, s=None, ice_front_ids=None):
+def terminus(u, h, s, ice_front_ids=None):
     """Return the terminal stress part of the ice stream action functional
 
     The power exerted due to stress at the ice calving terminus :math:`\Gamma`
@@ -118,7 +118,7 @@ class IceStream(object):
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
 
-    def action(self, u=None, h=None, s=None, ice_front_ids=[], **kwargs):
+    def action(self, u, h, s, ice_front_ids, **kwargs):
         """Return the action functional that gives the ice stream diagnostic
         model as the Euler-Lagrange equations"""
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
@@ -129,8 +129,7 @@ class IceStream(object):
 
         return viscosity + friction - gravity - terminus
 
-    def diagnostic_solve(self, u0=None, h=None, s=None,
-                         dirichlet_ids=[], tol=1e-6, **kwargs):
+    def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness and surface
         elevation
 
@@ -176,12 +175,12 @@ class IceStream(object):
         action = self.action(u=u, h=h, s=s, ice_front_ids=IDs, **kwargs)
         return newton_search(action, u, bcs, tolerance)
 
-    def prognostic_solve(self, dt, h0=None, a=None, u=None, **kwargs):
+    def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
-    def compute_surface(self, h=None, b=None):
+    def compute_surface(self, h, b):
         """Return the ice surface elevation consistent with a given
         thickness and bathymetry
 
