@@ -155,15 +155,3 @@ class IceShelf(object):
             The new ice thickness at `t + dt`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
-
-    def suggested_elements(self, degree, cell=firedrake.triangle):
-        """Return a dictionary of suggested finite elements for each field
-
-        The suggested finite elements will work for this particular model, and
-        you can experiment as you see fit. For simple models like ice shelves,
-        any continuous element will work fine. For the full Stokes system, on
-        the other hand, many velocity/pressure element pairs are unstable.
-        """
-        return {"thickness": firedrake.FiniteElement('CG', cell, degree),
-                "velocity": firedrake.VectorElement('CG', cell, degree)}
-
