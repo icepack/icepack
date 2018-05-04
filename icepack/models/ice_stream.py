@@ -11,35 +11,13 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import inner, grad, div, dx, ds, sqrt
-from icepack.constants import rho_ice, rho_water, \
-    gravity as g, weertman_sliding_law as m
+from firedrake import inner, grad, div, dx, ds
+from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
+from icepack.models.friction import bed_friction
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
-
-
-def tau_b(u, C):
-    """Compute the basal shear stress for a given sliding velocity
-    """
-    return -C * sqrt(inner(u, u))**(1/m - 1) * u
-
-
-def friction(u, C):
-    """Return the frictional part of the ice stream action functional
-
-    The frictional part of the ice stream action functional is
-
-    .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Omega\\tau_b(u, C)\cdot u\hspace{2pt}dx
-
-    where :math:`\\tau_b(u, C)` is the basal shear stress
-
-    .. math::
-       \\tau_b(u, C) = -C|u|^{1/m - 1}u
-    """
-    return -m/(m + 1) * inner(tau_b(u, C), u) * dx
 
 
 def gravity(u, h, s):
@@ -110,7 +88,7 @@ class IceStream(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice stream viscous action
     """
-    def __init__(self, viscosity=viscosity, friction=friction,
+    def __init__(self, viscosity=viscosity, friction=bed_friction,
                        gravity=gravity, terminus=terminus):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
