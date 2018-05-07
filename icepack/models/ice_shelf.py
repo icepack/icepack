@@ -11,7 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import div, dx
+from firedrake import inner, grad, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.mass_transport import MassTransport
@@ -25,7 +25,7 @@ def gravity(u, h):
     The gravitational part of the ice shelf action functional is
 
     .. math::
-        E(u) = \\frac{1}{2}\int_\Omega \\varrho gh^2\\nabla\cdot u\hspace{2pt}dx
+        E(u) = -\\frac{1}{2}\int_\Omega \\varrho g\\nabla h^2\cdot u\hspace{2pt}dx
 
     Parameters
     ----------
@@ -39,7 +39,25 @@ def gravity(u, h):
     firedrake.Form
     """
     rho = rho_ice * (1 - rho_ice / rho_water)
-    return 0.5 * rho * g * h**2 * div(u) * dx
+    return -0.5 * rho * g * inner(grad(h**2), u) * dx
+
+
+def terminus(u, h, ice_front_ids=()):
+    """Return the terminus stress part of the ice shelf action functional
+
+    The power exerted due to stress at the calving terminus :math:`\Gamma` is
+
+    .. math::
+       E(u) = \int_\Gamma\rho_I(1 - \rho_I/\rho_W)gh^2u\cdot\\nu\hspace{2pt}ds
+
+    We assume that sea level is at :math:`z = 0` for calculating the water
+    depth.
+    """
+    mesh = u.ufl_domain()
+    ν = firedrake.FacetNormal(mesh)
+    IDs = tuple(ice_front_ids)
+    rho = rho_ice * (1 - rho_ice / rho_water)
+    return 0.5 * rho * g * h**2 * inner(u, ν) * ds(IDs)
 
 
 class IceShelf(object):
@@ -53,10 +71,11 @@ class IceShelf(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice shelf viscous action
     """
-    def __init__(self, viscosity=viscosity, gravity=gravity):
+    def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.gravity = add_kwarg_wrapper(gravity)
+        self.terminus = add_kwarg_wrapper(terminus)
 
     def action(self, u, h, **kwargs):
         """Return the action functional that gives the ice shelf diagnostic
@@ -93,7 +112,8 @@ class IceShelf(object):
         """
         viscosity = self.viscosity(u=u, h=h, **kwargs)
         gravity = self.gravity(u=u, h=h, **kwargs)
-        return viscosity - gravity
+        terminus = self.terminus(u=u, h=h, **kwargs)
+        return viscosity - gravity - terminus
 
     def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness
@@ -130,12 +150,18 @@ class IceShelf(object):
         scale = firedrake.assemble(viscosity)
         tolerance = tol * scale
 
+        Q = u.function_space()
+        mesh = Q.mesh()
+        boundary_ids = list(mesh.topology.exterior_facets.unique_markers)
+        IDs = list(set(boundary_ids) - set(dirichlet_ids))
+
         # Create boundary conditions
         bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
                for k in dirichlet_ids]
 
         # Solve the nonlinear optimization problem
-        return newton_search(self.action(u=u, h=h, **kwargs), u, bcs, tolerance)
+        action = self.action(u=u, h=h, ice_front_ids=IDs, **kwargs)
+        return newton_search(action, u, bcs, tolerance)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
