@@ -14,6 +14,7 @@ import firedrake
 from firedrake import inner, grad, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
+from icepack.models.friction import normal_flow_penalty as penalty
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
@@ -71,11 +72,13 @@ class IceShelf(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice shelf viscous action
     """
-    def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus):
+    def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
+                 penalty=penalty):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
+        self.penalty = add_kwarg_wrapper(penalty)
 
     def action(self, u, h, **kwargs):
         """Return the action functional that gives the ice shelf diagnostic
@@ -113,7 +116,8 @@ class IceShelf(object):
         viscosity = self.viscosity(u=u, h=h, **kwargs)
         gravity = self.gravity(u=u, h=h, **kwargs)
         terminus = self.terminus(u=u, h=h, **kwargs)
-        return viscosity - gravity - terminus
+        penalty = self.penalty(u=u, h=h, **kwargs)
+        return viscosity - gravity - terminus + penalty
 
     def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness
@@ -150,17 +154,15 @@ class IceShelf(object):
         scale = firedrake.assemble(viscosity)
         tolerance = tol * scale
 
-        Q = u.function_space()
-        mesh = Q.mesh()
-        boundary_ids = list(mesh.topology.exterior_facets.unique_markers)
-        IDs = list(set(boundary_ids) - set(dirichlet_ids))
-
-        # Create boundary conditions
+        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        kwargs['side_wall_ids'] = kwargs.get('side_wall_ids', [])
+        kwargs['ice_front_ids'] = list(set(boundary_ids)
+            - set(dirichlet_ids) - set(kwargs['side_wall_ids']))
         bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
                for k in dirichlet_ids]
 
         # Solve the nonlinear optimization problem
-        action = self.action(u=u, h=h, ice_front_ids=IDs, **kwargs)
+        action = self.action(u=u, h=h, **kwargs)
         return newton_search(action, u, bcs, tolerance)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):

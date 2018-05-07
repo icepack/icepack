@@ -13,7 +13,7 @@
 import firedrake
 from firedrake import inner, dx, ds, sqrt
 from icepack.constants import weertman_sliding_law as m
-
+from icepack import utilities
 
 def tau(u, C):
     """Compute the shear stress for a given sliding velocity
@@ -36,3 +36,20 @@ def bed_friction(u, C):
     """
     return -m/(m + 1) * inner(tau(u, C), u) * dx
 
+
+def normal_flow_penalty(u, scale=1.0, exponent=None, side_wall_ids=()):
+    """Return the penalty for flow normal to the domain boundary
+
+    For problems where a glacier flows along some boundary, e.g. a fjord
+    wall, the velocity has to be parallel to this boundary. Rather than
+    enforce this boundary condition directly, we add a penalty for normal
+    flow to the action functional.
+    """
+    mesh = u.ufl_domain()
+    ν = firedrake.FacetNormal(mesh)
+    L = utilities.diameter(mesh)
+    δx = firedrake.CellSize(mesh)
+    d = u.ufl_function_space().ufl_element().degree()
+    exponent = d + 1 if exponent is None else exponent
+    penalty = scale * (L / δx)**exponent
+    return 0.5 * penalty * inner(u, ν)**2 * ds(tuple(side_wall_ids))
