@@ -11,6 +11,14 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import inspect
+import numpy as np
+
+def diameter(mesh):
+    """Compute the diameter of the mesh in the L-infinity metric"""
+    X = mesh.coordinates.dat.data
+    _, d = np.shape(X)
+    Ls = np.array([np.max(X[:, k]) - np.min(X[:, k]) for k in range(d)])
+    return np.min(Ls)
 
 def add_kwarg_wrapper(func):
     signature = inspect.signature(func)

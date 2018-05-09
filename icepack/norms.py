@@ -12,12 +12,7 @@
 
 import numpy as np
 from firedrake import sqrt, inner, grad, dx, assemble
-
-def _diameter(mesh):
-    X = mesh.coordinates.dat.data
-    _, d = np.shape(X)
-    Ls = np.array([np.max(X[:, k]) - np.min(X[:, k]) for k in range(d)])
-    return np.min(Ls)
+from icepack import utilities
 
 def norm(u, norm_type='L2'):
     """Compute the norm of a field
@@ -48,9 +43,7 @@ def norm(u, norm_type='L2'):
         form, p = inner(grad(u), grad(u)) * dx, 2
 
     if norm_type == 'H1':
-        mesh = u.ufl_domain()
-        #TODO: smarter way of getting a scale for the H1-norm
-        L = _diameter(mesh)
+        L = utilities.diameter(u.ufl_domain())
         form, p = inner(u, u) * dx + L**2 * inner(grad(u), grad(u)) * dx, 2
 
     if norm_type == 'L1':
