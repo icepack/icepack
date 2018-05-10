@@ -14,7 +14,8 @@ import firedrake
 from firedrake import inner, grad, div, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
-from icepack.models.friction import bed_friction
+from icepack.models.friction import bed_friction, \
+    normal_flow_penalty as penalty
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
@@ -40,7 +41,7 @@ def gravity(u, h, s):
     return -rho_ice * g * h * inner(grad(s), u) * dx
 
 
-def terminus(u, h, s, ice_front_ids=None):
+def terminus(u, h, s, ice_front_ids=()):
     """Return the terminal stress part of the ice stream action functional
 
     The power exerted due to stress at the ice calving terminus :math:`\Gamma`
@@ -71,11 +72,8 @@ def terminus(u, h, s, ice_front_ids=None):
     tau_I = rho_ice * g * h**2 / 2
     tau_W = rho_water * g * d**2 / 2
 
-    mesh = u.ufl_domain()
-    n = firedrake.FacetNormal(mesh)
-
-    IDs = tuple(ice_front_ids)
-    return (tau_I - tau_W) * inner(u, n) * ds(IDs)
+    ν = firedrake.FacetNormal(u.ufl_domain())
+    return (tau_I - tau_W) * inner(u, ν) * ds(tuple(ice_front_ids))
 
 
 class IceStream(object):
@@ -89,23 +87,24 @@ class IceStream(object):
           Default implementation of the ice stream viscous action
     """
     def __init__(self, viscosity=viscosity, friction=bed_friction,
-                       gravity=gravity, terminus=terminus):
+                       gravity=gravity, terminus=terminus, penalty=penalty):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
+        self.penalty = add_kwarg_wrapper(penalty)
 
-    def action(self, u, h, s, ice_front_ids, **kwargs):
+    def action(self, u, h, s, **kwargs):
         """Return the action functional that gives the ice stream diagnostic
         model as the Euler-Lagrange equations"""
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
         friction = self.friction(u=u, h=h, s=s, **kwargs)
         gravity = self.gravity(u=u, h=h, s=s, **kwargs)
-        terminus = self.terminus(u=u, h=h, s=s,
-                                 ice_front_ids=ice_front_ids, **kwargs)
+        terminus = self.terminus(u=u, h=h, s=s, **kwargs)
+        penalty = self.penalty(u=u, h=h, s=s, **kwargs)
 
-        return viscosity + friction - gravity - terminus
+        return viscosity + friction - gravity - terminus + penalty
 
     def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness and surface
@@ -140,17 +139,18 @@ class IceStream(object):
         """
         u = u0.copy(deepcopy=True)
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
-        friction = self.friction(u=u, **kwargs)
+        friction = self.friction(u=u, h=h, s=s, **kwargs)
         scale = firedrake.assemble(viscosity + friction)
         tolerance = tol * scale
 
-        mesh = u.ufl_domain()
-        boundary_ids = list(mesh.topology.exterior_facets.unique_markers)
-        IDs = list(set(boundary_ids) - set(dirichlet_ids))
+        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        kwargs['side_wall_ids'] = kwargs.get('side_wall_ids', [])
+        kwargs['ice_front_ids'] = list(set(boundary_ids)
+            - set(dirichlet_ids) - set(kwargs['side_wall_ids']))
         bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
                for k in dirichlet_ids]
 
-        action = self.action(u=u, h=h, s=s, ice_front_ids=IDs, **kwargs)
+        action = self.action(u=u, h=h, s=s, **kwargs)
         return newton_search(action, u, bcs, tolerance)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
