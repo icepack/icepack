@@ -91,7 +91,7 @@ def test_poisson_conductivity():
 
 
 def test_ice_shelf_rheology():
-    L, W = 20e3, 20e3
+    Lx, Ly = 20e3, 20e3
     u_inflow = 100.0
     h0, dh = 500.0, 100.0
     T = 254.15
@@ -105,7 +105,7 @@ def test_ice_shelf_rheology():
 
     for N in range(32, 65, 4):
         # Set up the mesh and function spaces
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 2
@@ -114,11 +114,11 @@ def test_ice_shelf_rheology():
 
         # Make the fields for the basic state
         Z = icepack.rate_factor(T) * (rho * g * h0 / 4)**n
-        q = 1 - (1 - (dh/h0) * (x/L))**(n + 1)
-        du = Z * q * L * (h0/dh) / (n + 1)
+        q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
+        du = Z * q * Lx * (h0/dh) / (n + 1)
         u0 = interpolate(firedrake.as_vector((u_inflow + du, 0)), V)
 
-        h = interpolate(h0 - dh * x / L, Q)
+        h = interpolate(h0 - dh * x / Lx, Q)
         A0 = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
         u = ice_shelf.diagnostic_solve(u0=u0, h=h, A=A0, **opts)
 
@@ -129,7 +129,7 @@ def test_ice_shelf_rheology():
         # Make the perturbation to the fluidity field
         delta_T = 5.0
         delta_A = icepack.rate_factor(T + delta_T) - icepack.rate_factor(T)
-        px, py = x/L, y/W
+        px, py = x/Lx, y/Ly
         B = interpolate(16 * px * (1 - px) * py * (1 - py) * delta_A, Q)
 
         # Make the error functional and calculate its derivative

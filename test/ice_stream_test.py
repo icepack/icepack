@@ -83,55 +83,50 @@ def test_manufactured_solution():
 
 # Now test our numerical solvers against this analytical solution.
 import firedrake
+from firedrake import interpolate, as_vector
 import icepack, icepack.models
 from icepack.constants import gravity, rho_ice, rho_water, \
     glen_flow_law as n, weertman_sliding_law as m
 
+Lx, Ly = 20e3, 20e3
+h0, dh = 500.0, 100.0
+T = 254.15
+u_inflow = 100.0
+
+# Pick a height above flotation at the ice terminus. In order to have an
+# exact ice velocity of the same form as the exact solution for an ice
+# shelf, we have to pick the pseudo-density to be a certain value for the
+# velocity to satisfy the boundary condition at the terminus.
+height_above_flotation = 10.0
+d = -rho_ice / rho_water * (h0 - dh) + height_above_flotation
+rho = rho_ice - rho_water * d**2 / (h0 - dh)**2
+
+# We'll arbitrarily pick this to be the velocity, then we'll find a
+# friction coefficient and surface elevation that makes this velocity
+# an exact solution of the shelfy stream equations.
+def exact_u(x):
+    Z = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
+    q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
+    du = Z * q * Lx * (h0/dh) / (n + 1)
+    return u_inflow + du
+
+def perturb_u(x, y):
+    px, py = x/Lx, y/Ly
+    q = 16 * px * (1 - px) * py * (1 - py)
+    return 60 * q * (px - 0.5)
+
+# With this choice of friction coefficient, we can take the surface
+# elevation to be a linear function of the horizontal coordinate and the
+# velocity will be an exact solution of the shelfy stream equations.
+beta = 1/2
+alpha = beta * rho / rho_ice * dh / Lx
+def friction(x):
+    return alpha * (rho_ice * gravity * (h0 - dh * x/Lx)) * exact_u(x)**(-1/m)
+
+# Total change of the surface elevation
+ds = (1 + beta) * rho/rho_ice * dh
+
 def test_diagnostic_solver_convergence():
-    L, W = 20.0e3, 20.0e3
-    h0, dh = 500.0, 100.0
-    def thickness(x):
-        return h0 - dh * x[0] / L
-
-    # Pick a height above flotation at the ice terminus. In order to have an
-    # exact ice velocity of the same form as the exact solution for an ice
-    # shelf, we have to pick the pseudo-density to be a certain value for the
-    # velocity to satisfy the boundary condition at the terminus.
-    height_above_flotation = 10.0
-    d = -rho_ice / rho_water * thickness((L, W/2)) + height_above_flotation
-    rho = rho_ice - rho_water * d**2 / thickness((L, W/2))**2
-
-    # We'll arbitrarily pick this to be the velocity, then we'll find a
-    # friction coefficient and surface elevation that makes this velocity
-    # an exact solution of the shelfy stream equations.
-    T = 254.15
-    u0 = 100.0
-    def velocity_exact(x):
-        A = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
-        q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
-        du = A * q * L * (h0/dh) / (n + 1)
-        return (u0 + du, 0.0)
-
-    def velocity_guess(x):
-        px, py = x[0] / L, x[1] / W
-        q = 16 * px * (1 - px) * py * (1 - py)
-        v = velocity_exact(x)
-        return (v[0] + 60 * q * (px - 0.5), v[1])
-
-    # With this choice of friction coefficient, we can take the surface
-    # elevation to be a linear function of the horizontal coordinate and the
-    # velocity will be an exact solution of the shelfy stream equations.
-    beta = 1/2
-    alpha = beta * rho / rho_ice * dh / L
-    def friction(x):
-        u = velocity_exact(x)[0]
-        h = thickness(x)
-        return alpha * (rho_ice * gravity * h) * u**(-1/m)
-
-    ds = (1 + beta) * rho/rho_ice * dh
-    def surface(x):
-        return d + h0 - dh + ds * (1 - x[0] / L)
-
     # Create an ice stream model.
     ice_stream = icepack.models.IceStream()
     opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
@@ -141,21 +136,22 @@ def test_diagnostic_solver_convergence():
     norm = lambda v: icepack.norm(v, norm_type='H1')
 
     for N in range(16, 65, 4):
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         degree = 2
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
 
-        u_exact = icepack.interpolate(velocity_exact, V)
-        u_guess = icepack.interpolate(velocity_guess, V)
-        h = icepack.interpolate(thickness, Q)
-        s = icepack.interpolate(surface, Q)
-        C = icepack.interpolate(friction, Q)
-        A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+        x, y = firedrake.SpatialCoordinate(mesh)
+        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
+        h = interpolate(h0 - dh * x/Lx, Q)
+        s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+        C = interpolate(friction(x), Q)
+        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
         u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(L / N)
+        delta_x.append(Lx / N)
 
         print(delta_x[-1], error[-1])
 
@@ -169,61 +165,28 @@ def test_diagnostic_solver_convergence():
 
 # Same thing, only with penalty methods for the side wall boundary conditions
 def test_diagnostic_solver_side_walls():
-    L, W = 20.0e3, 20.0e3
-    h0, dh = 500.0, 100.0
-    def thickness(x):
-        return h0 - dh * x[0] / L
-
-    height_above_flotation = 10.0
-    d = -rho_ice / rho_water * thickness((L, W/2)) + height_above_flotation
-    rho = rho_ice - rho_water * d**2 / thickness((L, W/2))**2
-
-    T = 254.15
-    u0 = 100.0
-    def velocity_exact(x):
-        A = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
-        q = 1 - (1 - (dh/h0) * (x[0]/L))**(n + 1)
-        du = A * q * L * (h0/dh) / (n + 1)
-        return (u0 + du, 0.0)
-
-    def velocity_guess(x):
-        px, py = x[0] / L, x[1] / W
-        q = 16 * px * (1 - px) * py * (1 - py)
-        v = velocity_exact(x)
-        return (v[0] + 60 * q * (px - 0.5), v[1])
-
-    beta = 1/2
-    alpha = beta * rho / rho_ice * dh / L
-    def friction(x):
-        u = velocity_exact(x)[0]
-        h = thickness(x)
-        return alpha * (rho_ice * gravity * h) * u**(-1/m)
-
-    ds = (1 + beta) * rho/rho_ice * dh
-    def surface(x):
-        return d + h0 - dh + ds * (1 - x[0] / L)
-
     ice_stream = icepack.models.IceStream()
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
     delta_x, error = [], []
     norm = lambda v: icepack.norm(v, norm_type='H1')
 
     for N in range(16, 65, 4):
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         degree = 2
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
 
-        u_exact = icepack.interpolate(velocity_exact, V)
-        u_guess = icepack.interpolate(velocity_guess, V)
-        h = icepack.interpolate(thickness, Q)
-        s = icepack.interpolate(surface, Q)
-        C = icepack.interpolate(friction, Q)
-        A = icepack.interpolate(lambda x: icepack.rate_factor(T), Q)
+        x, y = firedrake.SpatialCoordinate(mesh)
+        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
+        h = interpolate(h0 - dh * x/Lx, Q)
+        s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+        C = interpolate(friction(x), Q)
+        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
         u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(L / N)
+        delta_x.append(Lx / N)
 
         print(delta_x[-1], error[-1])
 
@@ -236,24 +199,17 @@ def test_diagnostic_solver_side_walls():
 
 
 def test_computing_surface():
-    L, W = 20.0e3, 20.0e3
-    h0, dh = 500.0, 100.0
-    def thickness(x):
-        return h0 - dh * x[0] / L
-
-    b0 = rho_ice / rho_water * (dh / 2 - h0)
-
     N = 16
-    mesh = firedrake.RectangleMesh(N, N, L, W)
-
+    mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
     degree = 2
     Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-    h = icepack.interpolate(thickness, Q)
-    b = icepack.interpolate(lambda x: b0, Q)
+    x, y = firedrake.SpatialCoordinate(mesh)
+    h = interpolate(h0 - dh * x / Lx, Q)
+    b0 = rho_ice / rho_water * (dh / 2 - h0)
+    b = interpolate(firedrake.Constant(b0), Q)
 
     ice_stream = icepack.models.IceStream()
     s = ice_stream.compute_surface(h=h, b=b)
-    x = (L/2, W/2)
-    assert abs(s(x) - (1 - rho_ice/rho_water) * h(x)) < 1e-8
-
+    x0, y0 = Lx/2, Ly/2
+    assert abs(s((x0, y0)) - (1 - rho_ice/rho_water) * h((x0, y0))) < 1e-8

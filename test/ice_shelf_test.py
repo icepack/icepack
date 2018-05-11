@@ -17,7 +17,7 @@ import icepack, icepack.models
 from icepack.constants import gravity, rho_ice, rho_water, glen_flow_law as n
 
 # The domain is a 20km x 20km square, with ice flowing in from the left.
-L, W = 20.0e3, 20.0e3
+Lx, Ly = 20.0e3, 20.0e3
 
 # The inflow velocity is 100 m/year; the ice shelf decreases from 500m thick
 # to 100m; and the temperature is a constant -19C.
@@ -31,13 +31,13 @@ T = 254.15
 def exact_u(x):
     rho = rho_ice * (1 - rho_ice / rho_water)
     Z = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
-    q = 1 - (1 - (dh/h0) * (x/L))**(n + 1)
-    du = Z * q * L * (h0/dh) / (n + 1)
+    q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
+    du = Z * q * Lx * (h0/dh) / (n + 1)
     return u0 + du
 
 # We'll use the same perturbation to `u` throughout these tests.
 def perturb_u(x, y):
-    px, py = x/L, y/W
+    px, py = x/Lx, y/Ly
     q = 16 * px * (1 - px) * py * (1 - py)
     return 60 * q * (px - 0.5)
 
@@ -52,7 +52,7 @@ def test_diagnostic_solver_convergence():
     delta_x, error = [], []
     norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 2
@@ -62,12 +62,12 @@ def test_diagnostic_solver_convergence():
         u_exact = interpolate(as_vector((exact_u(x), 0)), V)
         u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
 
-        h = interpolate(h0 - dh * x / L, Q)
+        h = interpolate(h0 - dh * x / Lx, Q)
         A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
         u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(L / N)
+        delta_x.append(Lx / N)
 
         print(delta_x[-1], error[-1])
 
@@ -83,7 +83,7 @@ def test_diagnostic_solver_convergence():
 
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined when we use an alternative parameterization of the model.
-def test_diagnostic_solver_alternate_parameterization():
+def test_diagnostic_solver_parameterization():
     # Define a new viscosity functional, parameterized in terms of the
     # rheology `B` instead of the fluidity `A`
     from firedrake import inner, grad, sym, dx, tr as trace, Identity, sqrt
@@ -108,7 +108,7 @@ def test_diagnostic_solver_alternate_parameterization():
     delta_x, error = [], []
     norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 65, 4):
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 2
@@ -117,12 +117,12 @@ def test_diagnostic_solver_alternate_parameterization():
 
         u_exact = interpolate(as_vector((exact_u(x), 0)), V)
         u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
-        h = interpolate(h0 - dh * x / L, Q)
+        h = interpolate(h0 - dh * x / Lx, Q)
         B = interpolate(firedrake.Constant(icepack.rate_factor(T)**(-1/n)), Q)
 
         u = ice_shelf.diagnostic_solve(h=h, B=B, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(L / N)
+        delta_x.append(Lx / N)
 
         print(delta_x[-1], error[-1])
 
@@ -135,7 +135,7 @@ def test_diagnostic_solver_alternate_parameterization():
 
 
 def perturb_v(x, y):
-    px, py = x/L, y/W
+    px, py = x/Lx, y/Ly
     return 20 * px * (py - 0.5)
 
 
@@ -148,7 +148,7 @@ def test_diagnostic_solver_side_walls():
     delta_x, error = [], []
     norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
-        mesh = firedrake.RectangleMesh(N, N, L, W)
+        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 2
@@ -159,12 +159,12 @@ def test_diagnostic_solver_side_walls():
         u_guess_expr = exact_u(x) + perturb_u(x, y) + perturb_v(x, y)
         u_guess = interpolate(as_vector((u_guess_expr, 0)), V)
 
-        h = interpolate(h0 - dh * x / L, Q)
+        h = interpolate(h0 - dh * x / Lx, Q)
         A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
         u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
         error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(L / N)
+        delta_x.append(Lx / N)
 
         print(delta_x[-1], error[-1])
 
