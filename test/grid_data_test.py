@@ -136,3 +136,19 @@ def test_arcinfo():
     with pytest.raises(FileNotFoundError):
         dataset = arcinfo.read("file_does_not_exist.txt")
 
+
+def test_geotiff():
+    x0 = (0, 0)
+    dx = 1
+    data = np.array([[i + 3 * j for j in range(3)] for i in range(3)],
+                     dtype=np.int32)
+    missing = -9999.0
+    data[0, 0] = missing
+    dataset1 = GridData(x0, dx, data, missing_data_value=missing)
+
+    import tempfile
+    from icepack.grid import geotiff
+    with tempfile.NamedTemporaryFile() as tmp:
+        geotiff.write(tmp.name, dataset1)
+        dataset2 = geotiff.read(tmp.name)
+        assert np.array_equal(dataset1.data, dataset2.data)

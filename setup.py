@@ -22,5 +22,5 @@ setup(
     author='Daniel Shapero',
     url='https://github.com/icepack/icepack',
     packages=find_packages(exclude=['doc', 'test']),
-    install_requires=['firedrake', 'numpy', 'scipy', 'matplotlib', 'GDAL']
+    install_requires=['firedrake', 'numpy', 'scipy', 'matplotlib', 'rasterio']
 )

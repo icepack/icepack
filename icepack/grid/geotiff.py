@@ -10,59 +10,56 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""
-Utility for reading geotifs into the GridData class
-
-depends on gdal
-"""
+"""Functions for reading/writing GeoTIFF files"""
 
 import numpy as np
 from icepack.grid import GridData
-from osgeo import gdal
-driver = gdal.GetDriverByName('GTiff')
+import rasterio, rasterio.crs
 
-
-def write(fn, q, missing=-9999, t_srs=None):
+def write(filename, q, missing=-9999, crs=None):
     """Write a gridded dataset to a GeoTIFF file
 
     Parameters
     ----------
-    fn: str
-        Destination filename
-    q: icepack.grid.GridData
-        GridData to write
-    missing: float, optional
+    filename : str
+        name of the destination file
+    q : icepack.grid.GridData
+        the gridded data set to be written
+    missing : float, optional
         No data value (default -9999)
+    crs : int, string, or rasterio.crs.CRS, optional
+        Coordinate reference system, specified either as a string, an EPSG
+        code, or a CRS object from rasterio
     """
     ny, nx = q.shape
-    gridsize = q._delta
-    ulx, uly = q._origin[0], q._origin[1] + gridsize * ny
-    gt = (ulx, gridsize, 0, uly, 0, -gridsize)
-    dst_ds = driver.Create(fn, nx, ny, 1, gdal.GDT_Float32)
-    dst_ds.SetGeoTransform(gt)
-    values = q.data.copy()
-    values[q.data.mask] = missing
-    if t_srs is not None:
-        dst_ds.SetProjection(t_srs)
+    x0, y0 = q.coordinate(0, 0)
+    x1 = q.coordinate(0, 1)[0]
+    dx = x1 - x0
+    transform = rasterio.Affine(dx, 0, x0, 0, -dx, y0 + dx * ny)
 
-    dst_ds.GetRasterBand(1).WriteArray(np.flipud(values))
-    dst_ds.GetRasterBand(1).SetNoDataValue(float(missing))
+    if isinstance(crs, int):
+        crs = rasterio.crs.CRS.from_epsg(crs)
+    elif isinstance(crs, str):
+        crs = rasterio.crs.CRS.from_string(crs)
+
+    with rasterio.open(filename, 'w', driver='GTiff', dtype=q.data.dtype.type,
+        count=1, width=nx, height=ny, transform=transform, crs=crs) as dataset:
+        dataset.write(np.flipud(q.data), 1)
 
 
-def read(fn):
-    """Read a gridded geotiff
+def read(filename):
+    """Read a GeoTIFF file into a gridded data set
 
     Parameters
     ----------
-
-    fn: str
-        File to read. This does not actually need to be a geotiff, but any gdal-readable file
+    filename: str or file-like
+        name of the input file
     """
+    with rasterio.open(filename, 'r') as dataset:
+        nx, ny = dataset.width, dataset.height
+        x0, y0 = dataset.bounds.left, dataset.bounds.bottom
+        # NOTE: This changes in rasterio v1.0
+        dx = dataset.affine[0]
+        data = np.flipud(dataset.read(indexes=1, masked=True))
 
-    ds = gdal.Open(fn, gdal.GA_ReadOnly)
-    gt = ds.GetGeoTransform()
-    band = ds.GetRasterBand(1)
-    data = np.array(band.ReadAsArray(), dtype=np.float64)
-    data = np.ma.array(data)
-    data.mask = np.isnan(data)
-    return GridData((gt[0], gt[3] + data.shape[0] * gt[5]), gt[1], np.flipud(data), missing_data_value=None)
+        return GridData((x0, y0), dx, data)

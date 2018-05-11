@@ -14,7 +14,7 @@ before_install:
     - docker run --interactive --tty --detach --volume $TRAVIS_BUILD_DIR:/repo --name build icepack/icepack:latest
 
 install:
-    - docker exec -i build bash -c ". /firedrake/bin/activate && cd /repo && python3 setup.py install"
+    - docker exec -i build bash -c ". /firedrake/bin/activate && cd /repo && pip3 install -e ."
 
 script:
     - docker exec -i build bash -c ". /firedrake/bin/activate && cd /repo && MPLBACKEND='Agg' pytest --capture=no --verbose"
