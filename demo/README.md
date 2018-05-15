@@ -3,7 +3,7 @@ You will need to have [jupyter](https://jupyter.org/) installed to run them.
 You'll also probably be using firedrake and icepack from a virtual environment, which jupyter won't see by default.
 To make the firedrake virtual environment visible within the notebook, run the following at the command line:
 
-    source <path/to/firedrake>/firedrake/bin/active
+    source <path/to/firedrake>/firedrake/bin/activate
     pip3 install ipykernel
     python3 -m ipykernel install --user --name=firedrake
 

@@ -19,7 +19,7 @@ Quick start
 
    git clone https://github.com/icepack/icepack
    cd icepack
-   python3 setup.py install
+   pip3 install -e .
 
 * Run the icepack unit tests to make sure everything's working::
 
@@ -37,7 +37,7 @@ Rather than install every python package globally, you can create an isolated vi
 This added layer of isolation keeps one package from breaking other packages on the system or doing anything that's both undesirable and hard to roll back.
 However, it does introduce an annoying layer of bureaucracy in that you have to manually activate the virtual environment every time you want to use it by invoking::
 
-   source <path/to/virtual/environment>/bin/active
+   source <path/to/virtual/environment>/bin/activate
 
 Activating a virtual environment affects only the current shell session and doesn't do anything permanent.
 
@@ -46,8 +46,19 @@ PETSc has loads of optional features, chiefly interfaces to other computational 
 Some of these features are mandatory for firedrake.
 Rather than require you to have a PETSc installation properly configured in the way that firedrake expects, the firedrake install script builds its own version of PETSc.
 This can create problems if you already do have PETSc installed on your system.
-In that case, you will need to unset ``$PETSC_DIR`` and ``$PETSC_ARCH`` while installing firedrake and every time you active the firedrake virtual environment.
+In that case, you will need to unset ``$PETSC_DIR`` and ``$PETSC_ARCH`` while installing firedrake and every time you activate the firedrake virtual environment.
 While installing firedrake will fail with an error if you have a pre-existing PETSc installation, trying to run a script that uses firedrake will instead crash with a segmentation fault if you have not first unset the PETSc environment variables.
+
+You can save yourself the trouble of remembering things by adding a function like this to your ``.bashrc`` file:
+
+.. code-block:: bash
+
+   firedrake-env() {
+       unset PETSC_DIR PETSC_ARCH
+       source <path/to/virtual/environment>/bin/activate
+   }
+
+When you type `firedrake-env` at the terminal, the PETSc environment variables from any pre-existing installation will be unset and the firedrake virtual environment will be activated.
 
 The configuration options that firedrake uses to build PETSc do not include building the sparse direct solver UMFPACK_.
 In the recommended installation instructions above, I've added an environment variable that will tell firedrake to download and link PETSc with UMFPACK in addition to the other extras.
