@@ -174,3 +174,32 @@ def test_diagnostic_solver_side_walls():
 
     print(slope, intercept)
     assert slope > (degree - 0.05)/2
+
+
+# Check that the diagnostic solver gives a sensible result when we add friction
+# at the side walls. There is probably no analytical solution for this so all
+# we have is a sanity test.
+def test_diagnostic_solver_side_friction():
+    ice_shelf = icepack.models.IceShelf()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+
+    mesh = firedrake.RectangleMesh(32, 32, Lx, Ly)
+    degree = 2
+    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+
+    x, y = firedrake.SpatialCoordinate(mesh)
+    u_initial = interpolate(as_vector((exact_u(x), 0)), V)
+    h = interpolate(h0 - dh * x / Lx, Q)
+    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+
+    # Choose the side wall friction coefficient so that, assuming the ice is
+    # sliding at the maximum speed for the solution without friction, the
+    # stress is 10 kPa.
+    from icepack.constants import weertman_sliding_law as m
+    τ = 0.01
+    u_max = icepack.norm(u_initial, norm_type='Linfty')
+    Cs = firedrake.Constant(τ * u_max**(-1/m))
+    u = ice_shelf.diagnostic_solve(u0=u_initial, h=h, A=A, Cs=Cs, **opts)
+
+    assert icepack.norm(u) < icepack.norm(u_initial)

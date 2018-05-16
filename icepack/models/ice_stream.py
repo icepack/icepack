@@ -14,7 +14,7 @@ import firedrake
 from firedrake import inner, grad, div, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
-from icepack.models.friction import bed_friction, \
+from icepack.models.friction import bed_friction, side_friction, \
     normal_flow_penalty as penalty
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
@@ -86,11 +86,13 @@ class IceStream(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice stream viscous action
     """
-    def __init__(self, viscosity=viscosity, friction=bed_friction,
-                       gravity=gravity, terminus=terminus, penalty=penalty):
+    def __init__(self, viscosity=viscosity,
+                 friction=bed_friction, side_friction=side_friction,
+                 gravity=gravity, terminus=terminus, penalty=penalty):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
+        self.side_friction = add_kwarg_wrapper(side_friction)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
         self.penalty = add_kwarg_wrapper(penalty)
@@ -100,11 +102,13 @@ class IceStream(object):
         model as the Euler-Lagrange equations"""
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
         friction = self.friction(u=u, h=h, s=s, **kwargs)
+        side_friction = self.side_friction(u=u, h=h, s=s, **kwargs)
         gravity = self.gravity(u=u, h=h, s=s, **kwargs)
         terminus = self.terminus(u=u, h=h, s=s, **kwargs)
         penalty = self.penalty(u=u, h=h, s=s, **kwargs)
 
-        return viscosity + friction - gravity - terminus + penalty
+        return (viscosity + friction + side_friction
+                - gravity - terminus + penalty)
 
     def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness and surface

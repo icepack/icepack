@@ -27,14 +27,35 @@ def bed_friction(u, C):
     The frictional part of the ice stream action functional is
 
     .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Omega\\tau_b(u, C)\cdot u\hspace{2pt}dx
+       E(u) = -\\frac{m}{m + 1}\int_\Omega\\tau(u, C)\cdot u\hspace{2pt}dx
 
-    where :math:`\\tau_b(u, C)` is the basal shear stress
+    where :math:`\\tau(u, C)` is the basal shear stress
 
     .. math::
-       \\tau_b(u, C) = -C|u|^{1/m - 1}u
+       \\tau(u, C) = -C|u|^{1/m - 1}u
     """
     return -m/(m + 1) * inner(tau(u, C), u) * dx
+
+
+def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
+    """Return the side wall friction part of the action functional
+
+    The component of the action functional due to friction along the side
+    walls of the domain is
+
+    .. math::
+       E(u) = -\\frac{m}{m + 1}\int_\Gamma h\\tau(u, C_s)\cdot u\hspace{2pt}ds
+
+    where :math:`\\tau(u, C_s)` is the side wall shear stress, :math:`ds`
+    is the element of surface area and :math:`\\Gamma` are the side walls.
+    Side wall friction is relevant for glaciers that flow through a fjord
+    with rock walls on either side.
+    """
+    mesh = u.ufl_domain()
+    ν = firedrake.FacetNormal(mesh)
+    u_t = u - inner(u, ν) * ν
+    ds_side_walls = ds(domain=mesh, subdomain_id=tuple(side_wall_ids))
+    return -m/(m + 1) * h * inner(tau(u_t, Cs), u_t) * ds_side_walls
 
 
 def normal_flow_penalty(u, scale=1.0, exponent=None, side_wall_ids=()):
