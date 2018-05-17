@@ -10,15 +10,28 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+"""Utilities for plotting gridded data, meshes, and finite element fields
+
+This module contains thin wrappers around functionality in matplotlib for
+plotting things. For example, `triplot`, `tricontourf`, and `streamplot`
+all call the equivalent matplotlib functions under the hood for plotting
+respectively an unstructured mesh, a scalar field on an unstructured mesh,
+and a vector field on an unstructured mesh.
+
+The return types should be the same as for the corresponding matplotlib
+function. Usually the return type is something that inherits from the
+class `ScalarMappable` so that you can make a colorbar out of it.
+"""
+
 import matplotlib.pyplot as plt
-import matplotlib.cm
-import matplotlib.colors
+import matplotlib.cm, matplotlib.colors, matplotlib.tri, \
+    matplotlib.streamplot, matplotlib.ticker
 from matplotlib.collections import LineCollection
 import numpy as np
 import scipy.spatial
 import firedrake
+from firedrake import inner, sqrt
 import icepack
-from icepack.grid import GridData
 
 def _get_coordinates(mesh):
     """Return the coordinates of a mesh if the mesh is piecewise linear,
@@ -42,21 +55,29 @@ def _get_colors(colors, num_markers):
     return matplotlib.colors.to_rgba_array(colors)
 
 
-def _fix_axis_limits(axes, coords):
-    for setter, k in zip(["set_xlim", "set_ylim", "set_zlim"],
-                         range(coords.shape[1])):
-        amin, amax = coords[:, k].min(), coords[:, k].max()
-        extra = (amax - amin) / 20
-        amin -= extra
-        amax += extra
-        getattr(axes, setter)(amin, amax)
+def subplots(*args, **kwargs):
+    subplot_kw = kwargs.get('subplot_kw', {})
+    subplot_kw['adjustable'] = subplot_kw.get('adjustable', 'box-forced')
+    kwargs['subplot_kw'] = subplot_kw
+    fig, axes = plt.subplots(*args, **kwargs)
+    formatter = matplotlib.ticker.ScalarFormatter(useOffset=True)
+    formatter.set_powerlimits((0, 0))
 
-    axes.tick_params(axis='x', rotation=-30)
-    axes.set_aspect("equal")
-    return axes
+    def fmt(ax):
+        ax.set_aspect('equal')
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
+
+    try:
+        for ax in axes:
+            fmt(ax)
+    except TypeError:
+        fmt(axes)
+
+    return fig, axes
 
 
-def plot_mesh(mesh, colors=None, axes=None, **kwargs):
+def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
     """Plot a mesh with a different color for each boundary segment"""
     if (mesh.geometric_dimension() != 2) or (mesh.topological_dimension() != 2):
         raise NotImplementedError("Plotting meshes only implemented for 2D")
@@ -65,57 +86,90 @@ def plot_mesh(mesh, colors=None, axes=None, **kwargs):
         raise NotImplementedError("Plotting meshes only implemented for "
                                   "triangles")
 
+    axes = axes if axes is not None else plt.gca()
     mesh.init() # Apprently this doesn't happen automatically?
     coordinates = _get_coordinates(mesh)
     coords = coordinates.dat.data_ro
-
-    if axes is None:
-        figure = plt.figure()
-        axes = figure.add_subplot(111)
+    x, y = coords[:, 0], coords[:, 1]
 
     # Add lines for all of the edges, internal or boundary
-    cell = coordinates.cell_node_map().values
-    vertices = coords[cell[:, (0, 1, 2, 0)]]
-    lines = LineCollection(vertices, colors=(0.0, 0.0, 0.0), **kwargs)
-    axes.add_collection(lines)
+    triangles = coordinates.cell_node_map().values
+    triangulation = matplotlib.tri.Triangulation(x, y, triangles)
+    edges = triangulation.edges
+
+    tri_lines_x = np.insert(x[edges], 2, np.nan, axis=1)
+    tri_lines_y = np.insert(y[edges], 2, np.nan, axis=1)
+    tri_lines = axes.plot(tri_lines_x.ravel(), tri_lines_y.ravel(),
+                          color='k', **kwargs)
 
     # Add colored lines for the boundary edges
     facets = mesh.topology.exterior_facets
     local_facet_id = facets.local_facet_dat.data_ro
     markers = facets.unique_markers
-    clrs = _get_colors(colors, len(markers))
+    clrs = _get_colors(bnd_colors, len(markers))
 
+    bnd_lines = []
     for i, marker in enumerate(markers):
         indices = facets.subset(int(marker)).indices
         n = len(indices)
         roll = 2 - local_facet_id[indices]
         cell = coordinates.exterior_facet_node_map().values[indices, :]
         edges = np.array([np.roll(cell[k,:], roll[k]) for k in range(n)])[:,:2]
-        vertices = coords[edges]
-        lines = LineCollection(vertices, color=clrs[i], label=marker,
-                               **kwargs)
-        axes.add_collection(lines)
-    axes.legend()
 
-    return _fix_axis_limits(axes, coords)
+        bnd_lines_x = np.insert(x[edges], 2, np.nan, axis=1)
+        bnd_lines_y = np.insert(y[edges], 2, np.nan, axis=1)
+        bnd_lines += axes.plot(bnd_lines_x.ravel(), bnd_lines_y.ravel(),
+                               color=clrs[i], label=marker, **kwargs)
+    axes.legend(loc='upper right')
+
+    return tri_lines + bnd_lines
 
 
-def plot_grid_data(grid_data, axes=None, **kwargs):
+def contourf(grid_data, *args, **kwargs):
     """Plot a gridded data object"""
-    if axes is None:
-        figure = plt.figure()
-        axes = figure.add_subplot(111)
+    axes = kwargs.pop('axes', plt.gca())
 
     ny, nx = grid_data.shape
     x0, x1 = grid_data.coordinate(0, 0), grid_data.coordinate(ny - 1, nx - 1)
-
     x = np.linspace(x0[0], x1[0], nx)
     y = np.linspace(x0[1], x1[1], ny)
 
-    axes.contourf(x, y, grid_data.data, **kwargs)
+    return axes.contourf(x, y, grid_data.data, *args, **kwargs)
 
-    axes.tick_params(axis='x', rotation=-30)
-    return axes
+
+def tricontourf(function, *args, **kwargs):
+    """Plot a finite element field"""
+    axes = kwargs.pop('axes', plt.gca())
+
+    mesh = function.ufl_domain()
+    coordinates = _get_coordinates(mesh)
+    coords = coordinates.dat.data_ro
+    x, y = coords[:, 0], coords[:, 1]
+
+    triangles = coordinates.cell_node_map().values
+    triangulation = matplotlib.tri.Triangulation(x, y, triangles)
+
+    if len(function.ufl_shape) == 1:
+        element = function.ufl_element().sub_elements()[0]
+        Q = firedrake.FunctionSpace(mesh, element)
+        fn = firedrake.interpolate(sqrt(inner(function, function)), Q)
+    elif len(function.ufl_shape) == 0:
+        fn = function
+
+    vals = np.asarray(fn.at(coords, tolerance=1e-10))
+    return axes.tricontourf(triangulation, vals, *args, **kwargs)
+
+
+def quiver(function, *args, **kwargs):
+    """Make a quiver plot of a vector field"""
+    axes = kwargs.pop('axes', plt.gca())
+
+    coords = function.ufl_domain().coordinates.dat.data_ro
+    X, Y = coords.T
+    vals = np.asarray(function.at(coords, tolerance=1e-10))
+    C = np.linalg.norm(vals, axis=1)
+    U, V = vals.T
+    return axes.quiver(X, Y, U, V, C, *args, **kwargs)
 
 
 def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
@@ -207,127 +261,54 @@ def _mesh_hmin(coordinates):
 
     return np.sqrt(hmin)
 
-def _plot_vector_field_streamline(v, axes=None, resolution=None, spacing=None,
-                                  max_num_points=np.inf, **kwargs):
-    mesh = v.ufl_domain()
+
+class StreamplotSet(matplotlib.streamplot.StreamplotSet,
+                    matplotlib.cm.ScalarMappable):
+    def __init__(self, lines=None, arrows=None, norm=None, cmap=None):
+        matplotlib.streamplot.StreamplotSet.__init__(self, lines, arrows)
+        matplotlib.cm.ScalarMappable.__init__(self, norm=norm, cmap=cmap)
+        self.set_array([])
+
+
+def streamplot(u, **kwargs):
+    """Draw streamlines of a vector field"""
+    axes = kwargs.pop('axes', plt.gca())
+    cmap = kwargs.pop('cmap', matplotlib.cm.viridis)
+
+    mesh = u.ufl_domain()
     coordinates = _get_coordinates(mesh)
-    if resolution is None:
-        resolution = _mesh_hmin(coordinates)
-    if spacing is None:
-        spacing = 2 * resolution
-
+    precision = kwargs.pop('precision', _mesh_hmin(coordinates))
+    density = kwargs.pop('density', 2*_mesh_hmin(coordinates))
+    max_num_points = kwargs.pop('max_num_points', np.inf)
     coords = coordinates.dat.data_ro
+    max_speed = icepack.norm(u, norm_type='Linfty')
+
     tree = scipy.spatial.KDTree(coords)
-
-    if axes is None:
-        figure = plt.figure()
-        axes = figure.add_subplot(111)
-
-    cmap = kwargs.pop("cmap", matplotlib.cm.viridis)
-    norm = icepack.norm(v, 'Linfty')
-
     indices = set(range(len(coords)))
-    while len(indices) > 0:
-        x = coords[indices.pop(), :]
-        try:
-            s = streamline(v, x, resolution, max_num_points=max_num_points)
-            speeds = np.sqrt(np.sum(np.asarray(v.at(s, tolerance=1e-10))**2, 1))
-            colors = speeds / norm
-            segments = [(s[k, :], s[k+1,:]) for k in range(len(s) - 1)]
-            lines = LineCollection(segments, colors=cmap(colors[:-1]))
-            axes.add_collection(lines)
 
-            for z in s:
-                for index in tree.query_ball_point(z, spacing):
+    trajectories = []
+    line_colors = []
+    while indices:
+        x0 = coords[indices.pop(), :]
+        try:
+            s = streamline(u, x0, precision, max_num_points)
+            for y in s:
+                for index in tree.query_ball_point(y, density):
                     indices.discard(index)
+
+            points = s.reshape(-1, 1, 2)
+            trajectories.extend(np.hstack([points[:-1], points[1:]]))
+
+            speeds = np.sqrt(np.sum(np.asarray(u.at(s, tolerance=1e-10))**2, 1))
+            colors = speeds / max_speed
+            line_colors.extend(cmap(colors[:-1]))
+
         except ValueError:
             pass
 
-    return _fix_axis_limits(axes, coords)
+    line_collection = LineCollection(trajectories, colors=np.array(line_colors))
+    axes.add_collection(line_collection)
+    axes.autoscale_view()
 
-
-def _plot_vector_field_magnitude(v, axes=None, **kwargs):
-    mesh = v.function_space().mesh()
-    element = v.function_space().ufl_element()
-    Q = firedrake.FunctionSpace(mesh, element.family(), element.degree())
-    from firedrake import inner, sqrt
-    magnitude = firedrake.Function(Q).interpolate(sqrt(inner(v, v)))
-
-    return plot(magnitude, axes=axes, **kwargs)
-
-
-def plot_vector_field(v, axes=None, **kwargs):
-    """Plot the directions, streamlines, or magnitude of a vector field
-
-    The default method to plot a vector field is to compute the magnitude
-    at each point and make a contour plot of this scalar field. You can also
-    make a quiver plot by passing the keyword argument `method='quiver'`.
-    Finally, the streamlines of the vector field can be plotted with colors
-    representing the magnitude by passing `method='streamline'`, although
-    this is substantially more expensive and may require tweaking.
-
-    Parameters
-    ----------
-    v : firedrake.Function
-        The vector field to plot
-    axes : matplotlib.Axes, optional
-        The axis to draw the figure on
-
-    Other Parameters
-    ----------------
-    method : str, optional
-        Either 'magnitude' (default), 'streamline', or 'quiver'
-    resolution : float, optional
-        If using a streamline plot, the resolution along a streamline
-    spacing : float, optional
-        If using a streamline plot, the minimum spacing between seed points
-        for streamlines
-    max_num_points : int, optional
-        If using a streamline plot, the maximum number of points along a
-        streamline; this is probably necessary if the vector field has a
-        stable equilibrium
-    """
-    method_name = kwargs.pop('method', 'magnitude')
-
-    methods = {"magnitude": _plot_vector_field_magnitude,
-               "streamline": _plot_vector_field_streamline,
-               "quiver": firedrake.plot}
-
-    if not method_name in methods:
-        raise ValueError("Method for plotting vector field must be either "
-                        "`magnitude`, `streamline`, or `quiver`!")
-
-    return methods[method_name](v, axes=axes, **kwargs)
-
-
-def plot(mesh_or_function, axes=None, **kwargs):
-    """Make a visualization of a mesh or a field
-
-    This function overrides the usual firedrake plotting functions. When
-    plotting a mesh, the boundaries are shown with colors and a legend to
-    show the ID for each boundary segment. When plotting a scalar or vector
-    field, the default colormap is set to viridis. Finally, when plotting a
-    vector field, the default behavior is to instead plot the magnitude of
-    the vector, rather than a quiver plot. A quiver plot or a streamline
-    plot can instead be selected by passing the keyword argument `method`
-    with value `quiver` or `streamline` respectively.
-
-    .. seealso::
-
-       :py:func:`firedrake.plot.plot`
-          Documentation for the firedrake plot function
-    """
-    if isinstance(mesh_or_function, firedrake.mesh.MeshGeometry):
-        return plot_mesh(mesh_or_function, axes=axes, **kwargs)
-
-    kwargs['cmap'] = matplotlib.cm.get_cmap(kwargs.pop('cmap', 'viridis'))
-
-    if isinstance(mesh_or_function, GridData):
-        return plot_grid_data(mesh_or_function, axes=axes, **kwargs)
-
-    if (len(mesh_or_function.ufl_shape) == 1):
-        return plot_vector_field(mesh_or_function, axes=axes, **kwargs)
-
-    axes = firedrake.plot(mesh_or_function, axes=axes, **kwargs)
-    axes.tick_params(axis='x', rotation=-30)
-    return axes
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=max_speed)
+    return StreamplotSet(lines=line_collection, cmap=cmap, norm=norm)

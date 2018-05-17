@@ -11,16 +11,17 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy as np
+import matplotlib.pyplot as plt
 import firedrake
-import icepack
-from icepack.plot import streamline
+import icepack, icepack.plot
 from icepack.grid import GridData
 
 def test_plot_mesh():
     N = 32
     mesh = firedrake.UnitSquareMesh(N, N)
-    axes = icepack.plot(mesh)
-    assert axes.legend_ is not None
+    fig, ax = plt.subplots()
+    icepack.plot.triplot(mesh, axes=ax)
+    assert ax.legend_ is not None
 
 
 def test_plot_grid_data():
@@ -36,8 +37,22 @@ def test_plot_grid_data():
             data[i, j] = (x - 0.5) * (y - 0.5)
 
     dataset = GridData(x0, delta, data, missing_data_value=np.nan)
-    axes = icepack.plot(dataset, levels=[-0.5 + 0.25 * n for n in range(5)])
-    assert axes is not None
+    levels = [-0.5 + 0.25 * n for n in range(5)]
+    contours = icepack.plot.contourf(dataset, levels=levels)
+    assert contours is not None
+    colorbar = plt.colorbar(contours)
+    assert colorbar is not None
+
+
+def test_plot_field():
+    mesh = firedrake.UnitSquareMesh(32, 32)
+    Q = firedrake.FunctionSpace(mesh, 'CG', 1)
+    x, y = firedrake.SpatialCoordinate(mesh)
+    u = firedrake.interpolate(x * y, Q)
+    contours = icepack.plot.tricontourf(u)
+    assert contours is not None
+    colorbar = plt.colorbar(contours)
+    assert colorbar is not None
 
 
 def test_streamline_finite_element_field():
@@ -51,7 +66,7 @@ def test_streamline_finite_element_field():
     resolution = 1 / N
     radius = 0.5
     x0 = (radius, 0)
-    xs = streamline(v, x0, resolution)
+    xs = icepack.plot.streamline(v, x0, resolution)
 
     num_points, _ = xs.shape
     assert num_points > 1
@@ -73,13 +88,12 @@ def test_streamline_grid_data():
             data_vx[i, j] = -Y
             data_vy[i, j] = X
 
-    from icepack.grid import GridData
     vx = GridData((0, 0), 1/N, data_vx, missing_data_value=np.nan)
     vy = GridData((0, 0), 1/N, data_vy, missing_data_value=np.nan)
 
     radius = 0.5
     x0 = (radius, 0)
-    xs = streamline((vx, vy), x0, 1/N)
+    xs = icepack.plot.streamline((vx, vy), x0, 1/N)
 
     num_points, _ = xs.shape
     assert num_points > 1
@@ -87,21 +101,3 @@ def test_streamline_grid_data():
     for n in range(num_points):
         z = xs[n, :]
         assert abs(sum(z**2) - radius**2) < 1/N
-
-
-def test_plotting_vector_fields():
-    N = 32
-    mesh = firedrake.UnitSquareMesh(N, N)
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', 1)
-
-    x, y = firedrake.SpatialCoordinate(mesh)
-    v = firedrake.Function(V).interpolate(firedrake.as_vector((1, 1)))
-
-    axes = icepack.plot(v, method='streamline')
-    assert axes is not None
-
-    axes = icepack.plot(v, method='magnitude')
-    assert axes is not None
-
-    axes = icepack.plot(v, method='quiver')
-    assert axes is not None
