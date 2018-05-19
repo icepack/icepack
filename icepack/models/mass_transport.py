@@ -23,7 +23,9 @@ import firedrake
 from firedrake import grad, div, dx, ds, inner
 
 class MassTransport(object):
-    def solve(self, dt, h0, a, u, **kwargs):
+    def solve(self, dt, h0, a, u, h_inflow=None, **kwargs):
+        h_inflow = h_inflow if h_inflow is not None else h0
+
         Q = h0.ufl_function_space()
         h, phi = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
         mesh = Q.mesh()
@@ -34,7 +36,7 @@ class MassTransport(object):
 
         F = (h * (phi - dt * inner(u, grad(phi))) * dx
              + dt * h * phi * outflow * ds)
-        A = (h0 + dt * a) * phi * dx - dt * h0 * phi * inflow * ds
+        A = (h0 + dt * a) * phi * dx - dt * h_inflow * phi * inflow * ds
 
         h = h0.copy(deepcopy=True)
         solver_parameters = {'ksp_type': 'preonly', 'pc_type' :'lu'}
