@@ -176,24 +176,3 @@ texinfo_documents = [
      author, 'icepack', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-# -- Automatically building API docs --------------------------------------
-
-def run_apidoc(_):
-    modules = ['icepack']
-
-    # Get location of Sphinx files
-    current_dir = os.path.abspath(os.path.dirname(__file__))
-    repo_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
-
-    from sphinx.apidoc import main
-    for module in modules:
-        module_dir = os.path.join(repo_dir, module)
-        print(module_dir)
-        main(['--force', '--separate', '--maxdepth=1', '--module-first',
-              '-o', current_dir, module_dir])
-
-def setup(app):
-    app.connect('builder-inited', run_apidoc)
-
