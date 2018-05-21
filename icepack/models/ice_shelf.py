@@ -50,7 +50,7 @@ def terminus(u, h, ice_front_ids=()):
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
 
     .. math::
-       E(u) = \int_\Gamma\rho_I(1 - \rho_I/\rho_W)gh^2u\cdot\\nu\hspace{2pt}ds
+       E(u) = \int_\Gamma\\varrho gh^2u\cdot\\nu\hspace{2pt}ds
 
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.
