@@ -37,7 +37,7 @@ def compute_search_direction(E, u, bc):
 
     p = Function(u.function_space())
     solve(dF == -F, p, bc,
-          solver_parameters={'ksp_type': 'cg', 'pc_type': 'ilu'})
+          solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'})
     return p
 
 
