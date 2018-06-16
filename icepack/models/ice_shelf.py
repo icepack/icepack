@@ -164,9 +164,14 @@ class IceShelf(object):
         bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
                for k in dirichlet_ids]
 
+        degree_u = u.ufl_element().degree()
+        degree_h = h.ufl_element().degree()
+        params = {'quadrature_degree': 2 * degree_h + 3 * (degree_u - 1)}
+
         # Solve the nonlinear optimization problem
         action = self.action(u=u, h=h, **kwargs)
-        return newton_search(action, u, bcs, tolerance)
+        return newton_search(action, u, bcs, tolerance,
+                             form_compiler_parameters=params)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
