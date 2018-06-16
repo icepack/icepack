@@ -12,6 +12,7 @@
 
 import firedrake
 
+
 def derivative(J, F, u, p, bc=None):
     """Compute the sensitivity of a functional of the solution of a PDE
     with respect to a parameter

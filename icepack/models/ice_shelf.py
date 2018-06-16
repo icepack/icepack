@@ -27,7 +27,8 @@ def gravity(u, h):
     The gravitational part of the ice shelf action functional is
 
     .. math::
-        E(u) = -\\frac{1}{2}\int_\Omega \\varrho g\\nabla h^2\cdot u\hspace{2pt}dx
+        E(u) = -\\frac{1}{2}\int_\Omega
+        \\varrho g\\nabla h^2\cdot u\hspace{2pt}dx
 
     Parameters
     ----------
@@ -73,8 +74,9 @@ class IceShelf(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice shelf viscous action
     """
+
     def __init__(self, viscosity=viscosity, side_friction=side_friction,
-            gravity=gravity, terminus=terminus, penalty=penalty):
+                 gravity=gravity, terminus=terminus, penalty=penalty):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -158,11 +160,11 @@ class IceShelf(object):
         tolerance = tol * scale
 
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
-        kwargs['side_wall_ids'] = kwargs.get('side_wall_ids', [])
-        kwargs['ice_front_ids'] = list(set(boundary_ids)
-            - set(dirichlet_ids) - set(kwargs['side_wall_ids']))
-        bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
-               for k in dirichlet_ids]
+        side_wall_ids = kwargs.get('side_wall_ids', [])
+        kwargs['side_wall_ids'] = side_wall_ids
+        kwargs['ice_front_ids'] = list(
+            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
+        bcs = firedrake.DirichletBC(u.function_space(), (0, 0), dirichlet_ids)
 
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
@@ -191,3 +193,4 @@ class IceShelf(object):
             The new ice thickness at `t + dt`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
+

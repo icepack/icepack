@@ -15,6 +15,7 @@ import firedrake
 from firedrake import inner, grad, dx, ds, interpolate
 import icepack, icepack.models, icepack.adjoint
 
+
 def test_poisson_rhs():
     for N in range(32, 65, 4):
         mesh = firedrake.UnitSquareMesh(N, N)
@@ -136,8 +137,7 @@ def test_ice_shelf_rheology():
         nu = firedrake.FacetNormal(mesh)
         J = h * inner(u, nu) * ds(2)
 
-        bcs = [firedrake.DirichletBC(V, (0, 0), k)
-               for k in opts['dirichlet_ids']]
+        bcs = firedrake.DirichletBC(V, (0, 0), opts['dirichlet_ids'])
         dJ = icepack.adjoint.derivative(J, F, u, A0, bcs)
         J0 = firedrake.assemble(J)
         dJ_dB = firedrake.assemble(firedrake.action(dJ, B))

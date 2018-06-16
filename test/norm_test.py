@@ -20,6 +20,7 @@ x, y = firedrake.SpatialCoordinate(mesh)
 Q = firedrake.FunctionSpace(mesh, 'CG', 2)
 V = firedrake.VectorFunctionSpace(mesh, 'CG', 2)
 
+
 def test_scalar_field_norms():
     f = firedrake.Function(Q)
     f.interpolate(x * y)
@@ -28,6 +29,7 @@ def test_scalar_field_norms():
     assert abs(icepack.norm(f, norm_type='L2') - 1/3) < tolerance
     assert abs(icepack.norm(f, norm_type='Linfty') - 1) < tolerance
     assert abs(icepack.norm(f, norm_type='H01')**2 - 2/3) < tolerance
+
 
 def test_vector_field_norms():
     u = firedrake.Function(V)

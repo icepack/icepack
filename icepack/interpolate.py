@@ -10,9 +10,8 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import numpy as np
 import firedrake
-from firedrake import Expression, Function, interpolate as _interpolate
+
 
 def interpolate(f, Q):
     """Interpolate an analytically-defined function to a function space

@@ -21,10 +21,10 @@ from numpy import exp
 from firedrake import grad, dx, sqrt, Identity, inner, sym, tr as trace
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n
 
-transition_temperature = 263.15     # K
-A0_cold = 3.985e-13 * year * 1.0e18 # mPa**-3 yr**-1
+transition_temperature = 263.15      # K
+A0_cold = 3.985e-13 * year * 1.0e18  # mPa**-3 yr**-1
 A0_warm = 1.916e3 * year * 1.0e18
-Q_cold = 60                         # kJ / mol
+Q_cold = 60                          # kJ / mol
 Q_warm = 139
 
 
@@ -101,3 +101,4 @@ def viscosity_depth_averaged(u, h, A):
     firedrake.Form
     """
     return n/(n + 1) * h * inner(M(eps(u), A), eps(u)) * dx
+

@@ -15,6 +15,7 @@ from firedrake import inner, dx, ds, sqrt
 from icepack.constants import weertman_sliding_law as m
 from icepack import utilities
 
+
 def tau(u, C):
     """Compute the shear stress for a given sliding velocity
     """

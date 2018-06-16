@@ -13,6 +13,7 @@
 import inspect
 import numpy as np
 
+
 def diameter(mesh):
     """Compute the diameter of the mesh in the L-infinity metric"""
     X = mesh.coordinates.dat.data
@@ -20,14 +21,18 @@ def diameter(mesh):
     Ls = np.array([np.max(X[:, k]) - np.min(X[:, k]) for k in range(d)])
     return np.min(Ls)
 
+
 def add_kwarg_wrapper(func):
     signature = inspect.signature(func)
-    if any(str(signature.parameters[name].kind) == 'VAR_KEYWORD'
-           for name in signature.parameters):
+    if any(str(signature.parameters[param].kind) == 'VAR_KEYWORD'
+           for param in signature.parameters):
         return func
 
     params = signature.parameters
+
     def wrapper(*args, **kwargs):
-        kwargs_ = dict((name, kwargs[name]) for name in kwargs if name in params)
+        kwargs_ = dict((key, kwargs[key]) for key in kwargs if key in params)
         return func(*args, **kwargs_)
+
     return wrapper
+

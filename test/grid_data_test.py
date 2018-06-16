@@ -15,6 +15,7 @@ import numpy.ma as ma
 import pytest
 from icepack.grid import GridData
 
+
 def test_manual_construction():
     x0 = (0, 0)
     dx = 1
@@ -42,7 +43,7 @@ def test_manual_construction():
 
         z = (2.5, 0.5)
         with pytest.raises(ValueError):
-            value = dataset(z)
+            dataset(z)
 
 
 def test_accessing_missing_data():
@@ -59,7 +60,7 @@ def test_accessing_missing_data():
     z = (1.5, 1.5)
     assert dataset.is_masked(z)
     with pytest.raises(ValueError):
-        value = dataset(z)
+        dataset(z)
 
 
 def test_subset():
@@ -122,7 +123,7 @@ def test_arcinfo():
     z = (1.25, 3.01)
     assert dataset.is_masked(z)
     with pytest.raises(ValueError):
-        value = dataset(z)
+        dataset(z)
 
     file = StringIO()
     arcinfo.write(file, dataset, -2e9)
@@ -141,7 +142,7 @@ def test_geotiff():
     x0 = (0, 0)
     dx = 1
     data = np.array([[i + 3 * j for j in range(3)] for i in range(3)],
-                     dtype=np.int32)
+                    dtype=np.int32)
     missing = -9999.0
     data[0, 0] = missing
     dataset1 = GridData(x0, dx, data, missing_data_value=missing)
@@ -152,3 +153,4 @@ def test_geotiff():
         geotiff.write(tmp.name, dataset1)
         dataset2 = geotiff.read(tmp.name)
         assert np.array_equal(dataset1.data, dataset2.data)
+

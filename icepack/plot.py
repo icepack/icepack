@@ -33,6 +33,7 @@ import firedrake
 from firedrake import inner, sqrt
 import icepack
 
+
 def _get_coordinates(mesh):
     """Return the coordinates of a mesh if the mesh is piecewise linear,
     or interpolate them to piecewise linear if the mesh is curved
@@ -87,7 +88,7 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
                                   "triangles")
 
     axes = axes if axes is not None else plt.gca()
-    mesh.init() # Apprently this doesn't happen automatically?
+    mesh.init()  # Apprently this doesn't happen automatically?
     coordinates = _get_coordinates(mesh)
     coords = coordinates.dat.data_ro
     x, y = coords[:, 0], coords[:, 1]
@@ -114,7 +115,7 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
         n = len(indices)
         roll = 2 - local_facet_id[indices]
         cell = coordinates.exterior_facet_node_map().values[indices, :]
-        edges = np.array([np.roll(cell[k,:], roll[k]) for k in range(n)])[:,:2]
+        edges = np.array([np.roll(cell[k, :], roll[k]) for k in range(n)])[:, :2]
 
         bnd_lines_x = np.insert(x[edges], 2, np.nan, axis=1)
         bnd_lines_y = np.insert(y[edges], 2, np.nan, axis=1)
@@ -254,9 +255,9 @@ def _mesh_hmin(coordinates):
     _, vertices_per_cell = cells.shape
     for cell in cells:
         for n in range(vertices_per_cell):
-            x = vertices[cell[n],:]
+            x = vertices[cell[n], :]
             for m in range(n + 1, vertices_per_cell):
-                y = vertices[cell[m],:]
+                y = vertices[cell[m], :]
                 hmin = min(hmin, sum((x - y)**2))
 
     return np.sqrt(hmin)

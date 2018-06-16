@@ -14,6 +14,7 @@ import numpy as np
 from firedrake import sqrt, inner, grad, dx, assemble
 from icepack import utilities
 
+
 def norm(u, norm_type='L2'):
     """Compute the norm of a field
 
@@ -24,7 +25,8 @@ def norm(u, norm_type='L2'):
 
     - ``H01``: :math:`\|u\|^2 = \int_\Omega|\\nabla u|^2dx`
 
-    - ``H1``: :math:`\|u\|^2 = \int_\Omega\\left(|u|^2 + L^2|\\nabla u|^2\\right)dx`
+    - ``H1``: :math:`\|u\|^2 = \int_\Omega
+    \\left(|u|^2 + L^2|\\nabla u|^2\\right)dx`
 
     - ``L1``: :math:`\|u\| = \int_\Omega|u|dx`
 
@@ -60,3 +62,4 @@ def norm(u, norm_type='L2'):
             return np.max(np.sqrt(np.sum(data**2, 1)))
 
     return assemble(form)**(1/p)
+

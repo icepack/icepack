@@ -17,6 +17,11 @@ from firedrake import interpolate
 import icepack
 from icepack.models.mass_transport import MassTransport
 
+
+def norm(v):
+    return icepack.norm(v, norm_type='L1')
+
+
 # Test solving the mass transport equations with a constant velocity field
 # and check that the solutions converge to the exact solution obtained from
 # the method of characteristics.
@@ -27,7 +32,6 @@ def test_mass_transport_solver_convergence():
 
     delta_x, error = [], []
     mass_transport = MassTransport()
-    norm = lambda v: icepack.norm(v, norm_type='L1')
     for N in range(16, 97, 4):
         delta_x.append(Lx / N)
 
@@ -65,6 +69,7 @@ def test_mass_transport_solver_convergence():
 from icepack.constants import rho_ice, rho_water, \
     gravity as g, glen_flow_law as n
 
+
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
 # with thickness and velocity fields that are exactly insteady state.
 def test_ice_shelf_prognostic_solver():
@@ -72,13 +77,12 @@ def test_ice_shelf_prognostic_solver():
     rho = rho_ice * (1 - rho_ice/rho_water)
 
     Lx, Ly = 20.0e3, 20.0e3
-    h0, dh = 500.0, 100.0
+    h0 = 500.0
     u0 = 100.0
     T = 254.15
 
     ice_shelf = IceShelf()
     opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
-    norm = lambda h: icepack.norm(h, norm_type='L1')
 
     delta_x, error = [], []
     for N in range(16, 65, 4):

@@ -20,7 +20,8 @@ manner consistent with the bed elevation and where the ice may go afloat.
 """
 
 import firedrake
-from firedrake import grad, div, dx, ds, inner
+from firedrake import grad, dx, ds, inner
+
 
 class MassTransport(object):
     def solve(self, dt, h0, a, u, h_inflow=None, **kwargs):
@@ -39,7 +40,7 @@ class MassTransport(object):
         A = (h0 + dt * a) * phi * dx - dt * h_inflow * phi * inflow * ds
 
         h = h0.copy(deepcopy=True)
-        solver_parameters = {'ksp_type': 'preonly', 'pc_type' :'lu'}
+        solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         firedrake.solve(F == A, h, solver_parameters=solver_parameters)
 
         return h

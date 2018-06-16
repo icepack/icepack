@@ -11,7 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import inner, grad, div, dx, ds
+from firedrake import inner, grad, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import bed_friction, side_friction, \
@@ -148,11 +148,11 @@ class IceStream(object):
         tolerance = tol * scale
 
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
-        kwargs['side_wall_ids'] = kwargs.get('side_wall_ids', [])
-        kwargs['ice_front_ids'] = list(set(boundary_ids)
-            - set(dirichlet_ids) - set(kwargs['side_wall_ids']))
-        bcs = [firedrake.DirichletBC(u.function_space(), (0, 0), k)
-               for k in dirichlet_ids]
+        side_wall_ids = kwargs.get('side_wall_ids', [])
+        kwargs['side_wall_ids'] = side_wall_ids
+        kwargs['ice_front_ids'] = list(
+            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
+        bcs = firedrake.DirichletBC(u.function_space(), (0, 0), dirichlet_ids)
 
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
@@ -175,10 +175,11 @@ class IceStream(object):
         will go afloat. The surface elevation of a floating ice shelf is
 
         .. math::
-           s = (1 - \rho_I / \rho_W)h,
+           s = (1 - \\rho_I / \\rho_W)h,
 
         provided everything is in hydrostatic balance.
         """
         Q = h.ufl_function_space()
         s_expr = firedrake.max_value(h + b, (1 - rho_ice / rho_water) * h)
         return firedrake.interpolate(s_expr, Q)
+

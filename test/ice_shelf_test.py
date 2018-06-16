@@ -25,6 +25,7 @@ u0 = 100.0
 h0, dh = 500.0, 100.0
 T = 254.15
 
+
 # This is an exact solution for the velocity of a floating ice shelf with
 # constant temperature and linearly decreasing thickness. See Greve and
 # Blatter for the derivation.
@@ -35,11 +36,17 @@ def exact_u(x):
     du = Z * q * Lx * (h0/dh) / (n + 1)
     return u0 + du
 
+
 # We'll use the same perturbation to `u` throughout these tests.
 def perturb_u(x, y):
     px, py = x/Lx, y/Ly
     q = 16 * px * (1 - px) * py * (1 - py)
     return 60 * q * (px - 0.5)
+
+
+def norm(v):
+    return icepack.norm(v, norm_type='H1')
+
 
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined using an exact solution of the ice shelf model.
@@ -50,7 +57,6 @@ def test_diagnostic_solver_convergence():
 
     # Solve the ice shelf model for successively higher mesh resolution
     delta_x, error = [], []
-    norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
@@ -87,6 +93,7 @@ def test_diagnostic_solver_parameterization():
     # Define a new viscosity functional, parameterized in terms of the
     # rheology `B` instead of the fluidity `A`
     from firedrake import inner, grad, sym, dx, tr as trace, Identity, sqrt
+
     def M(eps, B):
         I = Identity(2)
         tr = trace(eps)
@@ -106,7 +113,6 @@ def test_diagnostic_solver_parameterization():
 
     # Same as before
     delta_x, error = [], []
-    norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 65, 4):
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
@@ -146,7 +152,6 @@ def test_diagnostic_solver_side_walls():
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
 
     delta_x, error = [], []
-    norm = lambda v: icepack.norm(v, norm_type='H1')
     for N in range(16, 97, 4):
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh)
@@ -203,3 +208,4 @@ def test_diagnostic_solver_side_friction():
     u = ice_shelf.diagnostic_solve(u0=u_initial, h=h, A=A, Cs=Cs, **opts)
 
     assert icepack.norm(u) < icepack.norm(u_initial)
+

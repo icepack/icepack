@@ -25,6 +25,7 @@ notebooks: check-env
 	    --to rst \
 	    --execute \
 	    --ExecutePreprocessor.timeout=600 \
+	    --ExecutePreprocessor.kernel_name="firedrake" \
 	    --output-dir=./source \
 	    --output=icepack.demo.`basename $$filename | sed 's/ipynb/rst/g'` \
       $$filename ; \

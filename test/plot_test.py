@@ -16,6 +16,7 @@ import firedrake
 import icepack, icepack.plot
 from icepack.grid import GridData
 
+
 def test_plot_mesh():
     N = 32
     mesh = firedrake.UnitSquareMesh(N, N)
@@ -101,3 +102,4 @@ def test_streamline_grid_data():
     for n in range(num_points):
         z = xs[n, :]
         assert abs(sum(z**2) - radius**2) < 1/N
+

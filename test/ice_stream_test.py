@@ -12,6 +12,7 @@
 
 import numpy as np
 
+
 # Test that our supposed analytical solution really is a solution using the
 # symbolic algebra package `sympy`.
 def test_manufactured_solution():
@@ -101,6 +102,7 @@ height_above_flotation = 10.0
 d = -rho_ice / rho_water * (h0 - dh) + height_above_flotation
 rho = rho_ice - rho_water * d**2 / (h0 - dh)**2
 
+
 # We'll arbitrarily pick this to be the velocity, then we'll find a
 # friction coefficient and surface elevation that makes this velocity
 # an exact solution of the shelfy stream equations.
@@ -110,21 +112,31 @@ def exact_u(x):
     du = Z * q * Lx * (h0/dh) / (n + 1)
     return u_inflow + du
 
+
 def perturb_u(x, y):
     px, py = x/Lx, y/Ly
     q = 16 * px * (1 - px) * py * (1 - py)
     return 60 * q * (px - 0.5)
+
 
 # With this choice of friction coefficient, we can take the surface
 # elevation to be a linear function of the horizontal coordinate and the
 # velocity will be an exact solution of the shelfy stream equations.
 beta = 1/2
 alpha = beta * rho / rho_ice * dh / Lx
+
+
 def friction(x):
     return alpha * (rho_ice * gravity * (h0 - dh * x/Lx)) * exact_u(x)**(-1/m)
 
+
 # Total change of the surface elevation
 ds = (1 + beta) * rho/rho_ice * dh
+
+
+def norm(v):
+    return icepack.norm(v, norm_type='H1')
+
 
 def test_diagnostic_solver_convergence():
     # Create an ice stream model.
@@ -133,7 +145,6 @@ def test_diagnostic_solver_convergence():
 
     # Solve the ice stream model for successively higher mesh resolution.
     delta_x, error = [], []
-    norm = lambda v: icepack.norm(v, norm_type='H1')
 
     for N in range(16, 65, 4):
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
@@ -168,7 +179,6 @@ def test_diagnostic_solver_side_walls():
     ice_stream = icepack.models.IceStream()
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
     delta_x, error = [], []
-    norm = lambda v: icepack.norm(v, norm_type='H1')
 
     for N in range(16, 65, 4):
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
