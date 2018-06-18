@@ -55,3 +55,4 @@ if __name__ == "__main__":
 
     with open("source/index.rst", 'w') as index:
         index.write(text.format(file_list))
+

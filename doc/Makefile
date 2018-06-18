@@ -2,7 +2,7 @@
 ## Convert the demo notebooks into restructured text
 
 # This command finds non-hidden Jupyter notebooks in the directory `../demo`.
-DEMO_FILES=`find ../demo -not -path '*/\.*' -type f -name '*\.ipynb'`
+DEMO_FILES=`find ../demo -not -path '*/\.*' -type f -name '*\.ipynb' | sort`
 
 .PHONY: notebooks check-env
 
