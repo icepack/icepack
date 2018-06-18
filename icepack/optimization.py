@@ -13,10 +13,10 @@
 import firedrake
 
 
-def newton_search(E, u, bc, tolerance, max_iterations=50,
+def newton_search(E, u, bc, tolerance, scale,
+                  max_iterations=50, armijo=1e-4, contraction_factor=0.5,
                   form_compiler_parameters={},
-                  solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'},
-                  armijo=1e-4, contraction_factor=0.5):
+                  solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'}):
     """Find the minimizer of a convex functional
 
     Parameters
@@ -27,9 +27,16 @@ def newton_search(E, u, bc, tolerance, max_iterations=50,
         Initial guess for the minimizer
     tolerance : float
         Stopping criterion for the optimization procedure
+    scale : firedrake.Form
+        A positive scale functional by which to measure the objective
     max_iterations : int, optional
         Optimization procedure will stop at this many iterations regardless
         of convergence
+    armijo : float, optional
+        The constant in the Armijo condition (see Nocedal and Wright)
+    contraction_factor : float, optional
+        The amount by which to backtrack in the line search if the Armijo
+        condition is not satisfied
     form_compiler_parameters : dict, optional
         Extra options to pass to the firedrake form compiler
     solver_parameters : dict, optional
@@ -59,7 +66,7 @@ def newton_search(E, u, bc, tolerance, max_iterations=50,
         # Compute the directional derivative, check if we're done
         slope = assemble(dE_dp)
         assert slope < 0
-        if (abs(slope) < tolerance) or (n >= max_iterations):
+        if (abs(slope) < assemble(scale) * tolerance) or (n >= max_iterations):
             return u
 
         # Backtracking search

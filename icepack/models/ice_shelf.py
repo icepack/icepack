@@ -124,6 +124,14 @@ class IceShelf(object):
         penalty = self.penalty(u=u, h=h, **kwargs)
         return viscosity + side_friction - gravity - terminus + penalty
 
+    def scale(self, u, h, **kwargs):
+        """Return the positive, convex part of the action functional
+
+        The positive part of the action functional is used as a dimensional
+        scale to determine when to terminate an optimization algorithm.
+        """
+        return self.viscosity(u=u, h=h, **kwargs)
+
     def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness
 
@@ -154,11 +162,6 @@ class IceShelf(object):
         """
         u = u0.copy(deepcopy=True)
 
-        # Scale the non-dimensional convergence tolerance by the viscous power
-        viscosity = self.viscosity(u=u, h=h, **kwargs)
-        scale = firedrake.assemble(viscosity)
-        tolerance = tol * scale
-
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
         side_wall_ids = kwargs.get('side_wall_ids', [])
         kwargs['side_wall_ids'] = side_wall_ids
@@ -172,7 +175,8 @@ class IceShelf(object):
 
         # Solve the nonlinear optimization problem
         action = self.action(u=u, h=h, **kwargs)
-        return newton_search(action, u, bcs, tolerance,
+        scale = self.scale(u=u, h=h, **kwargs)
+        return newton_search(action, u, bcs, tol, scale,
                              form_compiler_parameters=params)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):

@@ -110,6 +110,15 @@ class IceStream(object):
         return (viscosity + friction + side_friction
                 - gravity - terminus + penalty)
 
+    def scale(self, u, h, s, **kwargs):
+        """Return the positive, convex part of the action functional
+
+        The positive part of the action functional is used as a dimensional
+        scale to determine when to terminate an optimization algorithm.
+        """
+        return (self.viscosity(u=u, h=h, s=s, **kwargs)
+                + self.friction(u=u, h=h, s=s, **kwargs))
+
     def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness and surface
         elevation
@@ -142,10 +151,6 @@ class IceStream(object):
             that were set when this model object was initialized
         """
         u = u0.copy(deepcopy=True)
-        viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
-        friction = self.friction(u=u, h=h, s=s, **kwargs)
-        scale = firedrake.assemble(viscosity + friction)
-        tolerance = tol * scale
 
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
         side_wall_ids = kwargs.get('side_wall_ids', [])
@@ -159,7 +164,8 @@ class IceStream(object):
         params = {'quadrature_degree': 2 * degree_h + 3 * (degree_u - 1)}
 
         action = self.action(u=u, h=h, s=s, **kwargs)
-        return newton_search(action, u, bcs, tolerance,
+        scale = self.scale(u=u, h=h, s=s, **kwargs)
+        return newton_search(action, u, bcs, tol, scale,
                              form_compiler_parameters=params)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
