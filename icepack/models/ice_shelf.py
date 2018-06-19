@@ -132,6 +132,19 @@ class IceShelf(object):
         """
         return self.viscosity(u=u, h=h, **kwargs)
 
+    def quadrature_degree(self, u, h, **kwargs):
+        """Return the quadrature degree necessary to integrate the action
+        functional accurately
+
+        Firedrake uses a very conservative algorithm for estimating the
+        number of quadrature points necessary to integrate a given
+        expression. By exploiting known structure of the problem, we can
+        reduce the number of quadrature points while preserving accuracy.
+        """
+        degree_u = u.ufl_element().degree()
+        degree_h = h.ufl_element().degree()
+        return 3 * (degree_u - 1) + 2 * degree_h
+
     def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
         """Solve for the ice velocity from the thickness
 
@@ -168,10 +181,7 @@ class IceShelf(object):
         kwargs['ice_front_ids'] = list(
             set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
         bcs = firedrake.DirichletBC(u.function_space(), (0, 0), dirichlet_ids)
-
-        degree_u = u.ufl_element().degree()
-        degree_h = h.ufl_element().degree()
-        params = {'quadrature_degree': 2 * degree_h + 3 * (degree_u - 1)}
+        params = {'quadrature_degree': self.quadrature_degree(u, h, **kwargs)}
 
         # Solve the nonlinear optimization problem
         action = self.action(u=u, h=h, **kwargs)
