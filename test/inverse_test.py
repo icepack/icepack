@@ -55,6 +55,10 @@ def test_poisson_inverse():
     a0 = interpolate(firedrake.Constant(1), Q)
     u0 = model.solve(a=a0, f=f, dirichlet_ids=dirichlet_ids)
 
+    def callback(inverse_problem):
+        E, R = inverse_problem.objective, inverse_problem.regularization
+        print(firedrake.assemble(E), firedrake.assemble(R))
+
     L = firedrake.Constant(1e-4)
     inverse_problem = icepack.inverse.InverseProblem(
         model=model,
@@ -65,8 +69,11 @@ def test_poisson_inverse():
         state=u0,
         parameter_name='a',
         parameter=a0,
+        parameter_bounds=(0, 4),
+        barrier=1e-6,
         model_args={'f': f},
-        dirichlet_ids=dirichlet_ids
+        dirichlet_ids=dirichlet_ids,
+        callback=callback
     )
 
     assert inverse_problem.state is not None
@@ -124,9 +131,10 @@ def test_ice_shelf_inverse():
     u_true = ice_shelf.diagnostic_solve(h=h, A=A_true, u0=u_initial,
                                         dirichlet_ids=dirichlet_ids, tol=tol)
 
+    area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
     def callback(inverse_problem):
         E, R = inverse_problem.objective, inverse_problem.regularization
-        print(firedrake.assemble(E), firedrake.assemble(R))
+        print(firedrake.assemble(E) / area, firedrake.assemble(R) / area)
 
     L = 1e-4 * Lx
     regularization = L**2/2 * inner(grad(A_initial), grad(A_initial)) * dx
@@ -139,6 +147,8 @@ def test_ice_shelf_inverse():
         state=u_initial,
         parameter_name='A',
         parameter=A_initial,
+        parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
+        barrier=1e-3,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
         dirichlet_ids=dirichlet_ids,
         callback=callback
@@ -218,6 +228,8 @@ def test_ice_shelf_inverse_with_noise():
         state=u_initial,
         parameter_name='A',
         parameter=A_initial,
+        parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
+        barrier=1e-3,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
         dirichlet_ids=dirichlet_ids,
         callback=callback

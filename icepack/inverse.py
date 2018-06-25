@@ -11,23 +11,25 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import scipy.optimize
+from scipy import optimize
 import firedrake
-from firedrake import replace, dx
+from firedrake import action, adjoint, replace, ln, dx
 
 
-def _find_zero_crossing(p, q):
-    if np.min(p.dat.data_ro[:]) <= 0:
+def _worst_case_bracket(p, q, pmin, pmax):
+    P = p.dat.data_ro[:]
+    if not ((pmin <= np.min(P)) and (np.max(P) <= pmax)):
         return 0.0
 
     t = 1.0
-    pt = firedrake.Function(p.function_space())
-
-    while True:
-        pt.assign(p + t * q)
-        if np.min(pt.dat.data_ro[:]) > 0:
-            return t
+    pt = p.copy(deepcopy=True)
+    pt += t * q
+    while not ((pmin <= np.min(pt.dat.data_ro[:])) and
+               (np.max(pt.dat.data_ro[:]) <= pmax)):
         t /= 2
+        pt.assign(p + t * q)
+
+    return t
 
 
 class InverseProblem(object):
@@ -47,7 +49,9 @@ class InverseProblem(object):
 
     def __init__(self, model, method, objective, regularization,
                  state_name, state, parameter_name, parameter,
-                 model_args={}, dirichlet_ids=[], callback=None):
+                 parameter_bounds=(0, float('inf')), barrier=1.0,
+                 model_args={}, dirichlet_ids=[],
+                 callback=None):
         """Initialize the inverse problem
 
         Parameters
@@ -100,12 +104,14 @@ class InverseProblem(object):
         degree = model.quadrature_degree(**args)
         self._fc_params = {'quadrature_degree': degree}
 
-        # Create the error and regularization functionals
+        # Create the error, regularization, and barrier functionals
         self._E = replace(objective, {state: self.state})
         self._R = replace(regularization, {parameter: self.parameter})
-        self._dE = firedrake.derivative(self._E, self.state)
-        dR = firedrake.derivative(self._R, self.parameter)
-        self._J = self._E + self._R
+        self._pmin, self._pmax = parameter_bounds
+        P = self._pmax - self._pmin
+        self._B = -barrier * (ln((self._p - self._pmin)/P)
+                              + ln((self._pmax - self._p)/P)) * dx
+        self._J = self._E + self._R + self._B
 
         # Create the weak form of the forward model, the adjoint state, and
         # the derivative of the objective functional
@@ -115,7 +121,12 @@ class InverseProblem(object):
         V = self.state.function_space()
         self._λ = firedrake.Function(V)
         dF_dp = firedrake.derivative(self._F, self.parameter)
-        self._dJ = firedrake.action(firedrake.adjoint(dF_dp), self._λ) + dR
+
+        self._dE = firedrake.derivative(self._E, self.state)
+        dR = firedrake.derivative(self._R, self.parameter)
+        dB = firedrake.derivative(self._B, self.parameter)
+
+        self._dJ = (action(adjoint(dF_dp), self._λ) + dR + dB)
 
         # Create Dirichlet BCs where they apply for the adjoint solve
         rank = self._λ.ufl_element().num_sub_elements()
@@ -128,7 +139,7 @@ class InverseProblem(object):
         Q = self.parameter.function_space()
         self._q = firedrake.Function(Q)
         self._M = (firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-                   + firedrake.derivative(dR, self.parameter))
+                   + firedrake.derivative(dR + dB, self.parameter))
 
         # Run a first update to get the machine in a consistent state
         self.update()
@@ -169,6 +180,12 @@ class InverseProblem(object):
         """The regularization functional, which penalizes unphysical modes
         in the inferred parameter"""
         return self._R
+
+    @property
+    def barrier(self):
+        """The barrier functional, which keeps the parameter between the
+        upper and lower bounds"""
+        return self._B
 
     @property
     def gradient(self):
@@ -216,14 +233,18 @@ class InverseProblem(object):
                                     **{self._parameter_name: p_s}))
             return self._assemble(replace(J, {u: u_s, p: p_s}))
 
+        # Try to get a good bounding interval for the line search
         try:
-            a, b, c, fa, fb, fc, num_calls = scipy.optimize.bracket(f)
-            b = max(a, b, c)
-        except:
-            b = _find_zero_crossing(p, q)
+            a, b, c, fa, fb, fc, num_calls = optimize.bracket(f)
+            t1, t2 = min(a, b, c), max(a, b, c)
 
-        result = scipy.optimize.minimize_scalar(f, bounds=(0, b),
-                                                method='bounded')
+        # If there was an exception, the initial endpoint probably made the
+        # parameter go invalid somehow (e.g. outside of the box constraints),
+        # so pick the stupidest interval possible.
+        except AssertionError:
+            t1, t2 = 0, _worst_case_bracket(p, q, self._pmin, self._pmax) / 2
+
+        result = optimize.minimize_scalar(f, bounds=(t1, t2), method='bounded')
         if not result.success:
             raise ValueError("Line search failed: {}".format(result.message))
 
