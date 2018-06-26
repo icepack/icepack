@@ -58,7 +58,7 @@ def _get_colors(colors, num_markers):
 
 def subplots(*args, **kwargs):
     subplot_kw = kwargs.get('subplot_kw', {})
-    subplot_kw['adjustable'] = subplot_kw.get('adjustable', 'box-forced')
+    subplot_kw['adjustable'] = subplot_kw.get('adjustable', 'box')
     kwargs['subplot_kw'] = subplot_kw
     fig, axes = plt.subplots(*args, **kwargs)
     formatter = matplotlib.ticker.ScalarFormatter(useOffset=True)
