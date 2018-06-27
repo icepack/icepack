@@ -241,10 +241,3 @@ def test_ice_shelf_inverse_with_noise():
     iters = inverse_problem.solve(rtol=2.5e-3, atol=0.0, max_iterations=100)
     assert iters < max_iterations
 
-    import matplotlib.pyplot as plt
-    import icepack.plot
-    fig, (ax1, ax2) = plt.subplots(2)
-    icepack.plot.tricontourf(inverse_problem.state, axes=ax1)
-    icepack.plot.tricontourf(inverse_problem.parameter, axes=ax2)
-    plt.show(fig)
-
