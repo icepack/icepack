@@ -1,11 +1,3 @@
-
-## Convert the demo notebooks into restructured text
-
-# This command finds non-hidden Jupyter notebooks in the directory `../demo`.
-DEMO_FILES=`find ../demo -not -path '*/\.*' -type f -name '*\.ipynb' | sort`
-
-.PHONY: notebooks check-env
-
 # This environment variable needs to be set in order to find the data sets used
 # for some of the demos.
 check-env:
@@ -16,21 +8,21 @@ endif
 source/index.rst:
 	python3 make_index.py $(DEMO_FILES)
 
-# For each demo, execute it with a 10-minute timeout, convert it to restructured
+DEMO_FILES:=$(shell find ../demo -not -path '*/\.*' -type f -name '*\.ipynb' | sort)
+notebooks: $(patsubst ../demo/%.ipynb,source/icepack.demo.%.rst,$(DEMO_FILES))
+
+# For each demo, execute it with a 10-min. timeout, convert it to restructured
 # text, and save the result in the `source` directory with `icepack.demo.`
 # prepended to the name.
-notebooks: check-env
-	for filename in $(DEMO_FILES) ; do \
-	    PYTHONPATH=`dirname $$filename` jupyter nbconvert \
-	    --to rst \
-	    --execute \
-	    --ExecutePreprocessor.timeout=600 \
-	    --ExecutePreprocessor.kernel_name="firedrake" \
-	    --output-dir=./source \
-	    --output=icepack.demo.`basename $$filename | sed 's/ipynb/rst/g'` \
-      $$filename ; \
-	done
-
+source/icepack.demo.%.rst: ../demo/%.ipynb
+	PYTHONPATH=`dirname $<` jupyter nbconvert \
+			   --to rst \
+			   --execute \
+			   --ExecutePreprocessor.timeout=1200 \
+			   --ExecutePreprocessor.kernel_name="firedrake" \
+			   --output-dir=./source \
+			   --output=`basename $@` \
+			   $<
 
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
