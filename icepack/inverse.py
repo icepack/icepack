@@ -82,73 +82,108 @@ class InverseProblem(object):
         dirichlet_ids : list of int, optional
             IDs of points on the domain boundary where Dirichlet conditions
             are applied
-        callback : callable, optional
-            Function to call at the end of every iteration
 
         The state variable must be an argument of the objective functional,
-        and the paramter variable must be an argument of the regularization
-        functional.
+        and the parameter variable must be an argument of the
+        regularization functional.
         """
-        self._model = model
-        self._method = method
-        self._callback = callback or (lambda s: None)
+        self.model = model
+        self.method = method
 
-        # Initialize the current guess for the parameters and the solution of
-        # the forward model physics with these parameters
-        self._parameter_name = parameter_name
-        self._p = parameter.copy(deepcopy=True)
-        self._u = state.copy(deepcopy=True)
+        self.model_args = model_args
+        self.dirichlet_ids = dirichlet_ids
 
-        self._model_args = dict(**model_args, dirichlet_ids=dirichlet_ids)
-        args = dict(**self._model_args,
-                    **{state_name: self.state, parameter_name: self.parameter})
+        self.parameter_name = parameter_name
+        self.parameter = parameter
+        self.state_name = state_name
+        self.state = state
+
+        self.objective = objective
+        self.regularization = regularization
+        self.parameter_bounds = parameter_bounds
+        self.barrier = barrier
+
+
+class InverseSolver(object):
+    """Iteratively approximates the solution of an inverse problem"""
+    def __init__(self, problem, callback=(lambda s: None)):
+        """Initializes the inverse solver with the right functionals and
+        auxiliary fields
+
+        Parameters
+        ----------
+        problem : InverseProblem
+            The instance of the problem to be solved
+        callback : callable, optional
+            Function to call at the end of every iteration
+        """
+        self._problem = problem
+        self._callback = callback
+
+        self._p = problem.parameter.copy(deepcopy=True)
+        self._u = problem.state.copy(deepcopy=True)
+
+        self._model_args = dict(**problem.model_args,
+                                dirichlet_ids=problem.dirichlet_ids)
+        u_name, p_name = problem.state_name, problem.parameter_name
+        args = dict(**self._model_args, **{u_name: self._u, p_name: self._p})
 
         # Make the form compiler use a reasonable number of quadrature points
-        degree = model.quadrature_degree(**args)
+        degree = problem.model.quadrature_degree(**args)
         self._fc_params = {'quadrature_degree': degree}
 
         # Create the error, regularization, and barrier functionals
-        self._E = replace(objective, {state: self.state})
-        self._R = replace(regularization, {parameter: self.parameter})
-        self._pmin, self._pmax = parameter_bounds
-        P = self._pmax - self._pmin
-        self._B = -barrier * (ln((self._p - self._pmin)/P)
-                              + ln((self._pmax - self._p)/P)) * dx
+        self._E = replace(problem.objective, {problem.state: self._u})
+        self._R = replace(problem.regularization, {problem.parameter: self._p})
+        pmin, pmax = problem.parameter_bounds
+        β = firedrake.Constant(problem.barrier)
+        δp = pmax - pmin
+        self._B = -β * (ln((self._p - pmin)/δp)
+                        + ln((pmax - self._p)/δp)) * dx
         self._J = self._E + self._R + self._B
 
         # Create the weak form of the forward model, the adjoint state, and
         # the derivative of the objective functional
-        self._F = firedrake.derivative(model.action(**args), self.state)
-        self._dF_du = firedrake.derivative(self._F, self.state)
+        self._F = firedrake.derivative(problem.model.action(**args), self._u)
+        self._dF_du = firedrake.derivative(self._F, self._u)
 
+        # Create a search direction and a linear solver for projecting the
+        # gradient of the objective back into the primal space
+        dR = firedrake.derivative(self._R, self._p)
+        dB = firedrake.derivative(self._B, self._p)
+        self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
+        Q = self._p.function_space()
+        self._q = firedrake.Function(Q)
+        self._M = (firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+                   + firedrake.derivative(dR + dB, self._p))
+
+        # Create the adjoint state variable
         V = self.state.function_space()
         self._λ = firedrake.Function(V)
-        dF_dp = firedrake.derivative(self._F, self.parameter)
-
-        self._dE = firedrake.derivative(self._E, self.state)
-        dR = firedrake.derivative(self._R, self.parameter)
-        dB = firedrake.derivative(self._B, self.parameter)
-
-        self._dJ = (action(adjoint(dF_dp), self._λ) + dR + dB)
+        dF_dp = firedrake.derivative(self._F, self._p)
 
         # Create Dirichlet BCs where they apply for the adjoint solve
         rank = self._λ.ufl_element().num_sub_elements()
         zero = 0 if rank == 0 else (0,) * rank
-        self._bc = firedrake.DirichletBC(V, zero, dirichlet_ids)
+        self._bc = firedrake.DirichletBC(V, zero, problem.dirichlet_ids)
 
-        # Create a search direction and a linear solver for projecting the
-        # gradient of the objective back into the primal space
-        self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
-        Q = self.parameter.function_space()
-        self._q = firedrake.Function(Q)
-        self._M = (firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-                   + firedrake.derivative(dR + dB, self.parameter))
+        # Create the derivative of the objective functional
+        self._dE = firedrake.derivative(self._E, self._u)
+        dR = firedrake.derivative(self._R, self._p)
+        dB = firedrake.derivative(self._B, self._p)
+
+        self._dJ = (action(adjoint(dF_dp), self._λ) + dR + dB)
 
         # Run a first update to get the machine in a consistent state
         self.update()
 
         # Call the post-iteration function for the first time
         self._callback(self)
+
+    @property
+    def problem(self):
+        """The instance of the inverse problem we're solving"""
+        return self._problem
 
     @property
     def parameter(self):
@@ -196,16 +231,22 @@ class InverseProblem(object):
         physics constraints) with respect to the parameter"""
         return self._dJ
 
+    def _forward_solve(self, p):
+        method = self.problem.method
+        model = self.problem.model
+        args = self._model_args
+        return method(model, **args, **{self.problem.parameter_name: p})
+
     def _assemble(self, *args, **kwargs):
         return firedrake.assemble(*args, **kwargs,
                                   form_compiler_parameters=self._fc_params)
 
     def update(self):
-        u, λ, q = self.state, self.adjoint_state, self.search_direction
+        u, λ = self.state, self.adjoint_state
+        p, q = self.parameter, self.search_direction
 
         # Update the observed field for the new value of the parameters
-        u.assign(self._method(self._model, **self._model_args,
-                              **{self._parameter_name: self._p}))
+        u.assign(self._forward_solve(p))
 
         # Update the adjoint state for the new value of the observed field
         L = firedrake.adjoint(self._dF_du)
@@ -231,8 +272,7 @@ class InverseProblem(object):
 
         def f(t):
             s.assign(t)
-            u_s.assign(self._method(self._model, **self._model_args,
-                                    **{self._parameter_name: p_s}))
+            u_s.assign(self._forward_solve(p_s))
             return self._assemble(replace(self._J, {u: u_s, p: p_s}))
 
         try:
@@ -240,7 +280,8 @@ class InverseProblem(object):
             result = minimize_scalar(f, bracket=(a, b, c), method='brent')
         except (AssertionError, ValueError):
             fudge = 0.995
-            T = fudge * _distance_to_boundary(p, q, self._pmin, self._pmax)
+            pmin, pmax = self.problem.parameter_bounds
+            T = fudge * _distance_to_boundary(p, q, pmin, pmax)
             result = minimize_scalar(f, bounds=(0, T), method='bounded')
 
         if not result.success:
@@ -266,7 +307,7 @@ class InverseProblem(object):
         J_initial = np.inf
 
         for iteration in range(max_iterations):
-            J = self._assemble(self.objective)
+            J = self._assemble(self._J)
             if ((J_initial - J) < rtol * J_initial) or (J <= atol):
                 return iteration
             J_initial = J

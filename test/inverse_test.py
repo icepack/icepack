@@ -55,15 +55,16 @@ def test_poisson_inverse():
     a0 = interpolate(firedrake.Constant(1), Q)
     u0 = model.solve(a=a0, f=f, dirichlet_ids=dirichlet_ids)
 
-    def callback(inverse_problem):
-        misfit = firedrake.assemble(inverse_problem.objective)
-        regularization = firedrake.assemble(inverse_problem.regularization)
-        a = inverse_problem.parameter
+    def callback(inverse_solver):
+        misfit = firedrake.assemble(inverse_solver.objective)
+        regularization = firedrake.assemble(inverse_solver.regularization)
+        barrier = firedrake.assemble(inverse_solver.barrier)
+        a = inverse_solver.parameter
         error = firedrake.norm(a - a_true) / firedrake.norm(a_true)
-        print(misfit, regularization, error)
+        print(misfit, regularization, barrier, error)
 
     L = firedrake.Constant(1e-4)
-    inverse_problem = icepack.inverse.InverseProblem(
+    problem = icepack.inverse.InverseProblem(
         model=model,
         method=PoissonModel.solve,
         objective=0.5 * (u0 - u_obs)**2 * dx,
@@ -73,26 +74,24 @@ def test_poisson_inverse():
         parameter_name='a',
         parameter=a0,
         parameter_bounds=(0, 4),
-        barrier=1e-6,
+        barrier=1e-8,
         model_args={'f': f},
-        dirichlet_ids=dirichlet_ids,
-        callback=callback
+        dirichlet_ids=dirichlet_ids
     )
 
-    assert inverse_problem.state is not None
-
-    inverse_problem.update()
-    assert icepack.norm(inverse_problem.state) > 0
-    assert icepack.norm(inverse_problem.adjoint_state) > 0
-    assert icepack.norm(inverse_problem.search_direction) > 0
+    solver = icepack.inverse.InverseSolver(problem, callback)
+    assert solver.state is not None
+    assert icepack.norm(solver.state) > 0
+    assert icepack.norm(solver.adjoint_state) > 0
+    assert icepack.norm(solver.search_direction) > 0
 
     max_iterations = 1000
-    iterations = inverse_problem.solve(rtol=2.5e-2, atol=1e-8,
-                                       max_iterations=max_iterations)
+    iterations = solver.solve(rtol=2.5e-2, atol=1e-8,
+                               max_iterations=max_iterations)
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    a = inverse_problem.parameter
+    a = solver.parameter
     assert icepack.norm(a - a_true)/icepack.norm(a_true) < 0.1
 
 
@@ -137,17 +136,17 @@ def test_ice_shelf_inverse():
 
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
 
-    def callback(inverse_problem):
-        E, R = inverse_problem.objective, inverse_problem.regularization
+    def callback(inverse_solver):
+        E, R = inverse_solver.objective, inverse_solver.regularization
         misfit = firedrake.assemble(E) / area
         regularization = firedrake.assemble(R) / area
-        A = inverse_problem.parameter
+        A = inverse_solver.parameter
         error = firedrake.norm(A - A_true) / firedrake.norm(A_true)
         print(misfit, regularization, error)
 
     L = 1e-4 * Lx
     regularization = L**2/2 * inner(grad(A_initial), grad(A_initial)) * dx
-    inverse_problem = icepack.inverse.InverseProblem(
+    problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
         objective=0.5 * (u_initial - u_true)**2 * dx,
@@ -157,23 +156,23 @@ def test_ice_shelf_inverse():
         parameter_name='A',
         parameter=A_initial,
         parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
-        barrier=1e-3,
+        barrier=1e-6,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
-        dirichlet_ids=dirichlet_ids,
-        callback=callback
+        dirichlet_ids=dirichlet_ids
     )
+
+    solver = icepack.inverse.InverseSolver(problem, callback)
 
     # Set an absolute tolerance so that we stop whenever the RMS velocity
     # errors are less than 0.1 m/yr
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
     atol = 0.5 * 0.01 * area
     max_iterations = 100
-    iterations = inverse_problem.solve(rtol=2.5e-2, atol=atol,
-                                       max_iterations=max_iterations)
+    iterations = solver.solve(rtol=0, atol=atol, max_iterations=max_iterations)
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    A = inverse_problem.parameter
+    A = solver.parameter
     assert firedrake.norm(A - A_true)/firedrake.norm(A_true) < 0.05
 
 
@@ -225,17 +224,17 @@ def test_ice_shelf_inverse_with_noise():
     shape = u_obs.dat.data_ro.shape
     u_obs.dat.data[:] += σ * random.standard_normal(shape) / np.sqrt(2)
 
-    def callback(inverse_problem):
-        E, R = inverse_problem.objective, inverse_problem.regularization
+    def callback(inverse_solver):
+        E, R = inverse_solver.objective, inverse_solver.regularization
         misfit = firedrake.assemble(E) / area
         regularization = firedrake.assemble(R) / area
-        A = inverse_problem.parameter
+        A = inverse_solver.parameter
         error = firedrake.norm(A - A_true) / firedrake.norm(A_true)
         print(misfit, regularization, error)
 
     L = 0.25 * Lx
     regularization = L**2/2 * inner(grad(A_initial), grad(A_initial)) * dx
-    inverse_problem = icepack.inverse.InverseProblem(
+    problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
         objective=0.5 * ((u_initial - u_obs)/σ)**2 * dx,
@@ -245,18 +244,18 @@ def test_ice_shelf_inverse_with_noise():
         parameter_name='A',
         parameter=A_initial,
         parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
-        barrier=1e-3,
+        barrier=1e-6,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
-        dirichlet_ids=dirichlet_ids,
-        callback=callback
+        dirichlet_ids=dirichlet_ids
     )
 
+    solver = icepack.inverse.InverseSolver(problem, callback)
+
     max_iterations = 100
-    iterations = inverse_problem.solve(rtol=1e-2, atol=0,
-                                       max_iterations=max_iterations)
+    iterations = solver.solve(rtol=1e-2, atol=0, max_iterations=max_iterations)
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    A = inverse_problem.parameter
+    A = solver.parameter
     assert firedrake.norm(A - A_true) / firedrake.norm(A_true) < 0.15
 
