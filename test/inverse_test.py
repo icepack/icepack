@@ -87,10 +87,11 @@ def test_poisson_inverse():
     assert icepack.norm(inverse_problem.search_direction) > 0
 
     max_iterations = 1000
-    num_iterations = inverse_problem.solve(rtol=2.5e-2, atol=1e-8,
-                                           max_iterations=max_iterations)
-    assert num_iterations < max_iterations
+    iterations = inverse_problem.solve(rtol=2.5e-2, atol=1e-8,
+                                       max_iterations=max_iterations)
+    print(f"Number of iterations: {iterations}")
 
+    assert iterations < max_iterations
     a = inverse_problem.parameter
     assert icepack.norm(a - a_true)/icepack.norm(a_true) < 0.1
 
@@ -166,12 +167,12 @@ def test_ice_shelf_inverse():
     # errors are less than 0.1 m/yr
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
     atol = 0.5 * 0.01 * area
-
     max_iterations = 100
-    iters = inverse_problem.solve(rtol=2.5e-2, atol=atol,
-                                  max_iterations=100)
-    assert iters < max_iterations
+    iterations = inverse_problem.solve(rtol=2.5e-2, atol=atol,
+                                       max_iterations=max_iterations)
+    print(f"Number of iterations: {iterations}")
 
+    assert iterations < max_iterations
     A = inverse_problem.parameter
     assert firedrake.norm(A - A_true)/firedrake.norm(A_true) < 0.05
 
@@ -251,9 +252,11 @@ def test_ice_shelf_inverse_with_noise():
     )
 
     max_iterations = 100
-    iters = inverse_problem.solve(rtol=1e-2, atol=0, max_iterations=100)
-    assert iters < max_iterations
+    iterations = inverse_problem.solve(rtol=1e-2, atol=0,
+                                       max_iterations=max_iterations)
+    print(f"Number of iterations: {iterations}")
 
+    assert iterations < max_iterations
     A = inverse_problem.parameter
     assert firedrake.norm(A - A_true) / firedrake.norm(A_true) < 0.15
 

@@ -11,23 +11,26 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy import optimize
+from scipy.optimize import bracket, minimize_scalar
 import firedrake
 from firedrake import action, adjoint, replace, ln, dx
 
 
-def _worst_case_bracket(p, q, pmin, pmax):
+def _distance_to_boundary(p, q, pmin, pmax, grow_factor=1.5):
     P = p.dat.data_ro[:]
-    if not ((pmin <= np.min(P)) and (np.max(P) <= pmax)):
+    Q = q.dat.data_ro[:]
+
+    def inside(t):
+        return (pmin <= np.min(P + t * Q)) and (pmax >= np.max(P + t * Q))
+
+    if not inside(0.0):
         return 0.0
 
     t = 1.0
-    pt = p.copy(deepcopy=True)
-    pt += t * q
-    while not ((pmin <= np.min(pt.dat.data_ro[:])) and
-               (np.max(pt.dat.data_ro[:]) <= pmax)):
-        t /= 2
-        pt.assign(p + t * q)
+    while inside(t * grow_factor):
+        t *= grow_factor
+    while not inside(t):
+        t /= grow_factor
 
     return t
 
@@ -221,7 +224,6 @@ class InverseProblem(object):
         """Perform a line search along the descent direction to get a new
         value of the parameter"""
         u, p, q = self.state, self.parameter, self.search_direction
-        J = self.objective + self.regularization
 
         s = firedrake.Constant(0)
         p_s = p + s * q
@@ -231,20 +233,16 @@ class InverseProblem(object):
             s.assign(t)
             u_s.assign(self._method(self._model, **self._model_args,
                                     **{self._parameter_name: p_s}))
-            return self._assemble(replace(J, {u: u_s, p: p_s}))
+            return self._assemble(replace(self._J, {u: u_s, p: p_s}))
 
-        # Try to get a good bounding interval for the line search
         try:
-            a, b, c, fa, fb, fc, num_calls = optimize.bracket(f)
-            t1, t2 = min(a, b, c), max(a, b, c)
+            a, b, c = bracket(f)[:3]
+            result = minimize_scalar(f, bracket=(a, b, c), method='brent')
+        except (AssertionError, ValueError):
+            fudge = 0.995
+            T = fudge * _distance_to_boundary(p, q, self._pmin, self._pmax)
+            result = minimize_scalar(f, bounds=(0, T), method='bounded')
 
-        # If there was an exception, the initial endpoint probably made the
-        # parameter go invalid somehow (e.g. outside of the box constraints),
-        # so pick the stupidest interval possible.
-        except AssertionError:
-            t1, t2 = 0, _worst_case_bracket(p, q, self._pmin, self._pmax) / 2
-
-        result = optimize.minimize_scalar(f, bounds=(t1, t2), method='bounded')
         if not result.success:
             raise ValueError("Line search failed: {}".format(result.message))
 
