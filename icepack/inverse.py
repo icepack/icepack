@@ -154,8 +154,6 @@ class InverseSolver(object):
         self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         Q = self._p.function_space()
         self._q = firedrake.Function(Q)
-        self._M = (firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-                   + firedrake.derivative(dR + dB, self._p))
 
         # Create the adjoint state variable
         V = self.state.function_space()
@@ -171,11 +169,12 @@ class InverseSolver(object):
         self._dE = firedrake.derivative(self._E, self._u)
         dR = firedrake.derivative(self._R, self._p)
         dB = firedrake.derivative(self._B, self._p)
-
         self._dJ = (action(adjoint(dF_dp), self._λ) + dR + dB)
 
-        # Run a first update to get the machine in a consistent state
-        self.update()
+        # Get the solver object into a consistent internal state
+        self.update_state()
+        self.update_adjoint_state()
+        self.update_search_direction()
 
         # Call the post-iteration function for the first time
         self._callback(self)
@@ -241,23 +240,30 @@ class InverseSolver(object):
         return firedrake.assemble(*args, **kwargs,
                                   form_compiler_parameters=self._fc_params)
 
-    def update(self):
-        u, λ = self.state, self.adjoint_state
-        p, q = self.parameter, self.search_direction
-
-        # Update the observed field for the new value of the parameters
+    def update_state(self):
+        u, p = self.state, self.parameter
         u.assign(self._forward_solve(p))
 
-        # Update the adjoint state for the new value of the observed field
+    def update_adjoint_state(self):
+        λ = self.adjoint_state
         L = firedrake.adjoint(self._dF_du)
         firedrake.solve(L == -self._dE, λ, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
-        # Update the search direction for the new parameters, observed field,
-        # and adjoint state
-        dJ = self.gradient
-        firedrake.solve(self._M == -dJ, q,
+    def update_search_direction(self):
+        """Set the search direction given the gradient of the objective
+        function
+
+        The default implementation is to multiply the gradient of the
+        objective by the inverse of the mass matrix; this is essentially
+        gradient descent. For more sophisticated approaches like BFGS, you
+        can override this method.
+        """
+        q, dJ = self.search_direction, self.gradient
+        Q = q.function_space()
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+        firedrake.solve(M == -dJ, q,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
@@ -296,7 +302,9 @@ class InverseSolver(object):
         p, q = self.parameter, self.search_direction
         t = self.line_search()
         p += t * q
-        self.update()
+        self.update_state()
+        self.update_adjoint_state()
+        self.update_search_direction()
         self._callback(self)
 
     def solve(self, atol=0.0, rtol=1e-6, max_iterations=None):
