@@ -58,8 +58,12 @@ def read(filename):
     with rasterio.open(filename, 'r') as dataset:
         nx, ny = dataset.width, dataset.height
         x0, y0 = dataset.bounds.left, dataset.bounds.bottom
-        # NOTE: This changes in rasterio v1.0
-        dx = dataset.affine[0]
-        data = np.flipud(dataset.read(indexes=1, masked=True))
 
+        # The `affine` attribute was renamed to `transform` in rasterio-1.0
+        try:
+            dx = dataset.affine[0]
+        except AttributeError:
+            dx = dataset.transform[0]
+
+        data = np.flipud(dataset.read(indexes=1, masked=True))
         return GridData((x0, y0), dx, data)
