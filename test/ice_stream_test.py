@@ -139,73 +139,39 @@ def norm(v):
 
 
 def test_diagnostic_solver_convergence():
-    # Create an ice stream model.
-    ice_stream = icepack.models.IceStream()
-    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
-
-    # Solve the ice stream model for successively higher mesh resolution.
-    delta_x, error = [], []
-
-    for N in range(16, 65, 4):
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        degree = 2
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-
-        x, y = firedrake.SpatialCoordinate(mesh)
-        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
-        h = interpolate(h0 - dh * x/Lx, Q)
-        s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-        C = interpolate(friction(x), Q)
-        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
-
-        u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess, **opts)
-        error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(Lx / N)
-
-        print(delta_x[-1], error[-1])
-
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
-
-    print(slope, intercept)
-    assert slope > degree - 0.05
-
-
-# Same thing, only with penalty methods for the side wall boundary conditions
-def test_diagnostic_solver_side_walls():
     ice_stream = icepack.models.IceStream()
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
-    delta_x, error = [], []
 
-    for N in range(16, 65, 4):
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        degree = 2
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+    for degree in range(1, 4):
+        delta_x, error = [], []
+        for N in range(16, 97 - 32 * (degree - 1), 4):
+            mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
+            x, y = firedrake.SpatialCoordinate(mesh)
 
-        x, y = firedrake.SpatialCoordinate(mesh)
-        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
-        h = interpolate(h0 - dh * x/Lx, Q)
-        s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-        C = interpolate(friction(x), Q)
-        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+            Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+            V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
 
-        u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess, **opts)
-        error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(Lx / N)
+            u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+            u_guess = interpolate(u_exact + as_vector((perturb_u(x, y), 0)), V)
 
-        print(delta_x[-1], error[-1])
+            h = interpolate(h0 - dh * x/Lx, Q)
+            s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+            C = interpolate(friction(x), Q)
+            A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
+            u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess,
+                                            **opts)
+            error.append(norm(u_exact - u) / norm(u_exact))
+            delta_x.append(Lx / N)
 
-    print(slope, intercept)
-    assert slope > (degree - 0.05)/2
+            print(delta_x[-1], error[-1])
+
+        log_delta_x = np.log2(np.array(delta_x))
+        log_error = np.log2(np.array(error))
+        slope, intercept = np.polyfit(log_delta_x, log_error, 1)
+
+        print(f"{slope}, {intercept}\n")
+        assert slope > degree + 0.9
 
 
 def test_computing_surface():

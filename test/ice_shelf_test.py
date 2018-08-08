@@ -53,38 +53,38 @@ def norm(v):
 def test_diagnostic_solver_convergence():
     # Create an ice shelf model
     ice_shelf = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
 
     # Solve the ice shelf model for successively higher mesh resolution
-    delta_x, error = [], []
-    for N in range(16, 97, 4):
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        x, y = firedrake.SpatialCoordinate(mesh)
+    for degree in range(1, 4):
+        delta_x, error = [], []
+        for N in range(16, 97 - 32 * (degree - 1), 4):
+            mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
+            x, y = firedrake.SpatialCoordinate(mesh)
 
-        degree = 2
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+            V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+            Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
+            u_exact = interpolate(as_vector((exact_u(x), 0)), V)
+            u_guess = interpolate(u_exact + as_vector((perturb_u(x, y), 0)), V)
 
-        h = interpolate(h0 - dh * x / Lx, Q)
-        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+            h = interpolate(h0 - dh * x / Lx, Q)
+            A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
-        u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
-        error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(Lx / N)
+            u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
+            error.append(norm(u_exact - u) / norm(u_exact))
+            delta_x.append(Lx / N)
 
-        print(delta_x[-1], error[-1])
+            print(delta_x[-1], error[-1])
 
-    # Fit the error curve and check that the convergence rate is what we
-    # expect
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
+        # Fit the error curve and check that the convergence rate is what we
+        # expect
+        log_delta_x = np.log2(np.array(delta_x))
+        log_error = np.log2(np.array(error))
+        slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    print(slope, intercept)
-    assert slope > degree - 0.05
+        print(f"{slope}, {intercept}\n")
+        assert slope > degree + 0.8
 
 
 # Check that the diagnostic solver converges with the expected rate as the
@@ -143,42 +143,6 @@ def test_diagnostic_solver_parameterization():
 def perturb_v(x, y):
     px, py = x/Lx, y/Ly
     return 20 * px * (py - 0.5)
-
-
-# Check that the diagnostic solver converges when we use a no-normal flow
-# boundary condition at the side walls instead of a Dirichlet condition.
-def test_diagnostic_solver_side_walls():
-    ice_shelf = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
-
-    delta_x, error = [], []
-    for N in range(16, 97, 4):
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        x, y = firedrake.SpatialCoordinate(mesh)
-
-        degree = 2
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-
-        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-        u_guess_expr = exact_u(x) + perturb_u(x, y) + perturb_v(x, y)
-        u_guess = interpolate(as_vector((u_guess_expr, 0)), V)
-
-        h = interpolate(h0 - dh * x / Lx, Q)
-        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
-
-        u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
-        error.append(norm(u_exact - u) / norm(u_exact))
-        delta_x.append(Lx / N)
-
-        print(delta_x[-1], error[-1])
-
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
-
-    print(slope, intercept)
-    assert slope > (degree - 0.05)/2
 
 
 # Check that the diagnostic solver gives a sensible result when we add friction
