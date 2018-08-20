@@ -11,28 +11,9 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy.optimize import bracket, minimize_scalar
+import scipy.optimize
 import firedrake
 from firedrake import action, adjoint, replace, ln, dx
-
-
-def _distance_to_boundary(p, q, pmin, pmax, grow_factor=1.5):
-    P = p.dat.data_ro[:]
-    Q = q.dat.data_ro[:]
-
-    def inside(t):
-        return (pmin <= np.min(P + t * Q)) and (pmax >= np.max(P + t * Q))
-
-    if not inside(0.0):
-        return 0.0
-
-    t = 1.0
-    while inside(t * grow_factor):
-        t *= grow_factor
-    while not inside(t):
-        t /= grow_factor
-
-    return t
 
 
 class InverseProblem(object):
@@ -52,7 +33,6 @@ class InverseProblem(object):
 
     def __init__(self, model, method, objective, regularization,
                  state_name, state, parameter_name, parameter,
-                 parameter_bounds=(0, float('inf')), barrier=1.0,
                  model_args={}, dirichlet_ids=[],
                  callback=None):
         """Initialize the inverse problem
@@ -100,23 +80,11 @@ class InverseProblem(object):
 
         self.objective = objective
         self.regularization = regularization
-        self.parameter_bounds = parameter_bounds
-        self.barrier = barrier
 
 
 class InverseSolver(object):
-    """Iteratively approximates the solution of an inverse problem"""
-    def __init__(self, problem, callback=(lambda s: None)):
-        """Initializes the inverse solver with the right functionals and
-        auxiliary fields
-
-        Parameters
-        ----------
-        problem : InverseProblem
-            The instance of the problem to be solved
-        callback : callable, optional
-            Function to call at the end of every iteration
-        """
+    """Base class for approximating the solution of an inverse problem"""
+    def _setup(self, problem, callback=(lambda s: None)):
         self._problem = problem
         self._callback = callback
 
@@ -135,22 +103,15 @@ class InverseSolver(object):
         # Create the error, regularization, and barrier functionals
         self._E = replace(problem.objective, {problem.state: self._u})
         self._R = replace(problem.regularization, {problem.parameter: self._p})
-        pmin, pmax = problem.parameter_bounds
-        β = firedrake.Constant(problem.barrier)
-        δp = pmax - pmin
-        self._B = -β * (ln((self._p - pmin)/δp)
-                        + ln((pmax - self._p)/δp)) * dx
-        self._J = self._E + self._R + self._B
+        self._J = self._E + self._R
 
         # Create the weak form of the forward model, the adjoint state, and
         # the derivative of the objective functional
         self._F = firedrake.derivative(problem.model.action(**args), self._u)
         self._dF_du = firedrake.derivative(self._F, self._u)
 
-        # Create a search direction and a linear solver for projecting the
-        # gradient of the objective back into the primal space
+        # Create a search direction
         dR = firedrake.derivative(self._R, self._p)
-        dB = firedrake.derivative(self._B, self._p)
         self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         Q = self._p.function_space()
         self._q = firedrake.Function(Q)
@@ -168,16 +129,7 @@ class InverseSolver(object):
         # Create the derivative of the objective functional
         self._dE = firedrake.derivative(self._E, self._u)
         dR = firedrake.derivative(self._R, self._p)
-        dB = firedrake.derivative(self._B, self._p)
-        self._dJ = (action(adjoint(dF_dp), self._λ) + dR + dB)
-
-        # Get the solver object into a consistent internal state
-        self.update_state()
-        self.update_adjoint_state()
-        self.update_search_direction()
-
-        # Call the post-iteration function for the first time
-        self._callback(self)
+        self._dJ = (action(adjoint(dF_dp), self._λ) + dR)
 
     @property
     def problem(self):
@@ -219,12 +171,6 @@ class InverseSolver(object):
         return self._R
 
     @property
-    def barrier(self):
-        """The barrier functional, which keeps the parameter between the
-        upper and lower bounds"""
-        return self._B
-
-    @property
     def gradient(self):
         """The derivative of the Lagrangian (objective + regularization +
         physics constraints) with respect to the parameter"""
@@ -251,6 +197,30 @@ class InverseSolver(object):
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
+
+class GradientDescentSolver(InverseSolver):
+    """Uses line search along the objective function gradient"""
+    def __init__(self, problem, callback=(lambda s: None)):
+        """Initializes the inverse solver with the right functionals and
+        auxiliary fields
+
+        Parameters
+        ----------
+        problem : InverseProblem
+            The instance of the problem to be solved
+        callback : callable, optional
+            Function to call at the end of every iteration
+        """
+        self._setup(problem, callback)
+
+        # Get the solver object into a consistent internal state
+        self.update_state()
+        self.update_adjoint_state()
+        self.update_search_direction()
+
+        # Call the post-iteration function for the first time
+        self._callback(self)
+
     def update_search_direction(self):
         """Set the search direction given the gradient of the objective
         function
@@ -267,6 +237,19 @@ class InverseSolver(object):
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
+    def _bracket(self, f):
+        f_0 = f(0)
+        t = 1.0
+        while True:
+            try:
+                f_t = f(t)
+                if f_t < f_0:
+                    return t
+            except (AssertionError, firedrake.ConvergenceError):
+                pass
+
+            t /= 2
+
     def line_search(self):
         """Perform a line search along the descent direction to get a new
         value of the parameter"""
@@ -281,14 +264,8 @@ class InverseSolver(object):
             u_s.assign(self._forward_solve(p_s))
             return self._assemble(replace(self._J, {u: u_s, p: p_s}))
 
-        try:
-            a, b, c = bracket(f)[:3]
-            result = minimize_scalar(f, bracket=(a, b, c), method='brent')
-        except (AssertionError, ValueError):
-            fudge = 0.995
-            pmin, pmax = self.problem.parameter_bounds
-            T = fudge * _distance_to_boundary(p, q, pmin, pmax)
-            result = minimize_scalar(f, bounds=(0, T), method='bounded')
+        bracket = scipy.optimize.bracket(f, xa=0.0, xb=self._bracket(f))[:3]
+        result = scipy.optimize.minimize_scalar(f, bracket=bracket)
 
         if not result.success:
             raise ValueError("Line search failed: {}".format(result.message))

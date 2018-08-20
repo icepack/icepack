@@ -18,7 +18,7 @@ source/icepack.demo.%.rst: ../demo/%.ipynb
 	PYTHONPATH=`dirname $<` jupyter nbconvert \
 			   --to rst \
 			   --execute \
-			   --ExecutePreprocessor.timeout=1200 \
+			   --ExecutePreprocessor.timeout=24000 \
 			   --ExecutePreprocessor.kernel_name="firedrake" \
 			   --output-dir=./source \
 			   --output=`basename $@` \

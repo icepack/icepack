@@ -13,27 +13,28 @@
 import numpy as np
 import numpy.random as random
 import firedrake
-from firedrake import inner, grad, dx, interpolate, as_vector
+from firedrake import inner, grad, dx, exp, interpolate, as_vector
 import icepack, icepack.models, icepack.inverse
 from icepack.constants import gravity as g, glen_flow_law as n, \
     rho_ice as ρ_I, rho_water as ρ_W
 
 
 class PoissonModel(object):
-    def action(self, a, u, f, **kwargs):
-        return (0.5 * inner(grad(u), grad(u)) / a - f * u) * dx
+    def action(self, q, u, f, **kwargs):
+        return (0.5 * exp(q) * inner(grad(u), grad(u)) - f * u) * dx
 
-    def quadrature_degree(self, a, u, **kwargs):
-        degree_a = a.ufl_element().degree()
+    def quadrature_degree(self, q, u, **kwargs):
+        degree_q = q.ufl_element().degree()
         degree_u = u.ufl_element().degree()
-        return max(degree_a + 2 * (degree_u - 1), 2 * degree_u)
+        return max(degree_q + 2 * (degree_u - 1), 2 * degree_u)
 
-    def solve(self, a, f, dirichlet_ids=[], **kwargs):
+    def solve(self, q, f, dirichlet_ids=[], **kwargs):
         u = firedrake.Function(f.function_space())
-        W = self.action(a, u, f)
+        W = self.action(q, u, f)
         F = firedrake.derivative(W, u)
         bc = firedrake.DirichletBC(u.function_space(), 0, dirichlet_ids)
-        firedrake.solve(F == 0, u, bc)
+        firedrake.solve(F == 0, u, bc,
+            solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'})
         return u
 
 
@@ -44,42 +45,38 @@ def test_poisson_inverse():
     Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    r2 = ((x - 0.5)**2 + (y - 0.5)**2)
-    a_true = interpolate(1 + firedrake.exp(-4 * r2), Q)
+    q_true = interpolate(-4 * ((x - 0.5)**2 + (y - 0.5)**2), Q)
     f = interpolate(firedrake.Constant(1), Q)
 
     dirichlet_ids = [1, 2, 3, 4]
     model = PoissonModel()
-    u_obs = model.solve(a=a_true, f=f, dirichlet_ids=dirichlet_ids)
+    u_obs = model.solve(q=q_true, f=f, dirichlet_ids=dirichlet_ids)
 
-    a0 = interpolate(firedrake.Constant(1), Q)
-    u0 = model.solve(a=a0, f=f, dirichlet_ids=dirichlet_ids)
+    q0 = interpolate(firedrake.Constant(0), Q)
+    u0 = model.solve(q=q0, f=f, dirichlet_ids=dirichlet_ids)
 
     def callback(inverse_solver):
         misfit = firedrake.assemble(inverse_solver.objective)
         regularization = firedrake.assemble(inverse_solver.regularization)
-        barrier = firedrake.assemble(inverse_solver.barrier)
-        a = inverse_solver.parameter
-        error = firedrake.norm(a - a_true) / firedrake.norm(a_true)
-        print(misfit, regularization, barrier, error)
+        q = inverse_solver.parameter
+        error = firedrake.norm(q - q_true)
+        print(misfit, regularization, error)
 
     L = firedrake.Constant(1e-4)
     problem = icepack.inverse.InverseProblem(
         model=model,
         method=PoissonModel.solve,
         objective=0.5 * (u0 - u_obs)**2 * dx,
-        regularization=L**2/2 * inner(grad(a0), grad(a0)) * dx,
+        regularization=L**2/2 * inner(grad(q0), grad(q0)) * dx,
         state_name='u',
         state=u0,
-        parameter_name='a',
-        parameter=a0,
-        parameter_bounds=(0, 4),
-        barrier=1e-8,
+        parameter_name='q',
+        parameter=q0,
         model_args={'f': f},
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.InverseSolver(problem, callback)
+    solver = icepack.inverse.GradientDescentSolver(problem, callback)
     assert solver.state is not None
     assert icepack.norm(solver.state) > 0
     assert icepack.norm(solver.adjoint_state) > 0
@@ -91,8 +88,8 @@ def test_poisson_inverse():
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    a = solver.parameter
-    assert icepack.norm(a - a_true)/icepack.norm(a_true) < 0.1
+    q = solver.parameter
+    assert icepack.norm(q - q_true) < 0.25
 
 
 def test_ice_shelf_inverse():
@@ -120,18 +117,22 @@ def test_ice_shelf_inverse():
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)
-    A_initial = interpolate(firedrake.Constant(A0), Q)
+    q_initial = interpolate(firedrake.Constant(0), Q)
     h = interpolate(h0 - δh * x / Lx, Q)
 
-    ice_shelf = icepack.models.IceShelf()
+    def viscosity(u, h, q):
+        A = A0 * firedrake.exp(-q / n)
+        return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
+
+    ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
     tol = 1e-12
 
     r = firedrake.sqrt((x/Lx - 1/2)**2 + (y/Ly - 1/2)**2)
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
-    A_true = firedrake.interpolate(A0 + expr, Q)
-    u_true = ice_shelf.diagnostic_solve(h=h, A=A_true, u0=u_initial,
+    q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
+    u_true = ice_shelf.diagnostic_solve(h=h, q=q_true, u0=u_initial,
                                         dirichlet_ids=dirichlet_ids, tol=tol)
 
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
@@ -140,12 +141,12 @@ def test_ice_shelf_inverse():
         E, R = inverse_solver.objective, inverse_solver.regularization
         misfit = firedrake.assemble(E) / area
         regularization = firedrake.assemble(R) / area
-        A = inverse_solver.parameter
-        error = firedrake.norm(A - A_true) / firedrake.norm(A_true)
+        q = inverse_solver.parameter
+        error = firedrake.norm(q - q_true) / np.sqrt(area)
         print(misfit, regularization, error)
 
     L = 1e-4 * Lx
-    regularization = L**2/2 * inner(grad(A_initial), grad(A_initial)) * dx
+    regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
     problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
@@ -153,15 +154,13 @@ def test_ice_shelf_inverse():
         regularization=regularization,
         state_name='u',
         state=u_initial,
-        parameter_name='A',
-        parameter=A_initial,
-        parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
-        barrier=1e-6,
+        parameter_name='q',
+        parameter=q_initial,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.InverseSolver(problem, callback)
+    solver = icepack.inverse.GradientDescentSolver(problem, callback)
 
     # Set an absolute tolerance so that we stop whenever the RMS velocity
     # errors are less than 0.1 m/yr
@@ -172,8 +171,8 @@ def test_ice_shelf_inverse():
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    A = solver.parameter
-    assert firedrake.norm(A - A_true)/firedrake.norm(A_true) < 0.05
+    q = solver.parameter
+    assert firedrake.norm(q - q_true)/firedrake.norm(q_initial - q_true) < 1/4
 
 
 def test_ice_shelf_inverse_with_noise():
@@ -201,23 +200,27 @@ def test_ice_shelf_inverse_with_noise():
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)
-    A_initial = interpolate(firedrake.Constant(A0), Q)
+    q_initial = interpolate(firedrake.Constant(0), Q)
     h = interpolate(h0 - δh * x / Lx, Q)
 
-    ice_shelf = icepack.models.IceShelf()
+    def viscosity(u, h, q):
+        A = A0 * firedrake.exp(-q / n)
+        return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
+
+    ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
     tol = 1e-12
 
     r = firedrake.sqrt((x/Lx - 1/2)**2 + (y/Ly - 1/2)**2)
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
-    A_true = firedrake.interpolate(A0 + expr, Q)
-    u_true = ice_shelf.diagnostic_solve(h=h, A=A_true, u0=u_initial,
+    q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
+    u_true = ice_shelf.diagnostic_solve(h=h, q=q_true, u0=u_initial,
                                         dirichlet_ids=dirichlet_ids, tol=tol)
 
     # Make the noise equal to 1% of the signal
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
-    σ = 0.01 * icepack.norm(u_true) / np.sqrt(area)
+    σ = 0.001 * icepack.norm(u_true) / np.sqrt(area)
     print(σ)
 
     u_obs = u_true.copy(deepcopy=True)
@@ -228,12 +231,12 @@ def test_ice_shelf_inverse_with_noise():
         E, R = inverse_solver.objective, inverse_solver.regularization
         misfit = firedrake.assemble(E) / area
         regularization = firedrake.assemble(R) / area
-        A = inverse_solver.parameter
-        error = firedrake.norm(A - A_true) / firedrake.norm(A_true)
+        q = inverse_solver.parameter
+        error = firedrake.norm(q - q_true) / np.sqrt(area)
         print(misfit, regularization, error)
 
     L = 0.25 * Lx
-    regularization = L**2/2 * inner(grad(A_initial), grad(A_initial)) * dx
+    regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
     problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
@@ -241,21 +244,19 @@ def test_ice_shelf_inverse_with_noise():
         regularization=regularization,
         state_name='u',
         state=u_initial,
-        parameter_name='A',
-        parameter=A_initial,
-        parameter_bounds=(A0 / 2, 1.5 * (A0 + δA)),
-        barrier=1e-6,
+        parameter_name='q',
+        parameter=q_initial,
         model_args={'h': h, 'u0': u_initial, 'tol': tol},
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.InverseSolver(problem, callback)
+    solver = icepack.inverse.GradientDescentSolver(problem, callback)
 
     max_iterations = 100
     iterations = solver.solve(rtol=1e-2, atol=0, max_iterations=max_iterations)
     print(f"Number of iterations: {iterations}")
 
     assert iterations < max_iterations
-    A = solver.parameter
-    assert firedrake.norm(A - A_true) / firedrake.norm(A_true) < 0.15
+    q = solver.parameter
+    assert firedrake.norm(q - q_true)/firedrake.norm(q_initial - q_true) < 1/3
 
