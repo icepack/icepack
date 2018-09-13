@@ -16,6 +16,10 @@ import firedrake
 def interpolate(f, Q):
     """Interpolate an analytically-defined function to a function space
 
+    The function space `Q` must be of the right rank for the type of the
+    range of `f`. For example, if `f` is a vector-valued function, then `Q`
+    must be a vector function space, likewise for tensors or scalars.
+
     Parameters
     ----------
     f : firedrake.Expression, firedrake.Function, or a callable object
@@ -23,10 +27,6 @@ def interpolate(f, Q):
         space and return either scalar/vector/tensor values
     Q : firedrake.FunctionSpace
         The function space to interpolate to
-
-    The function space `Q` must be of the right rank for the type of the
-    range of `f`. For example, if `f` is a vector-valued function, then `Q`
-    must be a vector function space, likewise for tensors or scalars.
 
     Returns
     -------

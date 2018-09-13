@@ -17,7 +17,7 @@ as the acceleration due to gravity, the universal gas constant, the density
 of ice and water, etc.
 Like Elmer/Ice, we use units of megapascals, meters, and years throughout.
 This choice of units makes the rate factor
-(see :py:func:`icepack.viscosity.rate_factor`) roughly equal to 1 for
+(see :py:func:`icepack.models.viscosity.rate_factor`) roughly equal to 1 for
 typical temperatures.
 """
 
@@ -30,8 +30,8 @@ rho_ice = 917 / year**2 * 1.0e-6
 #: density of seawater
 rho_water = 1024 / year**2 * 1.0e-6
 
-#: `ideal gas constant <https://en.wikipedia.org/wiki/Gas_constant>`_
-ideal_gas = 8.3144621e-3                # kJ / mol K
+#: ideal gas constant (kJ / mol K)
+ideal_gas = 8.3144621e-3
 
 #: exponent in the nonlinear constitutive law for ice
 glen_flow_law = 3.0
