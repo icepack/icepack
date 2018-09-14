@@ -233,7 +233,7 @@ def test_ice_shelf_inverse_with_noise():
         regularization = firedrake.assemble(R) / area
         q = inverse_solver.parameter
         error = firedrake.norm(q - q_true) / np.sqrt(area)
-        print(misfit, regularization, error)
+        print(misfit, regularization, error, flush=True)
 
     L = 0.25 * Lx
     regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
