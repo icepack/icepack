@@ -301,3 +301,166 @@ class GradientDescentSolver(InverseSolver):
 
         return max_iterations
 
+
+class GaussNewtonSolver(InverseSolver):
+    def __init__(self, problem, callback=(lambda s: None),
+                 search_tolerance=1e-3):
+        self._setup(problem, callback)
+        self.update_state()
+        self.update_adjoint_state()
+
+        self._search_tolerance = search_tolerance
+        self.update_search_direction()
+
+        self._callback(self)
+
+    def gauss_newton_mult(self, q):
+        u, p = self.state, self.parameter
+
+        dE = firedrake.derivative(self._E, u)
+        d2E = firedrake.derivative(dE, u)
+        dR = firedrake.derivative(self._R, p)
+        dF_du, dF_dp = self._dF_du, firedrake.derivative(self._F, p)
+
+        w = firedrake.Function(u.function_space())
+        firedrake.solve(dF_du == firedrake.action(dF_dp, q), w, self._bc,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        v = firedrake.Function(u.function_space())
+        firedrake.solve(firedrake.adjoint(dF_du) == firedrake.action(d2E, w),
+                        v, self._bc,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        return firedrake.action(firedrake.adjoint(dF_dp), v) + \
+            firedrake.derivative(dR, p, q)
+
+    def gauss_newton_energy_norm(self, q):
+        u, p = self.state, self.parameter
+
+        dE = firedrake.derivative(self._E, u)
+        d2E = firedrake.derivative(dE, u)
+        dR = firedrake.derivative(self._R, p)
+        d2R = firedrake.derivative(dR, p)
+        dF_du, dF_dp = self._dF_du, firedrake.derivative(self._F, p)
+
+        v = firedrake.Function(u.function_space())
+        firedrake.solve(dF_du == firedrake.action(dF_dp, q), v, self._bc,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        return self._assemble(firedrake.energy_norm(d2E, v) +
+                              firedrake.energy_norm(d2R, q))
+
+    def update_search_direction(self):
+        p, q, dJ = self.parameter, self.search_direction, self.gradient
+
+        dR = firedrake.derivative(self.regularization, self.parameter)
+        Q = q.function_space()
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx + \
+            firedrake.derivative(dR, p)
+
+        # Compute the preconditioned residual
+        z = firedrake.Function(Q)
+        firedrake.solve(M == -dJ, z,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        # This variable is a search direction for a search direction, which
+        # is definitely not confusing at all.
+        s = z.copy(deepcopy=True)
+        q *= 0.0
+
+        old_cost = np.inf
+        while True:
+            z_mnorm = self._assemble(firedrake.energy_norm(M, z))
+            s_hnorm = self.gauss_newton_energy_norm(s)
+            α = z_mnorm / s_hnorm
+
+            δz = firedrake.Function(Q)
+            g = self.gauss_newton_mult(s)
+            firedrake.solve(M == g, δz,
+                            solver_parameters=self._solver_params,
+                            form_compiler_parameters=self._fc_params)
+
+            q += α * s
+            z -= α * δz
+
+            β = self._assemble(firedrake.energy_norm(M, z)) / z_mnorm
+            s *= β
+            s += z
+
+            energy_norm = self.gauss_newton_energy_norm(q)
+            cost = 0.5 * energy_norm + self._assemble(firedrake.action(dJ, q))
+
+            if (abs(old_cost - cost) / (0.5 * energy_norm)
+                    < self._search_tolerance):
+                return
+
+            old_cost = cost
+
+    def _bracket(self, f):
+        f_0 = f(0)
+        t = 1.0
+        while True:
+            try:
+                f_t = f(t)
+                if f_t < f_0:
+                    return t
+            except (AssertionError, firedrake.ConvergenceError):
+                pass
+
+            t /= 2
+
+    def line_search(self):
+        """Perform a line search along the descent direction to get a new
+        value of the parameter"""
+        u, p, q = self.state, self.parameter, self.search_direction
+
+        s = firedrake.Constant(0)
+        p_s = p + s * q
+        u_s = u.copy(deepcopy=True)
+
+        def f(t):
+            s.assign(t)
+            u_s.assign(self._forward_solve(p_s))
+            return self._assemble(replace(self._J, {u: u_s, p: p_s}))
+
+        bracket = scipy.optimize.bracket(f, xa=0.0, xb=self._bracket(f))[:3]
+        result = scipy.optimize.minimize_scalar(f, bracket=bracket,
+                     options={'xtol': self._search_tolerance/2})
+
+        if not result.success:
+            raise ValueError("Line search failed: {}".format(result.message))
+
+        return result.x
+
+    def step(self):
+        """Perform a line search along the current descent direction to get
+        a new value of the parameters, then compute the new state, adjoint
+        and descent direction."""
+        p, q = self.parameter, self.search_direction
+        t = self.line_search()
+        p += t * q
+        self.update_state()
+        self.update_adjoint_state()
+        self.update_search_direction()
+        self._callback(self)
+
+    def solve(self, atol=0.0, rtol=1e-6, max_iterations=None):
+        """Search for a new value of the parameters, stopping once either
+        the objective functional gets below a threshold value or stops
+        improving."""
+        max_iterations = max_iterations or np.inf
+        J_initial = np.inf
+
+        for iteration in range(max_iterations):
+            J = self._assemble(self._J)
+            if ((J_initial - J) < rtol * J_initial) or (J <= atol):
+                return iteration
+            J_initial = J
+
+            self.step()
+
+        return max_iterations

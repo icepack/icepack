@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import numpy.random as random
 import firedrake
@@ -38,7 +39,10 @@ class PoissonModel(object):
         return u
 
 
-def test_poisson_inverse():
+@pytest.mark.parametrize('solver_type',
+    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
+)
+def test_poisson_inverse(solver_type):
     Nx, Ny = 32, 32
     mesh = firedrake.UnitSquareMesh(Nx, Ny)
     degree = 2
@@ -76,7 +80,7 @@ def test_poisson_inverse():
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.GradientDescentSolver(problem, callback)
+    solver = solver_type(problem, callback)
     assert solver.state is not None
     assert icepack.norm(solver.state) > 0
     assert icepack.norm(solver.adjoint_state) > 0
@@ -92,7 +96,10 @@ def test_poisson_inverse():
     assert icepack.norm(q - q_true) < 0.25
 
 
-def test_ice_shelf_inverse():
+@pytest.mark.parametrize('solver_type',
+    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
+)
+def test_ice_shelf_inverse(solver_type):
     import icepack
     Nx, Ny = 32, 32
     Lx, Ly = 20e3, 20e3
@@ -160,7 +167,7 @@ def test_ice_shelf_inverse():
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.GradientDescentSolver(problem, callback)
+    solver = solver_type(problem, callback)
 
     # Set an absolute tolerance so that we stop whenever the RMS velocity
     # errors are less than 0.1 m/yr
@@ -175,7 +182,10 @@ def test_ice_shelf_inverse():
     assert firedrake.norm(q - q_true)/firedrake.norm(q_initial - q_true) < 1/4
 
 
-def test_ice_shelf_inverse_with_noise():
+@pytest.mark.parametrize('solver_type',
+    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
+)
+def test_ice_shelf_inverse_with_noise(solver_type):
     import icepack
     Nx, Ny = 32, 32
     Lx, Ly = 20e3, 20e3
@@ -250,7 +260,7 @@ def test_ice_shelf_inverse_with_noise():
         dirichlet_ids=dirichlet_ids
     )
 
-    solver = icepack.inverse.GradientDescentSolver(problem, callback)
+    solver = solver_type(problem, callback)
 
     max_iterations = 100
     iterations = solver.solve(rtol=1e-2, atol=0, max_iterations=max_iterations)
