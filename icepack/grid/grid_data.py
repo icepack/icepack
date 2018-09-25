@@ -43,12 +43,12 @@ class GridData(object):
         self._origin = origin
         self._delta = grid_spacing
 
-        if isinstance(data, ma.MaskedArray):
+        if mask is not None:
+            self.data = ma.MaskedArray(data=data, mask=mask)
+        elif isinstance(data, ma.MaskedArray):
             self.data = data
         elif missing_data_value is not None:
             self.data = ma.masked_equal(data, missing_data_value)
-        elif mask is not None:
-            self.data = ma.MaskedArray(data=data, mask=mask)
         else:
             raise TypeError()
 
