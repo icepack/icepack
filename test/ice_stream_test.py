@@ -170,7 +170,7 @@ def test_diagnostic_solver_convergence():
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print(f"{slope}, {intercept}\n")
+        print("log(error) ~= {:g} * log(dx) + {:g}".format(slope, intercept))
         assert slope > degree + 0.9
 
 

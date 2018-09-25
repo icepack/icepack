@@ -85,7 +85,7 @@ def test_poisson_inverse():
     max_iterations = 1000
     iterations = solver.solve(rtol=2.5e-2, atol=1e-8,
                                max_iterations=max_iterations)
-    print(f"Number of iterations: {iterations}")
+    print("Number of iterations: {}".format(iterations))
 
     assert iterations < max_iterations
     q = solver.parameter
@@ -168,7 +168,7 @@ def test_ice_shelf_inverse():
     atol = 0.5 * 0.01 * area
     max_iterations = 100
     iterations = solver.solve(rtol=0, atol=atol, max_iterations=max_iterations)
-    print(f"Number of iterations: {iterations}")
+    print("Number of iterations: {}".format(iterations))
 
     assert iterations < max_iterations
     q = solver.parameter
@@ -254,7 +254,7 @@ def test_ice_shelf_inverse_with_noise():
 
     max_iterations = 100
     iterations = solver.solve(rtol=1e-2, atol=0, max_iterations=max_iterations)
-    print(f"Number of iterations: {iterations}")
+    print("Number of iterations: {}".format(iterations))
 
     assert iterations < max_iterations
     q = solver.parameter
