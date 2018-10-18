@@ -16,6 +16,22 @@ import firedrake
 from firedrake import action, adjoint, replace, ln, dx
 
 
+def _bracket(f):
+    """Given a real function of a single variable, return a value `t` such that
+    `f(t) < f(0)`, which can then be used for a more thorough line search"""
+    f_0 = f(0)
+    t = 1.0
+    while True:
+        try:
+            f_t = f(t)
+            if f_t < f_0:
+                return t
+        except (AssertionError, firedrake.ConvergenceError):
+            pass
+
+        t /= 2
+
+
 class InverseProblem(object):
     """Stores data for estimating a parameter of a model from observed data
 
@@ -187,68 +203,18 @@ class InverseSolver(object):
                                   form_compiler_parameters=self._fc_params)
 
     def update_state(self):
+        """Update the observable state for a new value of the parameters"""
         u, p = self.state, self.parameter
         u.assign(self._forward_solve(p))
 
     def update_adjoint_state(self):
+        """Update the adjoint state for new values of the observable state and
+        parameters so that we can calculate derivatives"""
         λ = self.adjoint_state
         L = firedrake.adjoint(self._dF_du)
         firedrake.solve(L == -self._dE, λ, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
-
-
-class GradientDescentSolver(InverseSolver):
-    """Uses line search along the objective function gradient"""
-    def __init__(self, problem, callback=(lambda s: None)):
-        """Initializes the inverse solver with the right functionals and
-        auxiliary fields
-
-        Parameters
-        ----------
-        problem : InverseProblem
-            The instance of the problem to be solved
-        callback : callable, optional
-            Function to call at the end of every iteration
-        """
-        self._setup(problem, callback)
-
-        # Get the solver object into a consistent internal state
-        self.update_state()
-        self.update_adjoint_state()
-        self.update_search_direction()
-
-        # Call the post-iteration function for the first time
-        self._callback(self)
-
-    def update_search_direction(self):
-        """Set the search direction given the gradient of the objective
-        function
-
-        The default implementation is to multiply the gradient of the
-        objective by the inverse of the mass matrix; this is essentially
-        gradient descent. For more sophisticated approaches like BFGS, you
-        can override this method.
-        """
-        q, dJ = self.search_direction, self.gradient
-        Q = q.function_space()
-        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-        firedrake.solve(M == -dJ, q,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
-
-    def _bracket(self, f):
-        f_0 = f(0)
-        t = 1.0
-        while True:
-            try:
-                f_t = f(t)
-                if f_t < f_0:
-                    return t
-            except (AssertionError, firedrake.ConvergenceError):
-                pass
-
-            t /= 2
 
     def line_search(self):
         """Perform a line search along the descent direction to get a new
@@ -264,8 +230,14 @@ class GradientDescentSolver(InverseSolver):
             u_s.assign(self._forward_solve(p_s))
             return self._assemble(replace(self._J, {u: u_s, p: p_s}))
 
-        bracket = scipy.optimize.bracket(f, xa=0.0, xb=self._bracket(f))[:3]
-        result = scipy.optimize.minimize_scalar(f, bracket=bracket)
+        try:
+            line_search_options = self._line_search_options
+        except AttributeError:
+            line_search_options = {}
+
+        bracket = scipy.optimize.bracket(f, xa=0.0, xb=_bracket(f))[:3]
+        result = scipy.optimize.minimize_scalar(f, bracket=bracket,
+                                                options=line_search_options)
 
         if not result.success:
             raise ValueError("Line search failed: {}".format(result.message))
@@ -302,6 +274,40 @@ class GradientDescentSolver(InverseSolver):
         return max_iterations
 
 
+class GradientDescentSolver(InverseSolver):
+    """Uses line search along the objective function gradient"""
+    def __init__(self, problem, callback=(lambda s: None)):
+        """Initializes the inverse solver with the right functionals and
+        auxiliary fields
+
+        Parameters
+        ----------
+        problem : InverseProblem
+            The instance of the problem to be solved
+        callback : callable, optional
+            Function to call at the end of every iteration
+        """
+        self._setup(problem, callback)
+
+        # Get the solver object into a consistent internal state
+        self.update_state()
+        self.update_adjoint_state()
+        self.update_search_direction()
+
+        # Call the post-iteration function for the first time
+        self._callback(self)
+
+    def update_search_direction(self):
+        """Set the search direction to be the inverse of the mass matrix times
+        the gradient of the objective"""
+        q, dJ = self.search_direction, self.gradient
+        Q = q.function_space()
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+        firedrake.solve(M == -dJ, q,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+
 class GaussNewtonSolver(InverseSolver):
     def __init__(self, problem, callback=(lambda s: None),
                  search_tolerance=1e-3):
@@ -310,6 +316,7 @@ class GaussNewtonSolver(InverseSolver):
         self.update_adjoint_state()
 
         self._search_tolerance = search_tolerance
+        self._line_search_options = {'xtol': search_tolerance / 2}
         self.update_search_direction()
 
         self._callback(self)
@@ -399,68 +406,3 @@ class GaussNewtonSolver(InverseSolver):
                 return
 
             old_cost = cost
-
-    def _bracket(self, f):
-        f_0 = f(0)
-        t = 1.0
-        while True:
-            try:
-                f_t = f(t)
-                if f_t < f_0:
-                    return t
-            except (AssertionError, firedrake.ConvergenceError):
-                pass
-
-            t /= 2
-
-    def line_search(self):
-        """Perform a line search along the descent direction to get a new
-        value of the parameter"""
-        u, p, q = self.state, self.parameter, self.search_direction
-
-        s = firedrake.Constant(0)
-        p_s = p + s * q
-        u_s = u.copy(deepcopy=True)
-
-        def f(t):
-            s.assign(t)
-            u_s.assign(self._forward_solve(p_s))
-            return self._assemble(replace(self._J, {u: u_s, p: p_s}))
-
-        bracket = scipy.optimize.bracket(f, xa=0.0, xb=self._bracket(f))[:3]
-        result = scipy.optimize.minimize_scalar(f, bracket=bracket,
-                     options={'xtol': self._search_tolerance/2})
-
-        if not result.success:
-            raise ValueError("Line search failed: {}".format(result.message))
-
-        return result.x
-
-    def step(self):
-        """Perform a line search along the current descent direction to get
-        a new value of the parameters, then compute the new state, adjoint
-        and descent direction."""
-        p, q = self.parameter, self.search_direction
-        t = self.line_search()
-        p += t * q
-        self.update_state()
-        self.update_adjoint_state()
-        self.update_search_direction()
-        self._callback(self)
-
-    def solve(self, atol=0.0, rtol=1e-6, max_iterations=None):
-        """Search for a new value of the parameters, stopping once either
-        the objective functional gets below a threshold value or stops
-        improving."""
-        max_iterations = max_iterations or np.inf
-        J_initial = np.inf
-
-        for iteration in range(max_iterations):
-            J = self._assemble(self._J)
-            if ((J_initial - J) < rtol * J_initial) or (J <= atol):
-                return iteration
-            J_initial = J
-
-            self.step()
-
-        return max_iterations
