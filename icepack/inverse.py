@@ -469,3 +469,87 @@ class GaussNewtonSolver(InverseSolver):
                 return
 
             old_cost = cost
+
+
+class BFGSSolver(InverseSolver):
+    """Implementation of `InverseSolver` using the limited-memory BFGS method
+    to compute a search direction
+
+    This implementation of inverse solvers uses a search direction based on the
+    last `m` values of the parameter and objective gradient to construct a low-
+    rank approximation to the inverse of the Hessian of the objective. The
+    resulting iteration exhibits superlinear convergence, while the search
+    direction is only marginally more expensive to compute than the steepest
+    descent direction.
+
+    See chapters 6-7 of Nocedal and Wright, Numerical Optimization, 2nd ed."""
+    def __init__(self, problem, callback=(lambda s: None), memory=5):
+        self._setup(problem, callback)
+        self.update_state()
+        self.update_adjoint_state()
+
+        Q = self.parameter.function_space()
+        self._memory = memory
+
+        q, dJ = self.search_direction, self.gradient
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+        firedrake.solve(M == -dJ, q,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        self._rho = []
+        self._ps = [self.parameter.copy(deepcopy=True)]
+        self._fs = [q.copy(deepcopy=True)]
+        self._fs[-1] *= -1
+
+        self._callback(self)
+
+    @property
+    def memory(self):
+        """Return the number of previous iterations used to construct the low-
+        rank approximation to the Hessian"""
+        return self._memory
+
+    def update_search_direction(self):
+        """Apply the low-rank approximation of the Hessian inverse
+
+        This procedure implements the two-loop recursion algorithm to apply the
+        low-rank approximation of the Hessian inverse to the derivative of the
+        objective functional. See Nocedal and Wright, Numerical Optimization,
+        2nd ed., algorithm 7.4."""
+        p, q, dJ = self.parameter, self.search_direction, self.gradient
+        Q = q.function_space()
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+        f = firedrake.Function(Q)
+        firedrake.solve(M == dJ, f,
+                        solver_parameters=self._solver_params,
+                        form_compiler_parameters=self._fc_params)
+
+        # Append the latest values of the parameters and the objective gradient
+        # and compute the curvature factor
+        ps, fs, ρ = self._ps, self._fs, self._rho
+        ρ.append(1 / self._assemble((p - ps[-1]) * (f - fs[-1]) * dx))
+        ps.append(p.copy(deepcopy=True))
+        fs.append(f.copy(deepcopy=True))
+
+        # Forget any old values of the parameters and objective gradient
+        ps = ps[-(self.memory + 1):]
+        fs = fs[-(self.memory + 1):]
+        ρ = ρ[-self.memory:]
+
+        g = f.copy(deepcopy=True)
+        m = len(ρ)
+        α = np.zeros(m)
+        for i in range(m - 1, -1, -1):
+            α[i] = ρ[i] * self._assemble(f * (ps[i + 1] - ps[i]) * dx)
+            g -= α[i] * (fs[i + 1] - fs[i])
+
+        r = g.copy(deepcopy=True)
+        dp, df = ps[-1] - ps[-2], fs[-1] - fs[-2]
+        r *= self._assemble(dp * df * dx) / self._assemble(df * df * dx)
+
+        for i in range(m):
+            β = ρ[i] * self._assemble((fs[i + 1] - fs[i]) * r * dx)
+            r += (α[i] - β) * (ps[i + 1] - ps[i])
+
+        q.assign(-r)

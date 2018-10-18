@@ -39,9 +39,13 @@ class PoissonModel(object):
         return u
 
 
-@pytest.mark.parametrize('solver_type',
-    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
-)
+inverse_solvers = [
+    icepack.inverse.GradientDescentSolver,
+    icepack.inverse.BFGSSolver,
+    icepack.inverse.GaussNewtonSolver
+]
+
+@pytest.mark.parametrize('solver_type', inverse_solvers)
 def test_poisson_inverse(solver_type):
     Nx, Ny = 32, 32
     mesh = firedrake.UnitSquareMesh(Nx, Ny)
@@ -96,9 +100,7 @@ def test_poisson_inverse(solver_type):
     assert icepack.norm(q - q_true) < 0.25
 
 
-@pytest.mark.parametrize('solver_type',
-    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
-)
+@pytest.mark.parametrize('solver_type', inverse_solvers)
 def test_ice_shelf_inverse(solver_type):
     import icepack
     Nx, Ny = 32, 32
@@ -182,9 +184,7 @@ def test_ice_shelf_inverse(solver_type):
     assert firedrake.norm(q - q_true)/firedrake.norm(q_initial - q_true) < 1/4
 
 
-@pytest.mark.parametrize('solver_type',
-    [icepack.inverse.GradientDescentSolver, icepack.inverse.GaussNewtonSolver]
-)
+@pytest.mark.parametrize('solver_type', inverse_solvers)
 def test_ice_shelf_inverse_with_noise(solver_type):
     import icepack
     Nx, Ny = 32, 32
