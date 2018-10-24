@@ -22,7 +22,7 @@ used to specify the problem to be solved, while the classes that inherit from
 import numpy as np
 import scipy.optimize
 import firedrake
-from firedrake import action, adjoint, replace, ln, dx
+from firedrake import action, adjoint, derivative, replace, ln, dx
 
 
 def _bracket(f):
@@ -157,11 +157,11 @@ class InverseSolver(object):
 
         # Create the weak form of the forward model, the adjoint state, and
         # the derivative of the objective functional
-        self._F = firedrake.derivative(problem.model.action(**args), self._u)
-        self._dF_du = firedrake.derivative(self._F, self._u)
+        self._F = derivative(problem.model.action(**args), self._u)
+        self._dF_du = derivative(self._F, self._u)
 
         # Create a search direction
-        dR = firedrake.derivative(self._R, self._p)
+        dR = derivative(self._R, self._p)
         self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         Q = self._p.function_space()
         self._q = firedrake.Function(Q)
@@ -169,7 +169,7 @@ class InverseSolver(object):
         # Create the adjoint state variable
         V = self.state.function_space()
         self._λ = firedrake.Function(V)
-        dF_dp = firedrake.derivative(self._F, self._p)
+        dF_dp = derivative(self._F, self._p)
 
         # Create Dirichlet BCs where they apply for the adjoint solve
         rank = self._λ.ufl_element().num_sub_elements()
@@ -177,8 +177,8 @@ class InverseSolver(object):
         self._bc = firedrake.DirichletBC(V, zero, problem.dirichlet_ids)
 
         # Create the derivative of the objective functional
-        self._dE = firedrake.derivative(self._E, self._u)
-        dR = firedrake.derivative(self._R, self._p)
+        self._dE = derivative(self._E, self._u)
+        dR = derivative(self._R, self._p)
         self._dJ = (action(adjoint(dF_dp), self._λ) + dR)
 
     @property
@@ -245,7 +245,7 @@ class InverseSolver(object):
         """Update the adjoint state for new values of the observable state and
         parameters so that we can calculate derivatives"""
         λ = self.adjoint_state
-        L = firedrake.adjoint(self._dF_du)
+        L = adjoint(self._dF_du)
         firedrake.solve(L == -self._dE, λ, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
@@ -378,24 +378,21 @@ class GaussNewtonSolver(InverseSolver):
         """Multiply a field by the Gauss-Newton operator"""
         u, p = self.state, self.parameter
 
-        dE = firedrake.derivative(self._E, u)
-        d2E = firedrake.derivative(dE, u)
-        dR = firedrake.derivative(self._R, p)
-        dF_du, dF_dp = self._dF_du, firedrake.derivative(self._F, p)
+        dE = derivative(self._E, u)
+        dR = derivative(self._R, p)
+        dF_du, dF_dp = self._dF_du, derivative(self._F, p)
 
         w = firedrake.Function(u.function_space())
-        firedrake.solve(dF_du == firedrake.action(dF_dp, q), w, self._bc,
+        firedrake.solve(dF_du == action(dF_dp, q), w, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
         v = firedrake.Function(u.function_space())
-        firedrake.solve(firedrake.adjoint(dF_du) == firedrake.action(d2E, w),
-                        v, self._bc,
+        firedrake.solve(adjoint(dF_du) == derivative(dE, u, w), v, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
-        return firedrake.action(firedrake.adjoint(dF_dp), v) + \
-            firedrake.derivative(dR, p, q)
+        return action(adjoint(dF_dp), v) + derivative(dR, p, q)
 
     def gauss_newton_energy_norm(self, q):
         """Compute the energy norm of a field w.r.t. the Gauss-Newton operator
@@ -407,29 +404,27 @@ class GaussNewtonSolver(InverseSolver):
         search direction."""
         u, p = self.state, self.parameter
 
-        dE = firedrake.derivative(self._E, u)
-        d2E = firedrake.derivative(dE, u)
-        dR = firedrake.derivative(self._R, p)
-        d2R = firedrake.derivative(dR, p)
-        dF_du, dF_dp = self._dF_du, firedrake.derivative(self._F, p)
+        dE = derivative(self._E, u)
+        dR = derivative(self._R, p)
+        dF_du, dF_dp = self._dF_du, derivative(self._F, p)
 
         v = firedrake.Function(u.function_space())
-        firedrake.solve(dF_du == firedrake.action(dF_dp, q), v, self._bc,
+        firedrake.solve(dF_du == action(dF_dp, q), v, self._bc,
                         solver_parameters=self._solver_params,
                         form_compiler_parameters=self._fc_params)
 
-        return self._assemble(firedrake.energy_norm(d2E, v) +
-                              firedrake.energy_norm(d2R, q))
+        return self._assemble(firedrake.energy_norm(derivative(dE, u), v) +
+                              firedrake.energy_norm(derivative(dR, p), q))
 
     def update_search_direction(self):
         """Solve the Gauss-Newton system for the new search direction using the
         preconditioned conjugate gradient method"""
         p, q, dJ = self.parameter, self.search_direction, self.gradient
 
-        dR = firedrake.derivative(self.regularization, self.parameter)
+        dR = derivative(self.regularization, self.parameter)
         Q = q.function_space()
         M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx + \
-            firedrake.derivative(dR, p)
+            derivative(dR, p)
 
         # Compute the preconditioned residual
         z = firedrake.Function(Q)
@@ -462,7 +457,7 @@ class GaussNewtonSolver(InverseSolver):
             s += z
 
             energy_norm = self.gauss_newton_energy_norm(q)
-            cost = 0.5 * energy_norm + self._assemble(firedrake.action(dJ, q))
+            cost = 0.5 * energy_norm + self._assemble(action(dJ, q))
 
             if (abs(old_cost - cost) / (0.5 * energy_norm)
                     < self._search_tolerance):
