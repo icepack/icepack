@@ -12,7 +12,6 @@
 
 import firedrake
 
-
 def newton_search(E, u, bc, tolerance, scale,
                   max_iterations=50, armijo=1e-4, contraction_factor=0.5,
                   form_compiler_parameters={},
@@ -49,22 +48,26 @@ def newton_search(E, u, bc, tolerance, scale,
     """
     F = firedrake.derivative(E, u)
     H = firedrake.derivative(F, u)
-    p = firedrake.Function(u.function_space())
-    dE_dp = firedrake.action(F, p)
+    v = firedrake.Function(u.function_space())
+    dE_dv = firedrake.action(F, v)
 
     def assemble(*args, **kwargs):
         return firedrake.assemble(
             *args, **kwargs, form_compiler_parameters=form_compiler_parameters)
 
+    problem = firedrake.LinearVariationalProblem(H, -F, v, bc,
+                  form_compiler_parameters=form_compiler_parameters,
+                  constant_jacobian=False)
+    solver = firedrake.LinearVariationalSolver(problem,
+                 solver_parameters=solver_parameters)
+
     n = 0
     while True:
         # Compute a search direction
-        firedrake.solve(H == -F, p, bc,
-                        solver_parameters=solver_parameters,
-                        form_compiler_parameters=form_compiler_parameters)
+        solver.solve()
 
         # Compute the directional derivative, check if we're done
-        slope = assemble(dE_dp)
+        slope = assemble(dE_dv)
         assert slope < 0
         if (abs(slope) < assemble(scale) * tolerance) or (n >= max_iterations):
             return u
@@ -72,10 +75,10 @@ def newton_search(E, u, bc, tolerance, scale,
         # Backtracking search
         E0 = assemble(E)
         α = firedrake.Constant(1)
-        Eα = firedrake.replace(E, {u: u + α * p})
+        Eα = firedrake.replace(E, {u: u + α * v})
         while assemble(Eα) > E0 + armijo * α.values()[0] * slope:
             α.assign(α * contraction_factor)
 
-        u.assign(u + α * p)
+        u.assign(u + α * v)
         n += 1
 
