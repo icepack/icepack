@@ -181,6 +181,8 @@ class IceStream(object):
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
+
+        See :meth:`icepack.models.mass_transport.MassTransport.solve`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 

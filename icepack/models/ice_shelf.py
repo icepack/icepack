@@ -192,19 +192,7 @@ class IceShelf(object):
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
         """Propagate the ice thickness forward one timestep
 
-        Parameters
-        ----------
-        dt : float
-            The timestep length
-        h0, a : firedrake.Function
-            The initial ice thickness and the accumulation rate
-        u : firedrake.Function
-            The ice velocity
-
-        Returns
-        -------
-        h : firedrake.Function
-            The new ice thickness at `t + dt`
+        See :meth:`icepack.models.mass_transport.MassTransport.solve`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
