@@ -5,8 +5,8 @@ services:
     - docker
 
 before_install:
-    - docker pull icepack/firedrake:latest
-    - docker run --interactive --tty --detach --volume $TRAVIS_BUILD_DIR:/repo --name build icepack/firedrake:latest
+    - docker pull icepack/firedrake:stretch
+    - docker run --interactive --tty --detach --volume $TRAVIS_BUILD_DIR:/repo --name build icepack/firedrake:stretch
 
 install:
     - docker exec -i build bash -c "cd /repo && pip3 install -e ."
