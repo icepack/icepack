@@ -13,8 +13,7 @@
 import numpy as np
 import numpy.ma as ma
 import pytest
-from icepack.grid import GridData
-
+import icepack, icepack.grid
 
 def test_manual_construction():
     x0 = (0, 0)
@@ -25,15 +24,16 @@ def test_manual_construction():
     missing = -9999.0
     data0 = np.copy(data)
     data0[0, 0] = missing
-    dataset0 = GridData(x0, dx, data0, missing_data_value=missing)
+    dataset0 = icepack.grid.GridData(x0, dx, data0, missing_data_value=missing)
 
     # Create a gridded data set by passing the missing data mask
     mask = np.zeros((3, 3), dtype=bool)
     mask[0, 0] = True
-    dataset1 = GridData(x0, dx, data, mask=mask)
+    dataset1 = icepack.grid.GridData(x0, dx, data, mask=mask)
 
     #  Create a gridded data set by directly passing a numpy masked array
-    dataset2 = GridData(x0, dx, ma.MaskedArray(data=data, mask=mask))
+    data2 = ma.MaskedArray(data=data, mask=mask)
+    dataset2 = icepack.grid.GridData(x0, dx, data2)
 
     for dataset in [dataset0, dataset1, dataset2]:
         for z in [(0.5, 1.5), (1.5, 0.5), (1.5, 1.5), (0.5, 2.0)]:
@@ -53,7 +53,7 @@ def test_accessing_missing_data():
     data = np.array([[0, 1, 2],
                      [1, 2, 3],
                      [2, 3, missing]])
-    dataset = GridData(x0, dx, data, missing_data_value=missing)
+    dataset = icepack.grid.GridData(x0, dx, data, missing_data_value=missing)
 
     assert abs(dataset((0.5, 0.5)) - 1) < 1e-6
 
@@ -69,7 +69,7 @@ def test_subset():
     dx = 1
     data = np.array([[i + N * j for j in range(N)] for i in range(N)])
 
-    dataset = GridData(x0, dx, data, missing_data_value=-9999.0)
+    dataset = icepack.grid.GridData(x0, dx, data, missing_data_value=-9999.0)
 
     def check_subset(subset, xmin, xmax):
         x0_original = dataset.coordinate(0, 0)
@@ -145,7 +145,7 @@ def test_geotiff():
                     dtype=np.int32)
     missing = -9999.0
     data[0, 0] = missing
-    dataset1 = GridData(x0, dx, data, missing_data_value=missing)
+    dataset1 = icepack.grid.GridData(x0, dx, data, missing_data_value=missing)
 
     import tempfile
     from icepack.grid import geotiff
@@ -154,3 +154,45 @@ def test_geotiff():
         dataset2 = geotiff.read(tmp.name)
         assert np.array_equal(dataset1.data, dataset2.data)
 
+
+def test_interpolating_to_mesh():
+    import firedrake
+    import icepack
+
+    # Make the mesh the square `[1/4, 3/4] x [1/4, 3/4]`
+    nx, ny = 32, 32
+    mesh = firedrake.UnitSquareMesh(nx, ny)
+    x, y = firedrake.SpatialCoordinate(mesh)
+    Vc = mesh.coordinates.function_space()
+    f = firedrake.interpolate(firedrake.as_vector((x/2 + 1/4, y/2 + 1/4)), Vc)
+    mesh.coordinates.assign(f)
+
+    # Interpolate a scalar field
+    x0 = (0, 0)
+    n = 32
+    dx = 1.0/n
+    data = np.array([[dx * (i + j) for j in range(n + 1)]
+                     for i in range(n + 1)])
+    missing = -9999.0
+    data[0, 0] = missing
+    dataset = icepack.grid.GridData(x0, dx, data, missing_data_value=missing)
+
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
+    p = firedrake.interpolate(x + y, Q)
+    q = icepack.interpolate(dataset, Q)
+
+    assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-6
+
+    # Interpolate a vector field
+    data_x = np.copy(data)
+    data_y = np.array([[dx * (j - i) for j in range(n + 1)]
+                       for i in range(n + 1)])
+    data_y[-1, -1] = -9999.0
+    vx = icepack.grid.GridData(x0, dx, data_x, missing_data_value=missing)
+    vy = icepack.grid.GridData(x0, dx, data_y, missing_data_value=missing)
+
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=1)
+    u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
+    v = icepack.interpolate((vx, vy), V)
+
+    assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-6

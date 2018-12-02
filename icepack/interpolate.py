@@ -11,49 +11,46 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-
+import icepack.grid
 
 def interpolate(f, Q):
-    """Interpolate an analytically-defined function to a function space
-
-    The function space `Q` must be of the right rank for the type of the
-    range of `f`. For example, if `f` is a vector-valued function, then `Q`
-    must be a vector function space, likewise for tensors or scalars.
+    """Interpolate an expression or a gridded data set to a function space
 
     Parameters
     ----------
-    f : firedrake.Expression, firedrake.Function, or a callable object
-        If callable, must take in values of the dimension of the function
-        space and return either scalar/vector/tensor values
+    f : icepack.grid.GridData or tuple of icepack.grid.GridData
+        The gridded data set for scalar fields or the tuple of gridded data
+        sets for each component
     Q : firedrake.FunctionSpace
-        The function space to interpolate to
+        The function space where the result will live
 
     Returns
     -------
     firedrake.Function
         A finite element function defined on `Q` with the same nodal values
-        as the function `f`
+        as the data `f`
     """
     if isinstance(f, (firedrake.Expression, firedrake.Function)):
         return firedrake.interpolate(f, Q)
 
-    if hasattr(f, '__call__'):
-        domain = Q.ufl_domain()
-        element = Q.ufl_element()
-        if len(element.sub_elements()) > 0:
-            element = element.sub_elements()[0]
+    mesh = Q.mesh()
+    element = Q.ufl_element()
+    if len(element.sub_elements()) > 0:
+        element = element.sub_elements()[0]
 
-        V = firedrake.VectorFunctionSpace(domain, element)
-        X = firedrake.interpolate(domain.coordinates, V)
+    V = firedrake.VectorFunctionSpace(mesh, element)
+    X = firedrake.interpolate(mesh.coordinates, V)
 
-        q = firedrake.Function(Q)
+    if isinstance(f, icepack.grid.GridData):
+        F = f
+    elif isinstance(f, tuple):
+        if all(isinstance(fi, icepack.grid.GridData) for fi in f):
+            F = lambda x: tuple(fi(x) for fi in f)
+    else:
+        raise ValueError('Argument must be a GridData or a tuple of GridData!')
 
-        # TODO: make this work for vectorized things & get rid of the loop
-        n = q.dat.data.shape[0]
-        for i in range(n):
-            q.dat.data[i] = f(X.dat.data_ro[i, :])
+    q = firedrake.Function(Q)
+    for i in range(q.dat.data_ro.shape[0]):
+        q.dat.data[i] = F(X.dat.data_ro[i, :])
 
-        return q
-
-    raise ValueError('Argument must be callable!')
-
+    return q
