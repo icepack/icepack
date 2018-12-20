@@ -73,12 +73,11 @@ class InverseProblem(object):
             The forward model physics
         method
             The method of `model` to solve the forward model physics
-        objective : firedrake.Form
-            A functional of the state variable; this is what we will
-            minimize
-        regularization : firedrake.Form
-            A functional of the parameter variable that penalizes
-            unphysical behavior
+        objective
+            A python function that returns the model-data misfit functional
+        regularization
+            A python function that returns the regularization functional,
+            i.e. the penalty for unphysical parameter fields
         state_name : str
             The name of the state variable as expected by `model.solve`
         state : firedrake.Function
@@ -151,8 +150,8 @@ class InverseSolver(object):
         self._fc_params = {'quadrature_degree': degree}
 
         # Create the error, regularization, and barrier functionals
-        self._E = replace(problem.objective, {problem.state: self._u})
-        self._R = replace(problem.regularization, {problem.parameter: self._p})
+        self._E = problem.objective(self._u)
+        self._R = problem.regularization(self._p)
         self._J = self._E + self._R
 
         # Create the weak form of the forward model, the adjoint state, and

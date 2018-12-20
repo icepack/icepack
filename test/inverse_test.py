@@ -74,8 +74,8 @@ def test_poisson_inverse(solver_type):
     problem = icepack.inverse.InverseProblem(
         model=model,
         method=PoissonModel.solve,
-        objective=0.5 * (u0 - u_obs)**2 * dx,
-        regularization=L**2/2 * inner(grad(q0), grad(q0)) * dx,
+        objective=lambda u: 0.5 * (u - u_obs)**2 * dx,
+        regularization=lambda q: L**2/2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u0,
         parameter_name='q',
@@ -155,12 +155,11 @@ def test_ice_shelf_inverse(solver_type):
         print(misfit, regularization, error)
 
     L = 1e-4 * Lx
-    regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
     problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
-        objective=0.5 * (u_initial - u_true)**2 * dx,
-        regularization=regularization,
+        objective=lambda u: 0.5 * (u - u_true)**2 * dx,
+        regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u_initial,
         parameter_name='q',
@@ -250,8 +249,8 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     problem = icepack.inverse.InverseProblem(
         model=ice_shelf,
         method=icepack.models.IceShelf.diagnostic_solve,
-        objective=0.5 * ((u_initial - u_obs)/σ)**2 * dx,
-        regularization=regularization,
+        objective=lambda u: 0.5 * ((u - u_obs)/σ)**2 * dx,
+        regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u_initial,
         parameter_name='q',
