@@ -25,20 +25,29 @@ extensibility
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
+   :caption: Basics
 
    overview.rst
    installation.rst
+   reading.rst
 
 .. toctree::
    :maxdepth: 1
-   :caption: Demos:
+   :caption: Tutorials
 
 {0}
 
 .. toctree::
    :maxdepth: 1
-   :caption: API Reference:
+   :caption: Development
+
+   contributing.rst
+   testing.rst
+   design.rst
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
 
    modules.rst
 
@@ -55,4 +64,3 @@ if __name__ == "__main__":
 
     with open("source/index.rst", 'w') as index:
         index.write(text.format(file_list))
-

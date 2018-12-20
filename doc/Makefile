@@ -5,7 +5,7 @@ ifndef ICEPACK_DATA
     $(error ICEPACK_DATA is undefined)
 endif
 
-source/index.rst:
+source/index.rst: make_index.py
 	python3 make_index.py $(DEMO_FILES)
 
 DEMO_FILES:=$(shell find ../demo -not -path '*/\.*' -type f -name '*\.ipynb' | sort)
