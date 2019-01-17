@@ -17,7 +17,8 @@ and, in particular, the viscous part of the action functional for ice flow.
 Several flow models all have essentially the same viscous part.
 """
 
-from numpy import exp
+import numpy as np
+import firedrake
 from firedrake import grad, dx, sqrt, Identity, inner, sym, tr as trace
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n
 
@@ -45,11 +46,30 @@ def rate_factor(T):
     where :math:`R` is the ideal gas constant, :math:`Q` has units of
     energy per mole, and :math:`A_0` is a prefactor with units of
     pressure :math:`\\text{MPa}^{-3}\\times\\text{yr}^{-1}`.
+
+    Parameters
+    ----------
+    T : float, np.ndarray, or UFL expression
+        The ice temperature
+
+    Returns
+    -------
+    A : same type as T
+        The ice fluidity
     """
+    import ufl
+    if isinstance(T, ufl.core.expr.Expr):
+        cold = firedrake.lt(T, transition_temperature)
+        A0 = firedrake.conditional(cold, A0_cold, A0_warm)
+        Q = firedrake.conditional(cold, Q_cold, Q_warm)
+        return A0 * firedrake.exp(-Q / (R * T))
+
     cold = T < transition_temperature
-    A0 = A0_cold if cold else A0_warm
-    Q = Q_cold if cold else Q_warm
-    return A0 * exp(-Q / (R * T))
+    warm = ~cold if isinstance(T, np.ndarray) else (not cold)
+    A0 = A0_cold * cold + A0_warm * warm
+    Q = Q_cold * cold + Q_warm * warm
+
+    return A0 * np.exp(-Q / (R * T))
 
 
 def M(eps, A):
