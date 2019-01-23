@@ -31,9 +31,10 @@ class PoissonModel(object):
 
     def solve(self, q, f, dirichlet_ids=[], **kwargs):
         u = firedrake.Function(f.function_space())
-        W = self.action(q, u, f)
-        F = firedrake.derivative(W, u)
-        bc = firedrake.DirichletBC(u.function_space(), 0, dirichlet_ids)
+        L = self.action(q, u, f)
+        F = firedrake.derivative(L, u)
+        V = u.function_space()
+        bc = firedrake.DirichletBC(V, firedrake.Constant(0), dirichlet_ids)
         firedrake.solve(F == 0, u, bc,
             solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'})
         return u

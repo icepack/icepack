@@ -180,7 +180,8 @@ class IceShelf(object):
         kwargs['side_wall_ids'] = side_wall_ids
         kwargs['ice_front_ids'] = list(
             set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
-        bcs = firedrake.DirichletBC(u.function_space(), (0, 0), dirichlet_ids)
+        bcs = firedrake.DirichletBC(
+            u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
         params = {'quadrature_degree': self.quadrature_degree(u, h, **kwargs)}
 
         # Solve the nonlinear optimization problem

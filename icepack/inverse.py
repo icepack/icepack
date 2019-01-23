@@ -172,7 +172,10 @@ class InverseSolver(object):
 
         # Create Dirichlet BCs where they apply for the adjoint solve
         rank = self._λ.ufl_element().num_sub_elements()
-        zero = 0 if rank == 0 else (0,) * rank
+        if rank == 0:
+            zero = firedrake.Constant(0)
+        else:
+            zero = firedrake.as_vector((0,) * rank)
         self._bc = firedrake.DirichletBC(V, zero, problem.dirichlet_ids)
 
         # Create the derivative of the objective functional
