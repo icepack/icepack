@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import ufl
 import firedrake
 import icepack.grid
 
@@ -30,7 +31,7 @@ def interpolate(f, Q):
         A finite element function defined on `Q` with the same nodal values
         as the data `f`
     """
-    if isinstance(f, (firedrake.Expression, firedrake.Function)):
+    if isinstance(f, (ufl.core.expr.Expr, firedrake.Function)):
         return firedrake.interpolate(f, Q)
 
     mesh = Q.mesh()
