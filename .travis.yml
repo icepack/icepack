@@ -17,4 +17,4 @@ install:
     - docker exec -i build bash -c "pip3 install --editable ."
 
 script:
-    - docker exec -i build bash -c "MPLBACKEND='Agg' pytest --capture=no --verbose"
+    - docker exec -i build bash -c "MPLBACKEND='Agg' pytest -W ignore::DeprecationWarning --capture=no --verbose"
