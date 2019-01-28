@@ -4,14 +4,17 @@ sudo: required
 services:
     - docker
 
+env:
+    - DEBIAN_VERSION=stretch
+    - DEBIAN_VERSION=buster
+
 before_install:
-    - docker pull icepack/firedrake:stretch
-    - chmod --recursive a+rwx $TRAVIS_BUILD_DIR
+    - chmod --recursive a+rwx ${TRAVIS_BUILD_DIR}
     - >
       docker run --interactive --tty --detach --name build
       --volume $TRAVIS_BUILD_DIR:/home/user/icepack
       --workdir /home/user/icepack
-      icepack/firedrake:stretch
+      icepack/firedrake:${DEBIAN_VERSION}
 
 install:
     - docker exec -i build bash -c "pip3 install --editable ."
