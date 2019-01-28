@@ -10,8 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Functions for reading and writing gridded data sets in various formats
-"""
+r"""Functions for reading and writing gridded data sets in various formats"""
 
 from icepack.grid.grid_data import GridData
 

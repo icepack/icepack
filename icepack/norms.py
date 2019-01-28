@@ -16,7 +16,7 @@ from icepack import utilities
 
 
 def norm(u, norm_type='L2'):
-    """Compute the norm of a field
+    r"""Compute the norm of a field
 
     Computes one of any number of norms of a scalar or vector field. The
     available options are:

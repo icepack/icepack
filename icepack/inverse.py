@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Solvers for inverse problems
+r"""Solvers for inverse problems
 
 This module contains objects for specifying and solving inverse problems, where
 some unobservable field is estimated based on observations of an observable
@@ -26,7 +26,7 @@ from firedrake import action, adjoint, derivative, replace, ln, dx
 
 
 def _bracket(f):
-    """Given a decreasing real function of a single variable, return a value
+    r"""Given a decreasing real function of a single variable, return a value
     `t` such that `f(t) < f(0)`, which can then be used for a more thorough
     line search"""
     f_0 = f(0)
@@ -43,7 +43,7 @@ def _bracket(f):
 
 
 class InverseProblem(object):
-    """Specifies an inverse problem
+    r"""Specifies an inverse problem
 
     This object is used to specify an inverse problem, i.e. estimating a
     parameter :math:`p` from measurements of a field :math:`u`, where the two
@@ -65,7 +65,7 @@ class InverseProblem(object):
     def __init__(self, model, method, objective, regularization,
                  state_name, state, parameter_name, parameter,
                  model_args={}, dirichlet_ids=[]):
-        """Initialize the inverse problem
+        r"""Initialize the inverse problem
 
         Parameters
         ----------
@@ -112,7 +112,7 @@ class InverseProblem(object):
 
 
 class InverseSolver(object):
-    """Base class for approximating the solution of an inverse problem
+    r"""Base class for approximating the solution of an inverse problem
 
     This object stores most of the data needed to iteratively optimize the
     value of some parameter of a model, such as the rheology or friction of a
@@ -185,46 +185,46 @@ class InverseSolver(object):
 
     @property
     def problem(self):
-        """The instance of the inverse problem we're solving"""
+        r"""The instance of the inverse problem we're solving"""
         return self._problem
 
     @property
     def parameter(self):
-        """The current value of the parameter we're estimating"""
+        r"""The current value of the parameter we're estimating"""
         return self._p
 
     @property
     def state(self):
-        """The state variable computed from the current value of the
+        r"""The state variable computed from the current value of the
         parameter"""
         return self._u
 
     @property
     def adjoint_state(self):
-        """The adjoint state variable computed from the current value of
+        r"""The adjoint state variable computed from the current value of
         the parameters and the primal state"""
         return self._λ
 
     @property
     def search_direction(self):
-        """Return the direction along which we'll search for a new value of
+        r"""Return the direction along which we'll search for a new value of
         the parameters"""
         return self._q
 
     @property
     def objective(self):
-        """The functional of the state variable that we're minimizing"""
+        r"""The functional of the state variable that we're minimizing"""
         return self._E
 
     @property
     def regularization(self):
-        """The regularization functional, which penalizes unphysical modes
+        r"""The regularization functional, which penalizes unphysical modes
         in the inferred parameter"""
         return self._R
 
     @property
     def gradient(self):
-        """The derivative of the Lagrangian (objective + regularization +
+        r"""The derivative of the Lagrangian (objective + regularization +
         physics constraints) with respect to the parameter"""
         return self._dJ
 
@@ -239,12 +239,12 @@ class InverseSolver(object):
                                   form_compiler_parameters=self._fc_params)
 
     def update_state(self):
-        """Update the observable state for a new value of the parameters"""
+        r"""Update the observable state for a new value of the parameters"""
         u, p = self.state, self.parameter
         u.assign(self._forward_solve(p))
 
     def update_adjoint_state(self):
-        """Update the adjoint state for new values of the observable state and
+        r"""Update the adjoint state for new values of the observable state and
         parameters so that we can calculate derivatives"""
         λ = self.adjoint_state
         L = adjoint(self._dF_du)
@@ -253,7 +253,7 @@ class InverseSolver(object):
                         form_compiler_parameters=self._fc_params)
 
     def line_search(self):
-        """Perform a line search along the descent direction to get a new
+        r"""Perform a line search along the descent direction to get a new
         value of the parameter"""
         u, p, q = self.state, self.parameter, self.search_direction
 
@@ -281,7 +281,7 @@ class InverseSolver(object):
         return result.x
 
     def step(self):
-        """Perform a line search along the current descent direction to get
+        r"""Perform a line search along the current descent direction to get
         a new value of the parameters, then compute the new state, adjoint,
         and descent direction."""
         p, q = self.parameter, self.search_direction
@@ -293,7 +293,7 @@ class InverseSolver(object):
         self._callback(self)
 
     def solve(self, atol=0.0, rtol=1e-6, max_iterations=None):
-        """Search for a new value of the parameters, stopping once either
+        r"""Search for a new value of the parameters, stopping once either
         the objective functional gets below a threshold value or stops
         improving."""
         max_iterations = max_iterations or np.inf
@@ -311,7 +311,7 @@ class InverseSolver(object):
 
 
 class GradientDescentSolver(InverseSolver):
-    """Implementation of `InverseSolver` using the objective function gradient
+    r"""Implementation of `InverseSolver` using the objective function gradient
     directly for a search direction
 
     This implementation of inverse solvers uses the search direction
@@ -331,7 +331,7 @@ class GradientDescentSolver(InverseSolver):
         self._callback(self)
 
     def update_search_direction(self):
-        """Set the search direction to be the inverse of the mass matrix times
+        r"""Set the search direction to be the inverse of the mass matrix times
         the gradient of the objective"""
         q, dJ = self.search_direction, self.gradient
         Q = q.function_space()
@@ -342,7 +342,7 @@ class GradientDescentSolver(InverseSolver):
 
 
 class GaussNewtonSolver(InverseSolver):
-    """Implementation of `InverseSolver` using an approximation to the Hessian
+    r"""Implementation of `InverseSolver` using an approximation to the Hessian
     of the objective functional to approach Newton-like efficiency
 
     This implementation of inverse solvers uses the search direction
@@ -363,7 +363,8 @@ class GaussNewtonSolver(InverseSolver):
     :math:`d^2G` are dropped. This search direction is more expensive to solve
     for than in, say, gradient descent. However, it is almost always properly
     scaled to the dimensions of the problem and converges in far fewer
-    iterations."""
+    iterations.
+    """
     def __init__(self, problem, callback=(lambda s: None),
                  search_tolerance=1e-3):
         self._setup(problem, callback)
@@ -397,13 +398,14 @@ class GaussNewtonSolver(InverseSolver):
         return action(adjoint(dF_dp), v) + derivative(dR, p, q)
 
     def gauss_newton_energy_norm(self, q):
-        """Compute the energy norm of a field w.r.t. the Gauss-Newton operator
+        r"""Compute the energy norm of a field w.r.t. the Gauss-Newton operator
 
         The energy norm of a field :math:`q` w.r.t. the Gauss-Newton operator
         :math:`H` can be computed using one fewer linear solve than if we were
         to calculate the action of :math:`H\\cdot q` on :math:`q`. This saves
         computation when using the conjugate gradient method to solve for the
-        search direction."""
+        search direction.
+        """
         u, p = self.state, self.parameter
 
         dE = derivative(self._E, u)
@@ -419,8 +421,8 @@ class GaussNewtonSolver(InverseSolver):
                               firedrake.energy_norm(derivative(dR, p), q))
 
     def update_search_direction(self):
-        """Solve the Gauss-Newton system for the new search direction using the
-        preconditioned conjugate gradient method"""
+        r"""Solve the Gauss-Newton system for the new search direction using
+        the preconditioned conjugate gradient method"""
         p, q, dJ = self.parameter, self.search_direction, self.gradient
 
         dR = derivative(self.regularization, self.parameter)
@@ -469,7 +471,7 @@ class GaussNewtonSolver(InverseSolver):
 
 
 class BFGSSolver(InverseSolver):
-    """Implementation of `InverseSolver` using the limited-memory BFGS method
+    r"""Implementation of `InverseSolver` using the limited-memory BFGS method
     to compute a search direction
 
     This implementation of inverse solvers uses a search direction based on the
@@ -479,7 +481,8 @@ class BFGSSolver(InverseSolver):
     direction is only marginally more expensive to compute than the steepest
     descent direction.
 
-    See chapters 6-7 of Nocedal and Wright, Numerical Optimization, 2nd ed."""
+    See chapters 6-7 of Nocedal and Wright, Numerical Optimization, 2nd ed.
+    """
     def __init__(self, problem, callback=(lambda s: None), memory=5):
         self._setup(problem, callback)
         self.update_state()
@@ -503,12 +506,12 @@ class BFGSSolver(InverseSolver):
 
     @property
     def memory(self):
-        """Return the number of previous iterations used to construct the low-
+        r"""Return the number of previous iterations used to construct the low-
         rank approximation to the Hessian"""
         return self._memory
 
     def update_search_direction(self):
-        """Apply the low-rank approximation of the Hessian inverse
+        r"""Apply the low-rank approximation of the Hessian inverse
 
         This procedure implements the two-loop recursion algorithm to apply the
         low-rank approximation of the Hessian inverse to the derivative of the

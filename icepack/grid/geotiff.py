@@ -10,14 +10,14 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Functions for reading/writing GeoTIFF files"""
+r"""Functions for reading/writing GeoTIFF files"""
 
 import numpy as np
 from icepack.grid import GridData
 import rasterio, rasterio.crs
 
 def write(filename, q, missing=-9999, crs=None):
-    """Write a gridded dataset to a GeoTIFF file
+    r"""Write a gridded dataset to a GeoTIFF file
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def write(filename, q, missing=-9999, crs=None):
 
 
 def read(filename):
-    """Read a GeoTIFF file into a gridded data set
+    r"""Read a GeoTIFF file into a gridded data set
 
     Parameters
     ----------

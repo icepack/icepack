@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Functions for reading/writing the ArcInfo ASCII format
+r"""Functions for reading/writing the ArcInfo ASCII format
 
 This module contains functions for reading and writing raster data in the
 `Arc/Info ASCII grid <https://en.wikipedia.org/wiki/Esri_grid>`_ format.
@@ -25,7 +25,7 @@ import numpy.ma as ma
 from icepack.grid import GridData
 
 def write(filename_or_file, q, missing):
-    """Write a gridded data set to an ArcInfo ASCII format file
+    r"""Write a gridded data set to an ArcInfo ASCII format file
 
     Parameters
     ----------
@@ -56,7 +56,7 @@ def write(filename_or_file, q, missing):
 
 
 def read(filename_or_file):
-    """Read an ArcInfo ASCII file into a gridded data set
+    r"""Read an ArcInfo ASCII file into a gridded data set
 
     Parameters
     ----------
@@ -88,4 +88,3 @@ def read(filename_or_file):
         data[i, :] = [float(q) for q in input_file.readline().split()]
 
     return GridData((xo, yo), dx, data, missing_data_value=missing)
-

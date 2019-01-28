@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Utilities for plotting gridded data, meshes, and finite element fields
+r"""Utilities for plotting gridded data, meshes, and finite element fields
 
 This module contains thin wrappers around functionality in matplotlib for
 plotting things. For example, `triplot`, `tricontourf`, and `streamplot`
@@ -35,9 +35,8 @@ import icepack
 
 
 def _get_coordinates(mesh):
-    """Return the coordinates of a mesh if the mesh is piecewise linear,
-    or interpolate them to piecewise linear if the mesh is curved
-    """
+    r"""Return the coordinates of a mesh if the mesh is piecewise linear,
+    or interpolate them to piecewise linear if the mesh is curved"""
     coordinates = mesh.coordinates
     element = coordinates.function_space().ufl_element()
     if element.degree() != 1:
@@ -79,7 +78,7 @@ def subplots(*args, **kwargs):
 
 
 def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
-    """Plot a mesh with a different color for each boundary segment"""
+    r"""Plot a mesh with a different color for each boundary segment"""
     if (mesh.geometric_dimension() != 2) or (mesh.topological_dimension() != 2):
         raise NotImplementedError("Plotting meshes only implemented for 2D")
 
@@ -127,7 +126,7 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
 
 
 def contourf(grid_data, *args, **kwargs):
-    """Plot a gridded data object"""
+    r"""Plot a gridded data object"""
     axes = kwargs.pop('axes', plt.gca())
 
     ny, nx = grid_data.shape
@@ -139,7 +138,7 @@ def contourf(grid_data, *args, **kwargs):
 
 
 def tricontourf(function, *args, **kwargs):
-    """Plot a finite element field"""
+    r"""Plot a finite element field"""
     axes = kwargs.pop('axes', plt.gca())
 
     mesh = function.ufl_domain()
@@ -162,7 +161,7 @@ def tricontourf(function, *args, **kwargs):
 
 
 def quiver(function, *args, **kwargs):
-    """Make a quiver plot of a vector field"""
+    r"""Make a quiver plot of a vector field"""
     axes = kwargs.pop('axes', plt.gca())
 
     coords = function.ufl_domain().coordinates.dat.data_ro
@@ -174,7 +173,7 @@ def quiver(function, *args, **kwargs):
 
 
 def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
-    """Return a streamline of a 2D velocity field
+    r"""Return a streamline of a 2D velocity field
 
     A streamline :math:`\\gamma` of a velocity field :math:`v` is a curve
     that solves the ordinary differential equation
@@ -272,7 +271,7 @@ class StreamplotSet(matplotlib.streamplot.StreamplotSet,
 
 
 def streamplot(u, **kwargs):
-    """Draw streamlines of a vector field"""
+    r"""Draw streamlines of a vector field"""
     axes = kwargs.pop('axes', plt.gca())
     cmap = kwargs.pop('cmap', matplotlib.cm.viridis)
 

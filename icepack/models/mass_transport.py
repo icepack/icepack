@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Solvers for the mass continuity equation
+r"""Solvers for the mass continuity equation
 
 This module contains a solver for the conservative advection equation that
 describes the evolution of ice thickness. While the basic mass transport
@@ -24,7 +24,7 @@ from firedrake import grad, dx, ds, inner
 
 class MassTransport(object):
     def solve(self, dt, h0, a, u, h_inflow=None, **kwargs):
-        """Propagate the thickness forward by one timestep
+        r"""Propagate the thickness forward by one timestep
 
         This function uses the implicit Euler timestepping scheme to avoid
         the stability issues associated to using continuous finite elements

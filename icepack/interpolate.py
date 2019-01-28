@@ -15,7 +15,7 @@ import firedrake
 import icepack.grid
 
 def interpolate(f, Q):
-    """Interpolate an expression or a gridded data set to a function space
+    r"""Interpolate an expression or a gridded data set to a function space
 
     Parameters
     ----------

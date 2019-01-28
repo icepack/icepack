@@ -17,13 +17,12 @@ from icepack import utilities
 
 
 def tau(u, C):
-    """Compute the shear stress for a given sliding velocity
-    """
+    r"""Compute the shear stress for a given sliding velocity"""
     return -C * sqrt(inner(u, u))**(1/m - 1) * u
 
 
 def bed_friction(u, C):
-    """Return the bed friction part of the ice stream action functional
+    r"""Return the bed friction part of the ice stream action functional
 
     The frictional part of the ice stream action functional is
 
@@ -39,7 +38,7 @@ def bed_friction(u, C):
 
 
 def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
-    """Return the side wall friction part of the action functional
+    r"""Return the side wall friction part of the action functional
 
     The component of the action functional due to friction along the side
     walls of the domain is
@@ -60,7 +59,7 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
 
 
 def normal_flow_penalty(u, scale=1.0, exponent=None, side_wall_ids=()):
-    """Return the penalty for flow normal to the domain boundary
+    r"""Return the penalty for flow normal to the domain boundary
 
     For problems where a glacier flows along some boundary, e.g. a fjord
     wall, the velocity has to be parallel to this boundary. Rather than

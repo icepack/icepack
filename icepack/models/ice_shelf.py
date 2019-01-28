@@ -22,7 +22,7 @@ from icepack.utilities import add_kwarg_wrapper
 
 
 def gravity(u, h):
-    """Return the gravitational part of the ice shelf action functional
+    r"""Return the gravitational part of the ice shelf action functional
 
     The gravitational part of the ice shelf action functional is
 
@@ -46,7 +46,7 @@ def gravity(u, h):
 
 
 def terminus(u, h, ice_front_ids=()):
-    """Return the terminus stress part of the ice shelf action functional
+    r"""Return the terminus stress part of the ice shelf action functional
 
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
 
@@ -64,7 +64,7 @@ def terminus(u, h, ice_front_ids=()):
 
 
 class IceShelf(object):
-    """Class for modelling the flow of floating ice shelves
+    r"""Class for modelling the flow of floating ice shelves
 
     This class provides functions that solve for the velocity and
     thickness of a floating ice shelf. The relevant physics can be found
@@ -85,7 +85,7 @@ class IceShelf(object):
         self.penalty = add_kwarg_wrapper(penalty)
 
     def action(self, u, h, **kwargs):
-        """Return the action functional that gives the ice shelf diagnostic
+        r"""Return the action functional that gives the ice shelf diagnostic
         model as the Euler-Lagrange equations
 
         The action functional for the ice shelf diagnostic model is
@@ -125,7 +125,7 @@ class IceShelf(object):
         return viscosity + side_friction - gravity - terminus + penalty
 
     def scale(self, u, h, **kwargs):
-        """Return the positive, convex part of the action functional
+        r"""Return the positive, convex part of the action functional
 
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
@@ -133,7 +133,7 @@ class IceShelf(object):
         return self.viscosity(u=u, h=h, **kwargs)
 
     def quadrature_degree(self, u, h, **kwargs):
-        """Return the quadrature degree necessary to integrate the action
+        r"""Return the quadrature degree necessary to integrate the action
         functional accurately
 
         Firedrake uses a very conservative algorithm for estimating the
@@ -146,7 +146,7 @@ class IceShelf(object):
         return 3 * (degree_u - 1) + 2 * degree_h
 
     def diagnostic_solve(self, u0, h, dirichlet_ids, tol=1e-6, **kwargs):
-        """Solve for the ice velocity from the thickness
+        r"""Solve for the ice velocity from the thickness
 
         Parameters
         ----------
@@ -191,9 +191,8 @@ class IceShelf(object):
                              form_compiler_parameters=params)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
-        """Propagate the ice thickness forward one timestep
+        r"""Propagate the ice thickness forward one timestep
 
         See :meth:`icepack.models.mass_transport.MassTransport.solve`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
-

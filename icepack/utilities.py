@@ -15,7 +15,7 @@ import numpy as np
 
 
 def diameter(mesh):
-    """Compute the diameter of the mesh in the L-infinity metric"""
+    r"""Compute the diameter of the mesh in the L-infinity metric"""
     X = mesh.coordinates.dat.data
     _, d = np.shape(X)
     Ls = np.array([np.max(X[:, k]) - np.min(X[:, k]) for k in range(d)])
@@ -35,4 +35,3 @@ def add_kwarg_wrapper(func):
         return func(*args, **kwargs_)
 
     return wrapper
-

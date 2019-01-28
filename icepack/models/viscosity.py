@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Functions for calculating the viscosity of a glacier
+r"""Functions for calculating the viscosity of a glacier
 
 This module contains procedures for computing the viscosity of a glacier
 and, in particular, the viscous part of the action functional for ice flow.
@@ -30,7 +30,7 @@ Q_warm = 139
 
 
 def rate_factor(T):
-    """Compute the rate factor in Glen's flow law for a given temperature
+    r"""Compute the rate factor in Glen's flow law for a given temperature
 
     The strain rate :math:`\dot\\varepsilon` of ice resulting from a stress
     :math:`\\tau` is
@@ -73,7 +73,8 @@ def rate_factor(T):
 
 
 def M(eps, A):
-    """Calculate the membrane stress for a given strain rate and fluidity"""
+    r"""Calculate the membrane stress for a given strain rate and
+    fluidity"""
     I = Identity(2)
     tr = trace(eps)
     eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
@@ -82,12 +83,12 @@ def M(eps, A):
 
 
 def eps(u):
-    """Calculate the strain rate for a given flow velocity"""
+    r"""Calculate the strain rate for a given flow velocity"""
     return sym(grad(u))
 
 
 def viscosity_depth_averaged(u, h, A):
-    """Return the viscous part of the action for depth-averaged models
+    r"""Return the viscous part of the action for depth-averaged models
 
     The viscous component of the action for depth-averaged ice flow is
 

@@ -13,11 +13,11 @@
 import numpy.ma as ma
 
 class GridData(object):
-    """Class for data sets defined on a regular spatial grid"""
+    r"""Class for data sets defined on a regular spatial grid"""
 
     def __init__(self, origin, grid_spacing, data,
                  *, mask=None, missing_data_value=None):
-        """Create a new gridded data set
+        r"""Create a new gridded data set
 
         There are several ways to specify the missing data mask:
         * pass in a numpy masked array for the `data` argument
@@ -53,7 +53,7 @@ class GridData(object):
             raise TypeError()
 
     def __getitem__(self, indices):
-        """Retrieve a given entry from the raw data"""
+        r"""Retrieve a given entry from the raw data"""
         i, j = indices
         return self.data[i, j]
 
@@ -62,7 +62,7 @@ class GridData(object):
         return self.data.shape
 
     def coordinate(self, i, j):
-        """Return the coordinates of a given grid cell"""
+        r"""Return the coordinates of a given grid cell"""
         ny, nx = self.shape
         if not ((0 <= i < ny) and (0 <= j < nx)):
             raise IndexError()
@@ -71,7 +71,7 @@ class GridData(object):
         return (x0[0] + j * delta, x0[1] + i * delta)
 
     def _index_of_point(self, x):
-        """Return the index of the grid point to the lower left of a point"""
+        r"""Return the index of the grid point to the lower left of a point"""
         ny, nx = self.shape
         x0, x1 = self.coordinate(0, 0), self.coordinate(ny - 1, nx - 1)
 
@@ -83,17 +83,17 @@ class GridData(object):
         return min(i, ny - 2), min(j, nx - 2)
 
     def _is_missing(self, i, j):
-        """Returns `True` if there is data missing around an index"""
+        r"""Returns `True` if there is data missing around an index"""
         return any([self.data[k, l] is ma.masked
                     for k in (i, i + 1) for l in (j, j + 1)])
 
     def is_masked(self, x):
-        """Returns `True` if the data cannot be interpolated to a point"""
+        r"""Returns `True` if the data cannot be interpolated to a point"""
         i, j = self._index_of_point(x)
         return self._is_missing(i, j)
 
     def subset(self, xmin, xmax):
-        """Return a sub-sample for the region between two points"""
+        r"""Return a sub-sample for the region between two points"""
         ny, nx = self.shape
         x0, x1 = self.coordinate(0, 0), self.coordinate(ny - 1, nx - 1)
 
@@ -107,7 +107,7 @@ class GridData(object):
         return GridData(self.coordinate(imin, jmin), self._delta, data)
 
     def __call__(self, x):
-        """Evaluate the gridded data set at a given point"""
+        r"""Evaluate the gridded data set at a given point"""
         i, j = self._index_of_point(x)
         if self._is_missing(i, j):
             raise ValueError("Not enough data to interpolate value at {0}"

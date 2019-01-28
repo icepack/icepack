@@ -16,7 +16,7 @@ def newton_search(E, u, bc, tolerance, scale,
                   max_iterations=50, armijo=1e-4, contraction_factor=0.5,
                   form_compiler_parameters={},
                   solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'}):
-    """Find the minimizer of a convex functional
+    r"""Find the minimizer of a convex functional
 
     Parameters
     ----------

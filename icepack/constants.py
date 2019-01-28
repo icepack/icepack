@@ -10,7 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-"""Physical constants
+r"""Physical constants
 
 This module constains physical constants used throughout the library such
 as the acceleration due to gravity, the universal gas constant, the density

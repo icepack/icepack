@@ -22,7 +22,7 @@ from icepack.utilities import add_kwarg_wrapper
 
 
 def gravity(u, h, s):
-    """Return the gravitational part of the ice stream action functional
+    r"""Return the gravitational part of the ice stream action functional
 
     The gravitational part of the ice stream action functional is
 
@@ -42,7 +42,7 @@ def gravity(u, h, s):
 
 
 def terminus(u, h, s, ice_front_ids=()):
-    """Return the terminal stress part of the ice stream action functional
+    r"""Return the terminal stress part of the ice stream action functional
 
     The power exerted due to stress at the ice calving terminus :math:`\Gamma`
     is
@@ -77,7 +77,7 @@ def terminus(u, h, s, ice_front_ids=()):
 
 
 class IceStream(object):
-    """Class for modelling the flow of grounded ice streams
+    r"""Class for modelling the flow of grounded ice streams
 
     This class provides functions that solve for the velocity, thickness,
     and surface elevation of a grounded, fast-flowing ice stream.
@@ -99,8 +99,8 @@ class IceStream(object):
         self.penalty = add_kwarg_wrapper(penalty)
 
     def action(self, u, h, s, **kwargs):
-        """Return the action functional that gives the ice stream diagnostic
-        model as the Euler-Lagrange equations"""
+        r"""Return the action functional that gives the ice stream
+        diagnostic model as the Euler-Lagrange equations"""
         viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
         friction = self.friction(u=u, h=h, s=s, **kwargs)
         side_friction = self.side_friction(u=u, h=h, s=s, **kwargs)
@@ -112,7 +112,7 @@ class IceStream(object):
                 - gravity - terminus + penalty)
 
     def scale(self, u, h, s, **kwargs):
-        """Return the positive, convex part of the action functional
+        r"""Return the positive, convex part of the action functional
 
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
@@ -121,7 +121,7 @@ class IceStream(object):
                 + self.friction(u=u, h=h, s=s, **kwargs))
 
     def quadrature_degree(self, u, h, **kwargs):
-        """Return the quadrature degree necessary to integrate the action
+        r"""Return the quadrature degree necessary to integrate the action
         functional accurately
 
         Firedrake uses a very conservative algorithm for estimating the
@@ -134,7 +134,7 @@ class IceStream(object):
         return 3 * (degree_u - 1) + 2 * degree_h
 
     def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
-        """Solve for the ice velocity from the thickness and surface
+        r"""Solve for the ice velocity from the thickness and surface
         elevation
 
         Parameters
@@ -181,14 +181,14 @@ class IceStream(object):
                              form_compiler_parameters=params)
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
-        """Propagate the ice thickness forward one timestep
+        r"""Propagate the ice thickness forward one timestep
 
         See :meth:`icepack.models.mass_transport.MassTransport.solve`
         """
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
     def compute_surface(self, h, b):
-        """Return the ice surface elevation consistent with a given
+        r"""Return the ice surface elevation consistent with a given
         thickness and bathymetry
 
         If the bathymetry beneath a tidewater glacier is too low, the ice
@@ -202,4 +202,3 @@ class IceStream(object):
         Q = h.ufl_function_space()
         s_expr = firedrake.max_value(h + b, (1 - rho_ice / rho_water) * h)
         return firedrake.interpolate(s_expr, Q)
-
