@@ -56,9 +56,11 @@ def norm(u, norm_type='L2'):
     if norm_type == 'Linfty':
         data = u.dat.data_ro
         if len(data.shape) == 1:
-            return np.max(np.abs(data))
+            local_max = np.max(np.abs(data))
         elif len(data.shape) == 2:
-            return np.max(np.sqrt(np.sum(data**2, 1)))
+            local_max = np.max(np.sqrt(np.sum(data**2, 1)))
+
+        return u.comm.allreduce(local_max, op=max)
 
     return assemble(form)**(1/p)
 

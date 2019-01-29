@@ -13,13 +13,12 @@
 import inspect
 import numpy as np
 
-
 def diameter(mesh):
     r"""Compute the diameter of the mesh in the L-infinity metric"""
-    X = mesh.coordinates.dat.data
-    _, d = np.shape(X)
-    Ls = np.array([np.max(X[:, k]) - np.min(X[:, k]) for k in range(d)])
-    return np.min(Ls)
+    X = mesh.coordinates.dat.data_ro
+    xmin = mesh.comm.allreduce(np.min(X, axis=0), op=np.minimum)
+    xmax = mesh.comm.allreduce(np.max(X, axis=0), op=np.maximum)
+    return np.max(xmax - xmin)
 
 
 def add_kwarg_wrapper(func):
