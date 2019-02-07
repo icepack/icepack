@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2018 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -10,11 +10,10 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import math
 import numpy as np
 import firedrake
 from firedrake import interpolate
-import icepack
+import icepack, icepack.models
 from icepack.models.mass_transport import MassTransport
 
 
@@ -39,14 +38,14 @@ def test_mass_transport_solver_convergence():
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 1
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+        V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
+        Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
 
         h = interpolate(h_in - dh * x / Lx, Q)
         a = firedrake.Function(Q)
         u = interpolate(firedrake.as_vector((u0, 0)), V)
         T = 0.5
-        num_timesteps = math.ceil(0.5 * N * u0 * T / Lx)
+        num_timesteps = int(0.5 * N * u0 * T / Lx)
         dt = T / num_timesteps
 
         for k in range(num_timesteps):
@@ -66,23 +65,22 @@ def test_mass_transport_solver_convergence():
     print(slope, intercept)
 
 
-from icepack.constants import rho_ice, rho_water, \
+from icepack.constants import rho_ice as ρ_I, rho_water as ρ_W, \
     gravity as g, glen_flow_law as n
 
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
 # with thickness and velocity fields that are exactly insteady state.
 def test_ice_shelf_prognostic_solver():
-    from icepack.models import IceShelf
-    rho = rho_ice * (1 - rho_ice/rho_water)
+    ρ = ρ_I * (1 - ρ_I / ρ_W)
 
     Lx, Ly = 20.0e3, 20.0e3
     h0 = 500.0
     u0 = 100.0
     T = 254.15
 
-    ice_shelf = IceShelf()
-    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
+    model = icepack.models.IceShelf()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
 
     delta_x, error = [], []
     for N in range(16, 65, 4):
@@ -95,22 +93,26 @@ def test_ice_shelf_prognostic_solver():
         V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
         Q = firedrake.FunctionSpace(mesh, 'CG', degree)
 
-        q = (n + 1) * (rho * g * h0 * u0 / 4)**n * icepack.rate_factor(T)
+        q = (n + 1) * (ρ * g * h0 * u0 / 4)**n * icepack.rate_factor(T)
         ux = (u0**(n + 1) + q * x)**(1/(n + 1))
-        u = interpolate(firedrake.as_vector((ux, 0)), V)
+
         h = interpolate(h0 * u0 / ux, Q)
-        h_init = h.copy(deepcopy=True)
-        A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
-        a = firedrake.Function(Q)
+        h_initial = h.copy(deepcopy=True)
+
+        A = firedrake.Constant(icepack.rate_factor(T))
+        a = firedrake.Constant(0)
+
+        u_guess = interpolate(firedrake.as_vector((ux, 0)), V)
+        u = model.diagnostic_solve(u0=u_guess, h=h, A=A, **opts)
 
         final_time, dt = 1.0, 1.0/12
-        num_timesteps = math.ceil(final_time / dt)
+        num_timesteps = int(final_time / dt)
 
         for k in range(num_timesteps):
-            u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u, **opts)
-            h = ice_shelf.prognostic_solve(dt, h0=h, a=a, u=u)
+            h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_initial)
+            u = model.diagnostic_solve(u0=u, h=h, A=A, **opts)
 
-        error.append(norm(h - h_init) / norm(h_init))
+        error.append(norm(h - h_initial) / norm(h_initial))
         print(delta_x[-1], error[-1])
 
     log_delta_x = np.log2(np.array(delta_x))
@@ -124,55 +126,53 @@ def test_ice_shelf_prognostic_solver():
 # Test solving the coupled diagnostic/prognostic equations for an ice stream
 # and check that it doesn't explode. TODO: Manufacture a solution.
 def test_ice_stream_prognostic_solve():
-    from icepack.models import IceStream
-
     Lx, Ly = 20e3, 20e3
     h0, dh = 500.0, 100.0
     T = 254.15
     u0 = 100.0
 
-    ice_stream = IceStream()
-    opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
+    model = icepack.models.IceStream()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
 
     N = 32
     mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
+
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=2)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2)
+
     x, y = firedrake.SpatialCoordinate(mesh)
-
-    degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-
     height_above_flotation = 10.0
-    d = -rho_ice / rho_water * (h0 - dh) + height_above_flotation
-    rho = rho_ice - rho_water * d**2 / (h0 - dh)**2
+    d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
+    ρ = ρ_I - ρ_W * d**2 / (h0 - dh)**2
 
-    Z = icepack.rate_factor(T) * (rho * g * h0 / 4)**n
+    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
     q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
     ux = u0 + Z * q * Lx * (h0/dh) / (n + 1)
-    u = interpolate(firedrake.as_vector((ux, 0)), V)
+    u0 = interpolate(firedrake.as_vector((ux, 0)), V)
 
     thickness = h0 - dh * x / Lx
     beta = 1/2
-    alpha = beta * rho / rho_ice * dh / Lx
+    alpha = beta * ρ / ρ_I * dh / Lx
     h = interpolate(h0 - dh * x / Lx, Q)
-    ds = (1 + beta) * rho/rho_ice * dh
+    h_inflow = h.copy(deepcopy=True)
+    ds = (1 + beta) * ρ / ρ_I * dh
     s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
     b = interpolate(s - h, Q)
 
     from icepack.constants import weertman_sliding_law as m
-    C = interpolate(alpha * (rho_ice * g * thickness) * ux**(-1/m), Q)
-    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+    C = interpolate(alpha * (ρ_I * g * thickness) * ux**(-1/m), Q)
+    A = firedrake.Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0/12
-    num_timesteps = math.ceil(final_time / dt)
+    num_timesteps = int(final_time / dt)
 
-    a = firedrake.Function(Q)
-    a = (ice_stream.prognostic_solve(dt, h0=h, a=a, u=u) - h) / dt
+    u = model.diagnostic_solve(u0=u0, h=h, s=s, C=C, A=A, **opts)
+    a0 = firedrake.Constant(0)
+    a = (model.prognostic_solve(dt, h0=h, a=a0, u=u) - h) / dt
 
     for k in range(num_timesteps):
-        u = ice_stream.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
-        h = ice_stream.prognostic_solve(dt, h0=h, a=a, u=u)
-        s = ice_stream.compute_surface(h=h, b=b)
+        h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_inflow)
+        s = model.compute_surface(h=h, b=b)
+        u = model.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
 
     assert icepack.norm(h, norm_type='Linfty') < np.inf
-
