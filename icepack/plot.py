@@ -137,8 +137,14 @@ def contourf(grid_data, *args, **kwargs):
     return axes.contourf(x, y, grid_data.data, *args, **kwargs)
 
 
+def _project_to_2d(function):
+    mesh = function.ufl_domain()
+    return function if mesh.layers is None else icepack.depth_average(function)
+
+
 def tricontourf(function, *args, **kwargs):
     r"""Plot a finite element field"""
+    function = _project_to_2d(function)
     axes = kwargs.pop('axes', plt.gca())
 
     mesh = function.ufl_domain()
@@ -162,6 +168,10 @@ def tricontourf(function, *args, **kwargs):
 
 def quiver(function, *args, **kwargs):
     r"""Make a quiver plot of a vector field"""
+    if function.ufl_shape != (2,):
+        raise ValueError('Quiver plots only defined for 2D vector fields!')
+
+    function = _project_to_2d(function)
     axes = kwargs.pop('axes', plt.gca())
 
     coords = function.ufl_domain().coordinates.dat.data_ro
@@ -272,6 +282,10 @@ class StreamplotSet(matplotlib.streamplot.StreamplotSet,
 
 def streamplot(u, **kwargs):
     r"""Draw streamlines of a vector field"""
+    if u.ufl_shape != (2,):
+        raise ValueError('Stream plots only defined for 2D vector fields!')
+
+    u = _project_to_2d(u)
     axes = kwargs.pop('axes', plt.gca())
     cmap = kwargs.pop('cmap', matplotlib.cm.viridis)
 

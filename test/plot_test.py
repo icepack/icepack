@@ -103,3 +103,21 @@ def test_streamline_grid_data():
         z = xs[n, :]
         assert abs(sum(z**2) - radius**2) < 1/N
 
+
+def test_plot_extruded_field():
+    Nx, Ny = 32, 32
+    mesh2d = firedrake.UnitSquareMesh(Nx, Ny)
+    mesh3d = firedrake.ExtrudedMesh(mesh2d, layers=1)
+    x, y, z = firedrake.SpatialCoordinate(mesh3d)
+
+    Q = firedrake.FunctionSpace(mesh3d, family='CG', degree=2,
+                                vfamily='GL', vdegree=4)
+    q = firedrake.interpolate((x**2 - y**2) * (1 - z**4), Q)
+    q_contours = icepack.plot.tricontourf(q)
+    assert q_contours is not None
+
+    V = firedrake.VectorFunctionSpace(mesh3d, dim=2, family='CG', degree=2,
+                                      vfamily='GL', vdegree=4)
+    u = firedrake.interpolate(firedrake.as_vector((1 - z**4, 0)), V)
+    u_contours = icepack.plot.tricontourf(u)
+    assert u_contours is not None
