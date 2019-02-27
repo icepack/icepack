@@ -30,6 +30,32 @@ def grad_2(q):
     return firedrake.as_tensor((q.dx(0), q.dx(1)))
 
 
+class MassTransport(object):
+    def solve(self, dt, h0, a, u, h_inflow=None):
+        h_inflow = h_inflow if h_inflow is not None else h0
+
+        Q = h0.function_space()
+        h, φ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
+
+        ν = facet_normal_2(Q.mesh())
+        outflow = firedrake.max_value(inner(u, ν), 0)
+        inflow = firedrake.min_value(inner(u, ν), 0)
+
+        flux_cells = -h * inner(u, grad_2(φ)) * dx
+        flux_out = h * φ * outflow * ds_v
+        F = h * φ * dx + dt * (flux_cells + flux_out)
+
+        accumulation = a * φ * dx
+        flux_in = -h_inflow * φ * inflow * ds_v
+        A = h0 * φ * dx + dt * (accumulation + flux_in)
+
+        h = h0.copy(deepcopy=True)
+        solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
+        firedrake.solve(F == A, h, solver_parameters=solver_parameters)
+
+        return h
+
+
 def gravity(u, h, s):
     r"""Return the gravitational part of the ice stream action functional
 
@@ -213,7 +239,7 @@ class HybridModel(object):
     def __init__(self, viscosity=viscosity,
                  friction=bed_friction,
                  gravity=gravity, terminus=terminus):
-        #self.mass_transport = MassTransport()
+        self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -304,9 +330,8 @@ class HybridModel(object):
         return newton_search(action, u, bcs, tol, scale,
                              form_compiler_parameters=params)
 
-    #def prognostic_solve(self, dt, h0, a, u, **kwargs):
-    #    return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
-
+    def prognostic_solve(self, dt, h0, a, u, **kwargs):
+        return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
     def compute_surface(self, h, b):
         r"""Return the ice surface elevation consistent with a given

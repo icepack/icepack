@@ -16,7 +16,6 @@ from firedrake import interpolate
 import icepack, icepack.models
 from icepack.models.mass_transport import MassTransport
 
-
 def norm(v):
     return icepack.norm(v, norm_type='L1')
 
@@ -66,7 +65,7 @@ def test_mass_transport_solver_convergence():
 
 
 from icepack.constants import rho_ice as ρ_I, rho_water as ρ_W, \
-    gravity as g, glen_flow_law as n
+    gravity as g, glen_flow_law as n, weertman_sliding_law as m
 
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
@@ -159,7 +158,6 @@ def test_ice_stream_prognostic_solve():
     s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
     b = interpolate(s - h, Q)
 
-    from icepack.constants import weertman_sliding_law as m
     C = interpolate(alpha * (ρ_I * g * thickness) * ux**(-1/m), Q)
     A = firedrake.Constant(icepack.rate_factor(T))
 
@@ -169,6 +167,63 @@ def test_ice_stream_prognostic_solve():
     u = model.diagnostic_solve(u0=u0, h=h, s=s, C=C, A=A, **opts)
     a0 = firedrake.Constant(0)
     a = (model.prognostic_solve(dt, h0=h, a=a0, u=u) - h) / dt
+
+    for k in range(num_timesteps):
+        h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_inflow)
+        s = model.compute_surface(h=h, b=b)
+        u = model.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
+
+    assert icepack.norm(h, norm_type='Linfty') < np.inf
+
+
+# Test solving the coupled diagnostic/prognostic equations for the hybrid flow
+# model and check that it doesn't explode.
+def test_hybrid_prognostic_solve():
+    Lx, Ly = 20e3, 20e3
+    h0, dh = 500.0, 100.0
+    T = 254.15
+    u_in = 100.0
+
+    model = icepack.models.HybridModel()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+
+    Nx, Ny = 32, 32
+    mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
+    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
+
+    V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
+                                      vfamily='GL', vdegree=4)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2,
+                                vfamily='DG', vdegree=0)
+
+    x, y, ζ = firedrake.SpatialCoordinate(mesh)
+    height_above_flotation = 10.0
+    d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
+    ρ = ρ_I - ρ_W * d**2 / (h0 - dh)**2
+
+    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
+    q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
+    ux = u_in + Z * q * Lx * (h0/dh) / (n + 1)
+    u0 = interpolate(firedrake.as_vector((ux, 0)), V)
+
+    thickness = h0 - dh * x / Lx
+    beta = 1/2
+    alpha = beta * ρ / ρ_I * dh / Lx
+    h = interpolate(h0 - dh * x / Lx, Q)
+    h_inflow = h.copy(deepcopy=True)
+    ds = (1 + beta) * ρ / ρ_I * dh
+    s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+    b = interpolate(s - h, Q)
+
+    C = interpolate(alpha * (ρ_I * g * thickness) * ux**(-1/m), Q)
+    A = firedrake.Constant(icepack.rate_factor(T))
+
+    final_time, dt = 1.0, 1.0/12
+    num_timesteps = int(final_time / dt)
+
+    u = model.diagnostic_solve(u0=u0, h=h, s=s, C=C, A=A, **opts)
+    a0 = firedrake.Constant(0)
+    a = interpolate((model.prognostic_solve(dt, h0=h, a=a0, u=u) - h) / dt, Q)
 
     for k in range(num_timesteps):
         h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_inflow)
