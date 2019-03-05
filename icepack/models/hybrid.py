@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import sympy
 import firedrake
 from firedrake import inner, outer, sym, Identity, tr as trace, sqrt, \
     grad, dx, ds, ds_b, ds_v
@@ -77,19 +78,35 @@ def gravity(u, h, s):
     return -ρ_I * g * inner(grad_2(s), u) * h * dx
 
 
+def _legendre(n, ζ):
+    return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
+
+
+def _pressure_approx(N):
+    ζ, ζ_sl = sympy.symbols('ζ ζ_sl', real=True, positive=True)
+
+    def coefficient(n):
+        Sn = _legendre(n, ζ)
+        norm_square = sympy.integrate(Sn**2, (ζ, 0, 1))
+        return sympy.integrate((ζ_sl - ζ) * Sn, (ζ, 0, ζ_sl)) / norm_square
+
+    polynomial = sum([coefficient(n) * _legendre(n, ζ) for n in range(N)])
+    return sympy.lambdify((ζ, ζ_sl), sympy.simplify(polynomial))
+
+
 def terminus(u, h, s, ice_front_ids=()):
     xdegree_u, zdegree_u = u.ufl_element().degree()
     degree_h = h.ufl_element().degree()[0]
-    zdegree_p = 15
-    degree = (xdegree_u + degree_h, zdegree_u + zdegree_p + 1)
+    degree = (xdegree_u + degree_h, 2 * zdegree_u + 1)
     metadata = {'quadrature_degree': degree}
 
     x, y, ζ = firedrake.SpatialCoordinate(u.ufl_domain())
+    b = s - h
+    ζ_sl = firedrake.max_value(-b, 0) / h
+    p_W = ρ_W * g * h * _pressure_approx(zdegree_u + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
-    z = s - (1 - ζ) * h
-    p_W = ρ_W * g * firedrake.max_value(-z, 0)
-    ν = facet_normal_2(u.ufl_domain())
 
+    ν = facet_normal_2(u.ufl_domain())
     dγ = ds_v(tuple(ice_front_ids), metadata=metadata)
     return (p_I - p_W) * inner(u, ν) * h * dγ
 
