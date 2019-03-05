@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import functools
 import sympy
 import firedrake
 from firedrake import inner, outer, sym, Identity, tr as trace, sqrt, \
@@ -82,6 +83,7 @@ def _legendre(n, ζ):
     return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
 
 
+@functools.lru_cache(maxsize=None)
 def _pressure_approx(N):
     ζ, ζ_sl = sympy.symbols('ζ ζ_sl', real=True, positive=True)
 
