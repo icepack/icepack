@@ -97,6 +97,29 @@ def _pressure_approx(N):
 
 
 def terminus(u, h, s, ice_front_ids=()):
+    r"""Return the terminal stress part of the hybrid model action functional
+
+    The power exerted due to stress at the calving terminus :math:`\Gamma` is
+
+    .. math::
+        E(u) = \int_\Gamma\int_0^1\left(\rho_Ig(1 - \zeta) -
+        \rho_Wg(\zeta_{\text{sl}} - \zeta)_+\right)hd\zeta ds
+
+    where :math:`\zeta_\text{sl}` is the relative depth to sea level and the
+    :math:`(\zeta - \zeta_\text{sl})` denotes only the positive part.
+
+    Parameters
+    ----------
+    u : firedrake.Function
+        ice velocity
+    h : firedrake.Function
+        ice thickness
+    s : firedrake.Function
+        ice surface elevation
+    ice_front_ids : list of int
+        numeric IDs of the parts of the boundary corresponding to the
+        calving front
+    """
     xdegree_u, zdegree_u = u.ufl_element().degree()
     degree_h = h.ufl_element().degree()[0]
     degree = (xdegree_u + degree_h, 2 * zdegree_u + 1)
@@ -253,7 +276,10 @@ class HybridModel(object):
 
     This class provides functions that solve for the thickness, surface
     elevation, and 3D velocity of glaciers of arbitrary speed and flow
-    regime (fast-sliding or no sliding).
+    regime (fast-sliding or no sliding). This model assumes that the domain
+    is extruded from a 2D footprint mesh. Moreover, the mesh is assumed to
+    have a uniform thickness of 1, i.e. it has not been stretch to the bed
+    and surface topography.
     """
     def __init__(self, viscosity=viscosity,
                  friction=bed_friction,
