@@ -1,4 +1,4 @@
-# Copyright (C) 2018 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2018-2019 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
