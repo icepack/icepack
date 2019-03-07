@@ -185,11 +185,11 @@ def quiver(function, *args, **kwargs):
 def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     r"""Return a streamline of a 2D velocity field
 
-    A streamline :math:`\\gamma` of a velocity field :math:`v` is a curve
+    A streamline :math:`\gamma` of a velocity field :math:`v` is a curve
     that solves the ordinary differential equation
 
     .. math::
-       \\frac{d\\gamma}{dt} = v(\\gamma)
+       \frac{d\gamma}{dt} = v(\gamma)
 
     This function returns an approximate streamline for a velocity field.
     Streamlines are primarily for plotting vector fields but are useful for

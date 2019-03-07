@@ -64,7 +64,7 @@ def gravity(u, h, s):
     The gravitational part of the hybrid model action functional is
 
     .. math::
-       E(u) = -\int_\Omega\int_0^1\\rho_Ig\\nabla s\cdot u
+       E(u) = -\int_\Omega\int_0^1\rho_Ig\nabla s\cdot u
        \hspace{2pt}hd\zeta \hspace{2pt}dx
 
     Parameters
@@ -146,7 +146,7 @@ def viscosity(u, s, h, A):
     The viscous component of the action for the hybrid model is
 
     .. math::
-        E(u) = \\frac{n}{n + 1}\int\_\Omega\int_0^1\left(
+        E(u) = \frac{n}{n + 1}\int_\Omega\int_0^1\left(
         M : \dot\varepsilon_x + \tau_z\cdot\varepsilon_z\right)
         hd\zeta\hspace{2pt}dx
 
@@ -190,13 +190,13 @@ def bed_friction(u, C):
     The frictional part of the ice stream action functional is
 
     .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Omega\\tau(u, C)\cdot u\hspace{2pt}dx,
+       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\hspace{2pt}dx,
 
     where everything is evaluated at the ice base (:math:`\zeta = 0`) and
-    :math:`\\tau(u, C)` is the basal shear stress
+    :math:`\tau(u, C)` is the basal shear stress
 
     .. math::
-       \\tau(u, C) = -C|u|^{1/m - 1}u
+       \tau(u, C) = -C|u|^{1/m - 1}u
     """
     τ_b = friction_stress(u, C)
     return -m/(m + 1) * inner(τ_b, u) * ds_b
@@ -209,11 +209,11 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
     walls of the domain is
 
     .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Gamma\int_0^1 h\\tau(u, C_s)\cdot u
+       E(u) = -\frac{m}{m + 1}\int_\Gamma\int_0^1 \tau(u, C_s)\cdot u
        \hspace{2pt}hd\zeta\hspace{2pt}ds
 
-    where :math:`\\tau(u, C_s)` is the side wall shear stress, :math:`ds`
-    is the element of surface area and :math:`\\Gamma` are the side walls.
+    where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
+    is the element of surface area and :math:`\Gamma` are the side walls.
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
@@ -360,7 +360,7 @@ class HybridModel(object):
         will go afloat. The surface elevation of a floating ice shelf is
 
         .. math::
-           s = (1 - \\rho_I / \\rho_W)h,
+           s = (1 - \rho_I / \rho_W)h,
 
         provided everything is in hydrostatic balance.
         """

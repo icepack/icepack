@@ -121,18 +121,18 @@ class InverseSolver(object):
     computed from that parameter, the adjoint state, and the search direction.
 
     The optimization problem is solved using a line search method; at each step
-    the parameter :math:`p_k` is updated by finding a value :math:`\\alpha_k`
+    the parameter :math:`p_k` is updated by finding a value :math:`\alpha_k`
     such that
 
     .. math::
-        p_{k + 1} = p_k + \\alpha_k\cdot q_k
+        p_{k + 1} = p_k + \alpha_k\cdot q_k
 
     reduces the value of the objective function, where :math:`q_k` is the
     search direction. This object implements most of the procedures necessary
     for keeping the parameter, state, and adjoint consistent. Objects that
     inherit from this one only need to define how the search direction is
-    computed."""
-
+    computed.
+    """
     def _setup(self, problem, callback=(lambda s: None)):
         self._problem = problem
         self._callback = callback
@@ -356,7 +356,7 @@ class GaussNewtonSolver(InverseSolver):
     observation map, then the Gauss-Newton matrix is
 
     .. math::
-        H = dG^*\\cdot d^2E\\cdot dG + d^2R.
+        H = dG^*\cdot d^2E\cdot dG + d^2R.
 
     This matrix consists of only those terms in the Hessian of the full
     objective functional that are of "first order", i.e. any terms involving
@@ -402,7 +402,7 @@ class GaussNewtonSolver(InverseSolver):
 
         The energy norm of a field :math:`q` w.r.t. the Gauss-Newton operator
         :math:`H` can be computed using one fewer linear solve than if we were
-        to calculate the action of :math:`H\\cdot q` on :math:`q`. This saves
+        to calculate the action of :math:`H\cdot q` on :math:`q`. This saves
         computation when using the conjugate gradient method to solve for the
         search direction.
         """

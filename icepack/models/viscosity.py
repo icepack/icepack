@@ -32,11 +32,11 @@ Q_warm = 139
 def rate_factor(T):
     r"""Compute the rate factor in Glen's flow law for a given temperature
 
-    The strain rate :math:`\dot\\varepsilon` of ice resulting from a stress
-    :math:`\\tau` is
+    The strain rate :math:`\dot\varepsilon` of ice resulting from a stress
+    :math:`\tau` is
 
     .. math::
-       \dot\\varepsilon = A(T)\\tau^3
+       \dot\varepsilon = A(T)\tau^3
 
     where :math:`A(T)` is the temperature-dependent rate factor:
 
@@ -45,7 +45,7 @@ def rate_factor(T):
 
     where :math:`R` is the ideal gas constant, :math:`Q` has units of
     energy per mole, and :math:`A_0` is a prefactor with units of
-    pressure :math:`\\text{MPa}^{-3}\\times\\text{yr}^{-1}`.
+    pressure :math:`\text{MPa}^{-3}\times\text{yr}^{-1}`.
 
     Parameters
     ----------
@@ -93,14 +93,14 @@ def viscosity_depth_averaged(u, h, A):
     The viscous component of the action for depth-averaged ice flow is
 
     .. math::
-        E(u) = \\frac{n}{n+1}\int_\Omega h\cdot
-        M(\dot\\varepsilon, A):\dot\\varepsilon\hspace{2pt} dx
+        E(u) = \frac{n}{n+1}\int_\Omega h\cdot
+        M(\dot\varepsilon, A):\dot\varepsilon\hspace{2pt} dx
 
-    where :math:`M(\dot\\varepsilon, A)` is the membrane stress tensor
+    where :math:`M(\dot\varepsilon, A)` is the membrane stress tensor
 
     .. math::
-        M(\dot\\varepsilon, A) = A^{-1/n}|\dot\\varepsilon|^{1/n - 1}
-        (\dot\\varepsilon + \\text{tr}\dot\\varepsilon\cdot I).
+        M(\dot\varepsilon, A) = A^{-1/n}|\dot\varepsilon|^{1/n - 1}
+        (\dot\varepsilon + \text{tr}\dot\varepsilon\cdot I).
 
     This form assumes that we're using the fluidity parameter instead
     the rheology parameter, the temperature, etc. To use a different

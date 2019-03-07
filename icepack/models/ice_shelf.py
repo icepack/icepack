@@ -27,8 +27,7 @@ def gravity(u, h):
     The gravitational part of the ice shelf action functional is
 
     .. math::
-        E(u) = -\\frac{1}{2}\int_\Omega
-        \\varrho g\\nabla h^2\cdot u\hspace{2pt}dx
+        E(u) = -\frac{1}{2}\int_\Omega\varrho g\nabla h^2\cdot u\hspace{2pt}dx
 
     Parameters
     ----------
@@ -51,7 +50,7 @@ def terminus(u, h, ice_front_ids=()):
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
 
     .. math::
-       E(u) = \int_\Gamma\\varrho gh^2u\cdot\\nu\hspace{2pt}ds
+       E(u) = \int_\Gamma\varrho gh^2u\cdot\nu\hspace{2pt}ds
 
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.
@@ -91,11 +90,11 @@ class IceShelf(object):
         The action functional for the ice shelf diagnostic model is
 
         .. math::
-            E(u) = \int_\Omega\left(\\frac{n}{n + 1}hM:\dot\\varepsilon
-            - \\frac{1}{2}\\varrho gh^2\\nabla\cdot u\\right)dx
+            E(u) = \int_\Omega\left(\frac{n}{n + 1}hM:\dot\varepsilon
+            - \frac{1}{2}\varrho gh^2\nabla\cdot u\right)dx
 
         where :math:`u` is the velocity, :math:`h` is the ice thickness,
-        :math:`\dot\\varepsilon` is the strain-rate tensor, and :math:`M` is
+        :math:`\dot\varepsilon` is the strain-rate tensor, and :math:`M` is
         the membrane stress tensor.
 
         Parameters

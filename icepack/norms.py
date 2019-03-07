@@ -23,13 +23,13 @@ def norm(u, norm_type='L2'):
 
     - ``L2``: :math:`\|u\|^2 = \int_\Omega|u|^2dx`
 
-    - ``H01``: :math:`\|u\|^2 = \int_\Omega|\\nabla u|^2dx`
+    - ``H01``: :math:`\|u\|^2 = \int_\Omega|\nabla u|^2dx`
 
-    - ``H1``: :math:`\|u\|^2 = \int_\Omega\\left(|u|^2 + L^2|\\nabla u|^2\\right)dx`
+    - ``H1``: :math:`\|u\|^2 = \int_\Omega\left(|u|^2 + L^2|\nabla u|^2\right)dx`
 
     - ``L1``: :math:`\|u\| = \int_\Omega|u|dx`
 
-    - ``TV``: :math:`\|u\| = \int_\Omega|\\nabla u|dx`
+    - ``TV``: :math:`\|u\| = \int_\Omega|\nabla u|dx`
 
     - ``Linfty``: :math:`\|u\| = \max_{x\in\Omega}|u(x)|`
 

@@ -27,7 +27,7 @@ def gravity(u, h, s):
     The gravitational part of the ice stream action functional is
 
     .. math::
-       E(u) = -\int_\Omega\\rho_Igh\\nabla s\cdot u\hspace{2pt}dx
+       E(u) = -\int_\Omega\rho_Igh\nabla s\cdot u\hspace{2pt}dx
 
     Parameters
     ----------
@@ -48,8 +48,8 @@ def terminus(u, h, s, ice_front_ids=()):
     is
 
     .. math::
-       E(u) = \int_\Gamma\left(\\frac{1}{2}\\rho_Igh^2 - \\rho_Wgd^2\\right)
-       u\cdot \\nu\hspace{2pt}ds
+       E(u) = \int_\Gamma\left(\frac{1}{2}\rho_Igh^2 - \rho_Wgd^2\right)
+       u\cdot \nu\hspace{2pt}ds
 
     where :math:`d` is the water depth at the terminus. We assume that sea
     level is at :math:`z = 0` for purposes of calculating the water depth.
@@ -195,7 +195,7 @@ class IceStream(object):
         will go afloat. The surface elevation of a floating ice shelf is
 
         .. math::
-           s = (1 - \\rho_I / \\rho_W)h,
+           s = (1 - \rho_I / \rho_W)h,
 
         provided everything is in hydrostatic balance.
         """

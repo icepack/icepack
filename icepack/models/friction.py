@@ -27,12 +27,12 @@ def bed_friction(u, C):
     The frictional part of the ice stream action functional is
 
     .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Omega\\tau(u, C)\cdot u\hspace{2pt}dx
+       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\hspace{2pt}dx
 
     where :math:`\\tau(u, C)` is the basal shear stress
 
     .. math::
-       \\tau(u, C) = -C|u|^{1/m - 1}u
+       \tau(u, C) = -C|u|^{1/m - 1}u
     """
     return -m/(m + 1) * inner(tau(u, C), u) * dx
 
@@ -44,10 +44,10 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
     walls of the domain is
 
     .. math::
-       E(u) = -\\frac{m}{m + 1}\int_\Gamma h\\tau(u, C_s)\cdot u\hspace{2pt}ds
+       E(u) = -\frac{m}{m + 1}\int_\Gamma h\tau(u, C_s)\cdot u\hspace{2pt}ds
 
-    where :math:`\\tau(u, C_s)` is the side wall shear stress, :math:`ds`
-    is the element of surface area and :math:`\\Gamma` are the side walls.
+    where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
+    is the element of surface area and :math:`\Gamma` are the side walls.
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
