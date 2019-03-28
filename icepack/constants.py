@@ -39,3 +39,5 @@ glen_flow_law = 3.0
 #: exponent in the nonlinear friction law for ice sliding
 weertman_sliding_law = 3.0
 
+#: thermal diffusivity of ice at -10C (m^2 / yr)
+thermal_diffusivity = 2.3e-3 / (917 * 2.0) * year
