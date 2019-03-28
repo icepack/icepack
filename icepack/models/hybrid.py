@@ -13,24 +13,13 @@
 import functools
 import sympy
 import firedrake
-from firedrake import inner, outer, sym, Identity, tr as trace, sqrt, \
-    grad, dx, ds, ds_b, ds_v
-from icepack.constants import rho_ice as ρ_I, rho_water as ρ_W, gravity as g, \
-    glen_flow_law as n, weertman_sliding_law as m
+from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
+                       grad, dx, ds, ds_b, ds_v)
 from icepack.optimization import newton_search
-from icepack.utilities import add_kwarg_wrapper, diameter
-
-def facet_normal_2(mesh):
-    r"""Compute the horizontal component of the unit outward normal vector
-    to a mesh"""
-    ν = firedrake.FacetNormal(mesh)
-    return firedrake.as_vector((ν[0], ν[1]))
-
-
-def grad_2(q):
-    r"""Compute the horizontal gradient of a 3D field"""
-    return firedrake.as_tensor((q.dx(0), q.dx(1)))
-
+from icepack.constants import (rho_ice as ρ_I, rho_water as ρ_W, gravity as g,
+                               glen_flow_law as n, weertman_sliding_law as m)
+from icepack.utilities import (facet_normal_2, grad_2, diameter,
+                               add_kwarg_wrapper)
 
 class MassTransport(object):
     def solve(self, dt, h0, a, u, h_inflow=None):
