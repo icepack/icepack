@@ -14,7 +14,8 @@ import numpy as np
 import firedrake
 from firedrake import assemble, as_vector, Constant, dx, ds_t, ds_b
 import icepack.models
-from icepack.constants import year, thermal_diffusivity as α
+from icepack.constants import (year, thermal_diffusivity as α,
+                               melting_temperature as Tm)
 
 # Using the same mesh and data for every test case.
 Nx, Ny = 32, 32
@@ -106,3 +107,21 @@ def test_advection_diffusion():
 
     rms = np.sqrt(assemble(E**2 * h * dx) / assemble(h * dx))
     assert (E_surface - 5 < rms) and (rms < E_surface + 5 + q_bed / α * h0)
+
+
+def test_converting_fields():
+    δT = 5.0
+    T_surface = Tm - δT
+    T_expr = firedrake.min_value(Tm, T_surface + 2 * δT * (1 - ζ))
+    f_expr = firedrake.max_value(0, 0.0033 * (1 - 2 * ζ))
+
+    model = icepack.models.HeatTransport3D()
+    E = firedrake.project(model.energy_density(T_expr, f_expr), Q)
+    f = firedrake.project(model.meltwater_fraction(E), Q)
+    T = firedrake.project(model.temperature(E), Q)
+
+    avg_meltwater = firedrake.assemble(f * ds_b) / (Lx * Ly)
+    assert avg_meltwater > 0
+
+    avg_temp = firedrake.assemble(T * h * dx) / firedrake.assemble(h * dx)
+    assert (avg_temp > T_surface) and (avg_temp < Tm)

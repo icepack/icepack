@@ -12,7 +12,9 @@
 
 import firedrake
 from firedrake import inner, grad, div, dx, ds, ds_b, ds_t, ds_v
-from icepack.constants import rho_ice as ρ_I, thermal_diffusivity as α
+from icepack.constants import (rho_ice as ρ_I, thermal_diffusivity as α,
+                               heat_capacity as c, latent_heat as L,
+                               melting_temperature as Tm)
 from icepack.utilities import facet_normal_2, grad_2
 
 class HeatTransport3D(object):
@@ -76,3 +78,16 @@ class HeatTransport3D(object):
         self._diffuse(dt, E, h, q, q_bed, E_surface)
 
         return E
+
+    def temperature(self, E):
+        r"""Return the temperature of ice at the given energy density"""
+        return firedrake.min_value(E / (ρ_I * c), Tm)
+
+    def meltwater_fraction(self, E):
+        r"""Return the melt fraction of ice at the given energy density"""
+        return firedrake.max_value(E - ρ_I * c * Tm, 0) / (ρ_I * L)
+
+    def energy_density(self, T, f):
+        r"""Return the energy density for ice at the given temperature and melt
+        fraction"""
+        return ρ_I * c * T + ρ_I * L * f
