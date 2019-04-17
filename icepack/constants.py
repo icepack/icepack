@@ -21,8 +21,11 @@ This choice of units makes the rate factor
 typical temperatures.
 """
 
+#: number of seconds in a year, for unit conversions
 year = 365.25 * 24 * 60 * 60
-gravity = 9.81 * year**2                # m/yr^2
+
+#: acceleration due to gravity (m / yr^2)
+gravity = 9.81 * year**2
 
 #: density of ice
 rho_ice = 917 / year**2 * 1.0e-6
@@ -39,5 +42,14 @@ glen_flow_law = 3.0
 #: exponent in the nonlinear friction law for ice sliding
 weertman_sliding_law = 3.0
 
+#: specific heat capacity of ice at -10C (m^2 / yr^2 / K)
+heat_capacity = 2.0e3 * year**2
+
 #: thermal diffusivity of ice at -10C (m^2 / yr)
 thermal_diffusivity = 2.3e-3 / (917 * 2.0) * year
+
+#: melting point of ice at atmospheric pressure (K)
+melting_temperature = 273.15
+
+#: latent heat of melting of ice (m^2 / yr^2)
+latent_heat = 334e3 * year**2
