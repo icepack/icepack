@@ -100,7 +100,7 @@ def test_diagnostic_solver():
     Nz = 32
     xs = np.array([(Lx/2, Ly/2, k / Nz) for k in range(Nz + 1)])
     us = np.zeros((max_degree + 1, Nz + 1))
-    for vdegree in range(1, max_degree + 1):
+    for vdegree in range(max_degree, 0, -1):
         V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
                                           vfamily='GL', vdegree=vdegree)
         u0 = firedrake.interpolate(u_expr, V)
@@ -111,12 +111,12 @@ def test_diagnostic_solver():
 
         depth_avg_u = firedrake.project(u, V0)
         shear_u = firedrake.project(u - depth_avg_u, V)
-        assert vdegree == 0 or icepack.norm(shear_u, norm_type='Linfty') > 1e-2
+        assert icepack.norm(shear_u, norm_type='Linfty') > 1e-2
 
         us_center = np.array(u.at(xs, tolerance=1e-6))
         us[vdegree,:] = np.sqrt(np.sum(us_center**2, 1))
 
-    u_best = us[max_degree, :]
-    norm = np.linalg.norm(u_best)
-    for vdegree in range(1, max_degree):
-        assert np.linalg.norm(us[vdegree, :] - u_best) / norm < 1e-2
+        norm = np.linalg.norm(us[max_degree, :])
+        error = np.linalg.norm(us[vdegree, :] - us[max_degree, :]) / norm
+        print(error, flush=True)
+        assert error < 1e-2
