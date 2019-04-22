@@ -12,7 +12,7 @@
 
 import numpy as np
 import firedrake
-from firedrake import assemble, as_vector, Constant, dx, ds_t, ds_b
+from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
 import icepack.models
 from icepack.constants import (year, thermal_diffusivity as α,
                                melting_temperature as Tm)
@@ -125,3 +125,37 @@ def test_converting_fields():
 
     avg_temp = firedrake.assemble(T * h * dx) / firedrake.assemble(h * dx)
     assert (avg_temp > T_surface) and (avg_temp < Tm)
+
+
+def test_strain_heating():
+    E_initial = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
+
+    u0 = 100.0
+    du = 100.0
+    u_expr = as_vector((u0 + du * x / Lx, 0))
+    u = firedrake.interpolate(u_expr, V)
+    w = firedrake.interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ, W)
+
+    E_q = E_initial.copy(deepcopy=True)
+    E_0 = E_initial.copy(deepcopy=True)
+
+    model = icepack.models.HeatTransport3D()
+    from icepack.models.hybrid import (horizontal_strain, vertical_strain,
+                                       stresses)
+    T = model.temperature(E_q)
+    A = icepack.rate_factor(T)
+    ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
+    τ_x, τ_z = stresses(ε_x, ε_z, A)
+    q = inner(τ_x, ε_x) + inner(τ_z, ε_z)
+
+    kwargs = {'u': u, 'w': w, 'h': h, 's': s, 'q_bed': q_bed,
+              'E_inflow': E_initial, 'E_surface': Constant(E_surface)}
+
+    dt = 10.0
+    final_time = Lx / u0
+    num_steps = int(final_time / dt) + 1
+    for step in range(num_steps):
+        E_q.assign(model.solve(dt, E0=E_q, q=q, **kwargs))
+        E_0.assign(model.solve(dt, E0=E_0, q=Constant(0), **kwargs))
+
+    assert assemble(E_q * h * dx) > assemble(E_0 * h * dx)
