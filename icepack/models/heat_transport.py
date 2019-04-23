@@ -52,7 +52,14 @@ class HeatTransport3D(object):
         A = E * ψ * h * dx + dt * flux_inflow
 
         solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
-        firedrake.solve(F == A, E, solver_parameters=solver_parameters)
+        degree_E = E.ufl_element().degree()
+        degree_u = u.ufl_element().degree()
+        degree = (3 * degree_E[0] + degree_u[0],
+                  2 * degree_E[1] + degree_u[1])
+        form_compiler_parameters = {'quadrature_degree': degree}
+        firedrake.solve(F == A, E,
+                        solver_parameters=solver_parameters,
+                        form_compiler_parameters=form_compiler_parameters)
 
     def _diffuse(self, dt, E, h, q, q_bed, E_surface):
         Q = E.function_space()
@@ -65,7 +72,12 @@ class HeatTransport3D(object):
             + dt * q * ψ * h * dx \
             + dt * q_bed * ψ * ds_b \
             + degree**2 * dt * α * E_surface * ψ / h * ds_t
-        firedrake.solve(a == f, E)
+
+        degree_E = E.ufl_element().degree()
+        degree = (3 * degree_E[0], 2 * degree_E[1])
+        form_compiler_parameters = {'quadrature_degree': degree}
+        firedrake.solve(a == f, E,
+                        form_compiler_parameters=form_compiler_parameters)
 
     def solve(self, dt, E0, u, w, h, s, q, q_bed, E_inflow, E_surface):
         r"""Propagate the energy density forward by one timestep"""
