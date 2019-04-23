@@ -192,7 +192,7 @@ def test_hybrid_prognostic_solve():
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
     V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
-                                      vfamily='GL', vdegree=4)
+                                      vfamily='GL', vdegree=1)
     Q = firedrake.FunctionSpace(mesh, family='CG', degree=2,
                                 vfamily='DG', vdegree=0)
 
