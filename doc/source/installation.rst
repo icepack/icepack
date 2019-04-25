@@ -17,7 +17,7 @@ Quick start
 
 * Run the icepack unit tests to make sure everything's working::
 
-   cd firedrake/src/icepack
+   cd $VIRTUAL_ENV/src/icepack
    pytest -s
 
 
