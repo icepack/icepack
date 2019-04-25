@@ -9,20 +9,15 @@ Quick start
 
    export PETSC_CONFIGURE_OPTIONS="--download-suitesparse"
    curl -O https://raw.githubusercontent.com/firedrakeproject/firedrake/master/scripts/firedrake-install
-   python3 firedrake-install
+   python3 firedrake-install --install icepack
 
 * Active the Firedrake virtual environment::
 
    source <path/to/firedrake>/bin/activate
 
-* Clone and install icepack::
-
-   git clone https://github.com/icepack/icepack
-   cd icepack
-   pip3 install -e .
-
 * Run the icepack unit tests to make sure everything's working::
 
+   cd firedrake/src/icepack
    pytest -s
 
 
