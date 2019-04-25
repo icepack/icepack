@@ -1,5 +1,5 @@
 
-# icepack [![Build Status](https://travis-ci.org/icepack/icepack.svg?branch=master)](https://travis-ci.org/icepack/icepack)
+# icepack [![CircleCI](https://circleci.com/gh/icepack/icepack/tree/master.svg?style=svg)](https://circleci.com/gh/icepack/icepack/tree/master)
 
 icepack is a library for modeling the flow of ice sheets and glaciers using the finite element method.
 For more information and installation instructions, see the [project webpage](https://icepack.github.io).

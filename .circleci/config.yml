@@ -1,0 +1,29 @@
+version: 2.1
+
+commands:
+  build_and_test:
+    steps:
+      - checkout
+      - run: pip3 install --editable .
+      - run: pytest --capture=no --verbose
+
+jobs:
+  python35:
+    docker:
+      - image: icepack/firedrake:stretch
+    working_directory: ~/icepack
+    steps:
+      - build_and_test
+  python37:
+    docker:
+      - image: icepack/firedrake:buster
+    working_directory: ~/icepack
+    steps:
+      - build_and_test
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - python35
+      - python37
