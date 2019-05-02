@@ -83,7 +83,7 @@ def test_diagnostic_solver_convergence():
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print("log(error) ~= {:g} * log(dx) + {:g}".format(slope, intercept))
+        print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
         assert slope > degree + 0.8
 
 
@@ -136,7 +136,7 @@ def test_diagnostic_solver_parameterization():
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    print("log(error) ~= {:g} * log(dx) + {:g}".format(slope, intercept))
+    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
     assert slope > degree - 0.05
 
 
@@ -172,4 +172,3 @@ def test_diagnostic_solver_side_friction():
     u = ice_shelf.diagnostic_solve(u0=u_initial, h=h, A=A, Cs=Cs, **opts)
 
     assert icepack.norm(u) < icepack.norm(u_initial)
-

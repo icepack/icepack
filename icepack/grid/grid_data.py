@@ -76,7 +76,7 @@ class GridData(object):
         x0, x1 = self.coordinate(0, 0), self.coordinate(ny - 1, nx - 1)
 
         if not ((x0[0] <= x[0] <= x1[0]) and (x0[1] <= x[1] <= x1[1])):
-            raise ValueError("{0} not contained in gridded data".format(x))
+            raise ValueError('{0} not contained in gridded data'.format(x))
 
         i = int((x[1] - x0[1]) / self._delta)
         j = int((x[0] - x0[0]) / self._delta)
@@ -110,7 +110,7 @@ class GridData(object):
         r"""Evaluate the gridded data set at a given point"""
         i, j = self._index_of_point(x)
         if self._is_missing(i, j):
-            raise ValueError("Not enough data to interpolate value at {0}"
+            raise ValueError('Not enough data to interpolate value at {0}'
                              .format(x))
         x0 = self.coordinate(i, j)
 

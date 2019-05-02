@@ -14,8 +14,7 @@ import firedrake
 from firedrake import inner, grad, dx, ds
 from icepack.constants import rho_ice, rho_water, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
-from icepack.models.friction import side_friction, \
-    normal_flow_penalty as penalty
+from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import MassTransport
 from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
@@ -73,15 +72,14 @@ class IceShelf(object):
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice shelf viscous action
     """
-
-    def __init__(self, viscosity=viscosity, side_friction=side_friction,
-                 gravity=gravity, terminus=terminus, penalty=penalty):
+    def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
+                 side_friction=side_friction, penalty=normal_flow_penalty):
         self.mass_transport = MassTransport()
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
+        self.penalty = add_kwarg_wrapper(penalty)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
-        self.penalty = add_kwarg_wrapper(penalty)
 
     def action(self, u, h, **kwargs):
         r"""Return the action functional that gives the ice shelf diagnostic

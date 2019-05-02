@@ -70,10 +70,10 @@ def test_manufactured_solution():
               g: constants.gravity}
 
 
-    tau_b = lambdify(x, friction(x, u, C).subs(values), "numpy")
-    tau_d = lambdify(x, driving_stress(x, h, s).subs(values), "numpy")
+    tau_b = lambdify(x, friction(x, u, C).subs(values), 'numpy')
+    tau_d = lambdify(x, driving_stress(x, h, s).subs(values), 'numpy')
     M = membrane_stress(x, u, B)
-    tau_m = lambdify(x, simplify(diff(h * M, x)).subs(values), "numpy")
+    tau_m = lambdify(x, simplify(diff(h * M, x)).subs(values), 'numpy')
     xs = np.linspace(0, values[L], 21)
 
     tolerance = 1e-8
@@ -170,7 +170,7 @@ def test_diagnostic_solver_convergence():
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print("log(error) ~= {:g} * log(dx) + {:g}".format(slope, intercept))
+        print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
         assert slope > degree + 0.9
 
 

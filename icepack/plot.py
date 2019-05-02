@@ -24,8 +24,11 @@ class `ScalarMappable` so that you can make a colorbar out of it.
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.cm, matplotlib.colors, matplotlib.tri, \
-    matplotlib.streamplot, matplotlib.ticker
+import matplotlib.cm
+import matplotlib.colors
+import matplotlib.tri
+import matplotlib.streamplot
+import matplotlib.ticker
 from matplotlib.collections import LineCollection
 import numpy as np
 import scipy.spatial
@@ -82,9 +85,9 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
     if (mesh.geometric_dimension() != 2) or (mesh.topological_dimension() != 2):
         raise NotImplementedError("Plotting meshes only implemented for 2D")
 
-    if mesh.ufl_cell().cellname() == "quadrilateral":
-        raise NotImplementedError("Plotting meshes only implemented for "
-                                  "triangles")
+    if mesh.ufl_cell().cellname() == 'quadrilateral':
+        raise NotImplementedError('Plotting meshes only implemented for '
+                                  'triangles')
 
     axes = axes if axes is not None else plt.gca()
     mesh.init()  # Apprently this doesn't happen automatically?
@@ -226,7 +229,7 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
 
     vx = v(initial_point)
     if vx is None:
-        raise ValueError("Initial point is not inside the domain!")
+        raise ValueError('Initial point is not inside the domain!')
 
     xs = [np.array(initial_point)]
     n = 0

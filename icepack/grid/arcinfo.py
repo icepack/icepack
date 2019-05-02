@@ -41,18 +41,18 @@ def write(filename_or_file, q, missing):
     else:
         output_file = filename_or_file
 
-    output_file.write("ncols           {0}\n".format(nx))
-    output_file.write("nrows           {0}\n".format(ny))
-    output_file.write("xllcorner       {0}\n".format(q._origin[0]))
-    output_file.write("yllcorner       {0}\n".format(q._origin[1]))
-    output_file.write("cellsize        {0}\n".format(q._delta))
-    output_file.write("NODATA_value    {0}\n".format(missing))
+    output_file.write('ncols           {0}\n'.format(nx))
+    output_file.write('nrows           {0}\n'.format(ny))
+    output_file.write('xllcorner       {0}\n'.format(q._origin[0]))
+    output_file.write('yllcorner       {0}\n'.format(q._origin[1]))
+    output_file.write('cellsize        {0}\n'.format(q._delta))
+    output_file.write('NODATA_value    {0}\n'.format(missing))
 
     for i in range(ny - 1, -1, -1):
         for j in range(nx):
             value = q[i, j] if not q.data[i, j] is ma.masked else missing
-            output_file.write("{0} ".format(value))
-        output_file.write("\n")
+            output_file.write('{0} '.format(value))
+        output_file.write('\n')
 
 
 def read(filename_or_file):

@@ -135,7 +135,7 @@ def test_arcinfo():
     assert new_dataset.is_masked(z)
 
     with pytest.raises(FileNotFoundError):
-        dataset = arcinfo.read("file_does_not_exist.txt")
+        dataset = arcinfo.read('file_does_not_exist.txt')
 
 
 def test_geotiff():
