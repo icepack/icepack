@@ -13,8 +13,8 @@
 import numpy as np
 import firedrake
 import icepack, icepack.models
-from icepack.constants import rho_ice as ρ_I, rho_water as ρ_W, \
-    gravity as g, glen_flow_law as n
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g, glen_flow_law as n)
 
 Lx, Ly = 20e3, 20e3
 h0, dh = 500.0, 100.0

@@ -28,16 +28,16 @@ def test_plot_mesh():
 def test_plot_grid_data():
     x0 = (0, 0)
     N = 32
-    delta = 1 / N
+    δ = 1 / N
     data = np.zeros((N + 1, N + 1))
 
     for i in range(N):
-        y = i * delta
+        y = δ * i
         for j in range(N):
-            x = j * delta
+            x = δ * j
             data[i, j] = (x - 0.5) * (y - 0.5)
 
-    dataset = GridData(x0, delta, data, missing_data_value=np.nan)
+    dataset = GridData(x0, δ, data, missing_data_value=np.nan)
     levels = [-0.5 + 0.25 * n for n in range(5)]
     contours = icepack.plot.contourf(dataset, levels=levels)
     assert contours is not None

@@ -12,7 +12,8 @@
 
 import firedrake
 from firedrake import inner, grad, dx, ds
-from icepack.constants import rho_ice, rho_water, gravity as g
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import MassTransport
@@ -39,8 +40,8 @@ def gravity(u, h):
     -------
     firedrake.Form
     """
-    rho = rho_ice * (1 - rho_ice / rho_water)
-    return -0.5 * rho * g * inner(grad(h**2), u) * dx
+    ρ = ρ_I * (1 - ρ_I / ρ_W)
+    return -0.5 * ρ * g * inner(grad(h**2), u) * dx
 
 
 def terminus(u, h, ice_front_ids=()):
@@ -57,8 +58,8 @@ def terminus(u, h, ice_front_ids=()):
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     IDs = tuple(ice_front_ids)
-    rho = rho_ice * (1 - rho_ice / rho_water)
-    return 0.5 * rho * g * h**2 * inner(u, ν) * ds(IDs)
+    ρ = ρ_I * (1 - ρ_I / ρ_W)
+    return 0.5 * ρ * g * h**2 * inner(u, ν) * ds(IDs)
 
 
 class IceShelf(object):

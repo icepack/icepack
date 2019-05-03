@@ -14,7 +14,8 @@ import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
 import icepack, icepack.models
-from icepack.constants import gravity, rho_ice, rho_water, glen_flow_law as n
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g, glen_flow_law as n)
 
 # The domain is a 20km x 20km square, with ice flowing in from the left.
 Lx, Ly = 20.0e3, 20.0e3
@@ -30,8 +31,8 @@ T = 254.15
 # constant temperature and linearly decreasing thickness. See Greve and
 # Blatter for the derivation.
 def exact_u(x):
-    rho = rho_ice * (1 - rho_ice / rho_water)
-    Z = icepack.rate_factor(T) * (rho * gravity * h0 / 4)**n
+    ρ = ρ_I * (1 - ρ_I / ρ_W)
+    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
     q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
     du = Z * q * Lx * (h0/dh) / (n + 1)
     return u0 + du
@@ -94,18 +95,18 @@ def test_diagnostic_solver_parameterization():
     # rheology `B` instead of the fluidity `A`
     from firedrake import inner, grad, sym, dx, tr as trace, Identity, sqrt
 
-    def M(eps, B):
+    def M(ε, B):
         I = Identity(2)
-        tr = trace(eps)
-        eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
-        mu = 0.5 * B * eps_e**(1/n - 1)
-        return 2 * mu * (eps + tr * I)
+        tr_ε = trace(ε)
+        ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
+        μ = 0.5 * B * ε_e**(1/n - 1)
+        return 2 * μ * (ε + tr_ε * I)
 
-    def eps(u):
+    def ε(u):
         return sym(grad(u))
 
     def viscosity(u, h, B):
-        return n/(n + 1) * h * inner(M(eps(u), B), eps(u)) * dx
+        return n/(n + 1) * h * inner(M(ε(u), B), ε(u)) * dx
 
     # Make a model object with our new viscosity functional
     ice_shelf = icepack.models.IceShelf(viscosity=viscosity)

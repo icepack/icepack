@@ -72,17 +72,17 @@ def rate_factor(T):
     return A0 * np.exp(-Q / (R * T))
 
 
-def M(eps, A):
+def M(ε, A):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
     I = Identity(2)
-    tr = trace(eps)
-    eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
-    mu = 0.5 * A**(-1/n) * eps_e**(1/n - 1)
-    return 2 * mu * (eps + tr * I)
+    tr_ε = trace(ε)
+    ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
+    μ = 0.5 * A**(-1/n) * ε_e**(1/n - 1)
+    return 2 * μ * (ε + tr_ε * I)
 
 
-def eps(u):
+def ε(u):
     r"""Calculate the strain rate for a given flow velocity"""
     return sym(grad(u))
 
@@ -121,5 +121,4 @@ def viscosity_depth_averaged(u, h, A):
     -------
     firedrake.Form
     """
-    return n/(n + 1) * h * inner(M(eps(u), A), eps(u)) * dx
-
+    return n/(n + 1) * h * inner(M(ε(u), A), ε(u)) * dx

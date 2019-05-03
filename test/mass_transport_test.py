@@ -64,8 +64,9 @@ def test_mass_transport_solver_convergence():
     print(slope, intercept)
 
 
-from icepack.constants import rho_ice as ρ_I, rho_water as ρ_W, \
-    gravity as g, glen_flow_law as n, weertman_sliding_law as m
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               glen_flow_law as n, weertman_sliding_law as m,
+                               gravity as g)
 
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
@@ -150,15 +151,15 @@ def test_ice_stream_prognostic_solve():
     u0 = interpolate(firedrake.as_vector((ux, 0)), V)
 
     thickness = h0 - dh * x / Lx
-    beta = 1/2
-    alpha = beta * ρ / ρ_I * dh / Lx
+    β = 1/2
+    α = β * ρ / ρ_I * dh / Lx
     h = interpolate(h0 - dh * x / Lx, Q)
     h_inflow = h.copy(deepcopy=True)
-    ds = (1 + beta) * ρ / ρ_I * dh
+    ds = (1 + β) * ρ / ρ_I * dh
     s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
     b = interpolate(s - h, Q)
 
-    C = interpolate(alpha * (ρ_I * g * thickness) * ux**(-1/m), Q)
+    C = interpolate(α * (ρ_I * g * thickness) * ux**(-1/m), Q)
     A = firedrake.Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0/12
@@ -207,15 +208,15 @@ def test_hybrid_prognostic_solve():
     u0 = interpolate(firedrake.as_vector((ux, 0)), V)
 
     thickness = h0 - dh * x / Lx
-    beta = 1/2
-    alpha = beta * ρ / ρ_I * dh / Lx
+    β = 1/2
+    α = β * ρ / ρ_I * dh / Lx
     h = interpolate(h0 - dh * x / Lx, Q)
     h_inflow = h.copy(deepcopy=True)
-    ds = (1 + beta) * ρ / ρ_I * dh
+    ds = (1 + β) * ρ / ρ_I * dh
     s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
     b = interpolate(s - h, Q)
 
-    C = interpolate(alpha * (ρ_I * g * thickness) * ux**(-1/m), Q)
+    C = interpolate(α * (ρ_I * g * thickness) * ux**(-1/m), Q)
     A = firedrake.Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0/12

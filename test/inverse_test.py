@@ -18,8 +18,8 @@ from firedrake import inner, grad, dx, exp, interpolate, as_vector
 import icepack, icepack.models
 from icepack.inverse import GradientDescentSolver, BFGSSolver, \
     GaussNewtonSolver
-from icepack.constants import gravity as g, glen_flow_law as n, \
-    rho_ice as ρ_I, rho_water as ρ_W
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g, glen_flow_law as n)
 
 
 class PoissonModel(object):
@@ -266,4 +266,3 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     assert iterations < max_iterations
     q = solver.parameter
     assert firedrake.norm(q - q_true)/firedrake.norm(q_initial - q_true) < 1/3
-

@@ -12,7 +12,8 @@
 
 import firedrake
 from firedrake import inner, grad, dx, ds
-from icepack.constants import rho_ice, rho_water, gravity as g
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
@@ -38,7 +39,7 @@ def gravity(u, h, s):
     s : firedrake.Function
         ice surface elevation
     """
-    return -rho_ice * g * h * inner(grad(s), u) * dx
+    return -ρ_I * g * h * inner(grad(s), u) * dx
 
 
 def terminus(u, h, s, ice_front_ids=()):
@@ -69,11 +70,11 @@ def terminus(u, h, s, ice_front_ids=()):
     from firedrake import conditional, lt
     d = conditional(lt(s - h, 0), s - h, 0)
 
-    tau_I = rho_ice * g * h**2 / 2
-    tau_W = rho_water * g * d**2 / 2
+    τ_I = ρ_I * g * h**2 / 2
+    τ_W = ρ_W * g * d**2 / 2
 
     ν = firedrake.FacetNormal(u.ufl_domain())
-    return (tau_I - tau_W) * inner(u, ν) * ds(tuple(ice_front_ids))
+    return (τ_I - τ_W) * inner(u, ν) * ds(tuple(ice_front_ids))
 
 
 class IceStream(object):
@@ -200,5 +201,5 @@ class IceStream(object):
         provided everything is in hydrostatic balance.
         """
         Q = h.ufl_function_space()
-        s_expr = firedrake.max_value(h + b, (1 - rho_ice / rho_water) * h)
+        s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
         return firedrake.interpolate(s_expr, Q)

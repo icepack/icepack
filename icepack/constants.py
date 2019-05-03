@@ -28,10 +28,10 @@ year = 365.25 * 24 * 60 * 60
 gravity = 9.81 * year**2
 
 #: density of ice
-rho_ice = 917 / year**2 * 1.0e-6
+ice_density = 917 / year**2 * 1.0e-6
 
 #: density of seawater
-rho_water = 1024 / year**2 * 1.0e-6
+water_density = 1024 / year**2 * 1.0e-6
 
 #: ideal gas constant (kJ / mol K)
 ideal_gas = 8.3144621e-3

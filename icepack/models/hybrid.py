@@ -16,8 +16,9 @@ import firedrake
 from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
                        grad, dx, ds, ds_b, ds_v)
 from icepack.optimization import newton_search
-from icepack.constants import (rho_ice as ρ_I, rho_water as ρ_W, gravity as g,
-                               glen_flow_law as n, weertman_sliding_law as m)
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               glen_flow_law as n, weertman_sliding_law as m,
+                               gravity as g)
 from icepack.utilities import (facet_normal_2, grad_2, diameter,
                                add_kwarg_wrapper)
 

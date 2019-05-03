@@ -12,7 +12,7 @@
 
 import firedrake
 from firedrake import inner, grad, div, dx, ds, ds_b, ds_t, ds_v
-from icepack.constants import (rho_ice as ρ_I, thermal_diffusivity as α,
+from icepack.constants import (ice_density as ρ_I, thermal_diffusivity as α,
                                heat_capacity as c, latent_heat as L,
                                melting_temperature as Tm)
 from icepack.utilities import facet_normal_2, grad_2
