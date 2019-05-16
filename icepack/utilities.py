@@ -72,6 +72,35 @@ def depth_average(q3d, weight=firedrake.Constant(1)):
     return q2d
 
 
+def lift3d(q2d, Q3D):
+    r"""Return a 3D function that extends the given 2D function as a constant
+    in the vertical
+
+    This is the reverse operation of depth averaging -- it takes a 2D function
+    `q2d` and returns a function `q3d` defined over a 3D function space such
+    `q3d(x, y, z) == q2d(x, y)` for any `x, y`. The space `Q3D` of the result
+    must have the same horizontal element as the input function and a vertical
+    degree of 0.
+
+    Parameters
+    ----------
+    q2d : firedrake.Function
+        A function defined on a 2D footprint mesh
+    Q3D : firedrake.Function
+        A function space defined on a 3D mesh extruded from the footprint mesh;
+        the function space must only go up to degree 0 in the vertical.
+
+    Returns
+    -------
+    q3d : firedrake.Function
+        The 3D-lifted input field
+    """
+    q3d = firedrake.Function(Q3D)
+    assert q3d.dat.data_ro.shape == q2d.dat.data_ro.shape
+    q3d.dat.data[:] = q2d.dat.data_ro[:]
+    return q3d
+
+
 def add_kwarg_wrapper(func):
     signature = inspect.signature(func)
     if any(str(signature.parameters[param].kind) == 'VAR_KEYWORD'
