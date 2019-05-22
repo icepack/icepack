@@ -19,7 +19,6 @@ source/icepack.demo.%.rst: ../demo/%.ipynb
 			   --to rst \
 			   --execute \
 			   --ExecutePreprocessor.timeout=24000 \
-			   --ExecutePreprocessor.kernel_name="firedrake" \
 			   --output-dir=./source \
 			   --output=`basename $@` \
 			   $<
