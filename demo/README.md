@@ -1,14 +1,6 @@
 Each demo consists of a jupyter notebook.
 You will need to have [jupyter](https://jupyter.org/) installed to run them.
-You'll also probably be using firedrake and icepack from a virtual environment, which jupyter won't see by default.
-To make the firedrake virtual environment visible within the notebook, run the following at the command line:
-
-    source <path/to/firedrake>/firedrake/bin/activate
-    pip3 install ipykernel
-    python3 -m ipykernel install --user --name=firedrake
-
-From the notebook menu, you should be able to navigate to `Kernel -> Change kernel` and select `firedrake`.
-(Courtesy of [PythonAnywhere](http://help.pythonanywhere.com/pages/IPythonNotebookVirtualenvs)).
+See the [installation](https://icepack.github.io/installation.html) for how to add a jupyter kernel for firedrake.
 
 Jupyter notebooks can have lots of unnecessary content after they've been executed; for example, metadata for which specific ipython version was used, or raw image data after running a notebook with plots.
 The script `sanitize.sh` will remove all this garbage and restore the notebook to its un-executed state.

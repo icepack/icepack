@@ -15,10 +15,20 @@ Quick start
 
    source <path/to/firedrake>/bin/activate
 
-* Run the icepack unit tests to make sure everything's working::
+* Run one of the icepack unit tests to make sure it works::
 
    cd $VIRTUAL_ENV/src/icepack
-   pytest -s
+   pytest -s test/ice_shelf_test.py
+
+* Make a jupyter kernel for firedrake::
+
+   pip3 install ipykernel
+   python3 -m ipykernel install --user --name=firedrake
+
+* Try out the icepack demos::
+
+   cd $VIRTUAL_ENV/src/icepack/demo
+   jupyter notebook
 
 
 Comments
@@ -44,7 +54,7 @@ This can create problems if you already do have PETSc installed on your system.
 In that case, you will need to unset ``$PETSC_DIR`` and ``$PETSC_ARCH`` while installing firedrake and every time you activate the firedrake virtual environment.
 While installing firedrake will fail with an error if you have a pre-existing PETSc installation, trying to run a script that uses firedrake will instead crash with a segmentation fault if you have not first unset the PETSc environment variables.
 
-You can save yourself the trouble of remembering things by adding a function like this to your ``.bashrc`` file:
+You can save yourself the trouble of remembering things by adding a function like this to your ``.bashrc`` or ``.bash_profile``:
 
 .. code-block:: bash
 
@@ -54,6 +64,7 @@ You can save yourself the trouble of remembering things by adding a function lik
    }
 
 When you type `firedrake-env` at the terminal, the PETSc environment variables from any pre-existing installation will be unset and the firedrake virtual environment will be activated.
+If you find yourself using lots of different virtual environments, you might also like virtualenvwrapper_.
 
 The configuration options that firedrake uses to build PETSc do not include building the sparse direct solver UMFPACK_.
 In the recommended installation instructions above, I've added an environment variable that will tell firedrake to download and link PETSc with UMFPACK in addition to the other extras.
@@ -62,3 +73,4 @@ Having a good and fast direct solver like UMFPACK is very useful for isolating e
 .. _firedrake: https://www.firedrakeproject.org
 .. _PETSc: https://www.mcs.anl.gov/petsc/
 .. _UMFPACK: http://faculty.cse.tamu.edu/davis/suitesparse.html
+.. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.io/en/latest/
