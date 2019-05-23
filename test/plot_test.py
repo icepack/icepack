@@ -12,10 +12,9 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import rasterio
 import firedrake
 import icepack, icepack.plot
-from icepack.grid import GridData
-
 
 def test_plot_mesh():
     N = 32
@@ -27,18 +26,27 @@ def test_plot_mesh():
 
 def test_plot_grid_data():
     x0 = (0, 0)
-    N = 32
-    δ = 1 / N
-    data = np.zeros((N + 1, N + 1))
+    n = 32
+    dx = 1.0/n
+    transform = rasterio.transform.from_origin(west=0.0, north=1.0,
+                                               xsize=dx, ysize=dx)
 
-    for i in range(N):
-        y = δ * i
-        for j in range(N):
-            x = δ * j
-            data[i, j] = (x - 0.5) * (y - 0.5)
+    # Interpolate a scalar field
+    array = np.array([[dx * (i + j) for j in range(n + 1)]
+                      for i in range(n + 1)])
+    missing = -9999.0
+    array[0, 0] = missing
+    array = np.flipud(array)
 
-    dataset = GridData(x0, δ, data, missing_data_value=np.nan)
-    levels = [-0.5 + 0.25 * n for n in range(5)]
+    memfile = rasterio.MemoryFile(ext='.tif')
+    opts = {'driver': 'GTiff', 'count': 1, 'width': n, 'height': n,
+            'transform': transform, 'nodata': -9999}
+
+    with memfile.open(**opts) as dataset:
+        dataset.write(array, indexes=1)
+    dataset = memfile.open()
+
+    levels = np.linspace(-0.5, 0.5, 5)
     contours = icepack.plot.contourf(dataset, levels=levels)
     assert contours is not None
     colorbar = plt.colorbar(contours)
@@ -56,7 +64,7 @@ def test_plot_field():
     assert colorbar is not None
 
 
-def test_streamline_finite_element_field():
+def test_streamlines():
     N = 32
     mesh = firedrake.UnitSquareMesh(N, N)
     V = firedrake.VectorFunctionSpace(mesh, 'CG', 1)
@@ -75,33 +83,6 @@ def test_streamline_finite_element_field():
     for n in range(num_points):
         x = xs[n, :]
         assert abs(sum(x**2) - radius**2) < resolution
-
-
-def test_streamline_grid_data():
-    N = 32
-    data_vx = np.zeros((N + 1, N + 1))
-    data_vy = np.zeros((N + 1, N + 1))
-
-    for i in range(N + 1):
-        Y = i / N
-        for j in range(N + 1):
-            X = j / N
-            data_vx[i, j] = -Y
-            data_vy[i, j] = X
-
-    vx = GridData((0, 0), 1/N, data_vx, missing_data_value=np.nan)
-    vy = GridData((0, 0), 1/N, data_vy, missing_data_value=np.nan)
-
-    radius = 0.5
-    x0 = (radius, 0)
-    xs = icepack.plot.streamline((vx, vy), x0, 1/N)
-
-    num_points, _ = xs.shape
-    assert num_points > 1
-
-    for n in range(num_points):
-        z = xs[n, :]
-        assert abs(sum(z**2) - radius**2) < 1/N
 
 
 def test_plot_extruded_field():

@@ -128,16 +128,17 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
     return tri_lines + bnd_lines
 
 
-def contourf(grid_data, *args, **kwargs):
-    r"""Plot a gridded data object"""
+def contourf(dataset, *args, **kwargs):
+    r"""Plot a gridded data set from rasterio"""
+    kwargs['origin'] = 'upper'
+    if 'extent' not in kwargs:
+        extent = (dataset.bounds.left, dataset.bounds.right,
+                  dataset.bounds.bottom, dataset.bounds.top)
+        kwargs['extent'] = extent
+
     axes = kwargs.pop('axes', plt.gca())
-
-    ny, nx = grid_data.shape
-    x0, x1 = grid_data.coordinate(0, 0), grid_data.coordinate(ny - 1, nx - 1)
-    x = np.linspace(x0[0], x1[0], nx)
-    y = np.linspace(x0[1], x1[1], ny)
-
-    return axes.contourf(x, y, grid_data.data, *args, **kwargs)
+    data = dataset.read(indexes=1, masked=True)
+    return axes.contourf(data, *args, **kwargs)
 
 
 def _project_to_2d(function):
@@ -217,15 +218,6 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     if isinstance(velocity, firedrake.Function):
         def v(x):
             return velocity.at(x, dont_raise=True)
-    else:
-        def v(x):
-            try:
-                if velocity[0].is_masked(x) or velocity[1].is_masked(x):
-                    return None
-            except ValueError:
-                return None
-
-            return np.array((velocity[0](x), velocity[1](x)))
 
     vx = v(initial_point)
     if vx is None:
