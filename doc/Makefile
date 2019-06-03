@@ -1,10 +1,3 @@
-# This environment variable needs to be set in order to find the data sets used
-# for some of the demos.
-check-env:
-ifndef ICEPACK_DATA
-    $(error ICEPACK_DATA is undefined)
-endif
-
 source/index.rst: make_index.py
 	python3 make_index.py $(DEMO_FILES)
 
