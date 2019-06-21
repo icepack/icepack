@@ -28,7 +28,7 @@ import matplotlib.cm
 import matplotlib.colors
 import matplotlib.tri
 import matplotlib.streamplot
-import matplotlib.ticker
+from matplotlib.ticker import ScalarFormatter
 from matplotlib.collections import LineCollection
 import numpy as np
 import scipy.spatial
@@ -63,13 +63,13 @@ def subplots(*args, **kwargs):
     subplot_kw['adjustable'] = subplot_kw.get('adjustable', 'box')
     kwargs['subplot_kw'] = subplot_kw
     fig, axes = plt.subplots(*args, **kwargs)
-    formatter = matplotlib.ticker.ScalarFormatter(useOffset=True)
-    formatter.set_powerlimits((0, 0))
 
     def fmt(ax):
         ax.set_aspect('equal')
-        ax.xaxis.set_major_formatter(formatter)
-        ax.yaxis.set_major_formatter(formatter)
+        ax.xaxis.set_major_formatter(ScalarFormatter(useOffset=True))
+        ax.yaxis.set_major_formatter(ScalarFormatter(useOffset=True))
+        ax.xaxis.get_major_formatter().set_powerlimits((0, 0))
+        ax.yaxis.get_major_formatter().set_powerlimits((0, 0))
 
     try:
         for ax in axes:
