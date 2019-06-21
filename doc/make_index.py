@@ -30,6 +30,7 @@ extensibility
    overview.rst
    installation.rst
    reading.rst
+   contact.rst
 
 .. toctree::
    :maxdepth: 1
