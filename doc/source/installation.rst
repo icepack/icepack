@@ -20,12 +20,25 @@ Quick start
    cd $VIRTUAL_ENV/src/icepack
    pytest -s test/ice_shelf_test.py
 
+Run the demos
+-------------
+
+* Install the mesh generator gmsh_.
+  Binaries are available on their website, or you can use your system package manager.
+  On MacOS::
+
+   brew install gmsh
+
+  On Debian, Mint, or Ubuntu::
+
+   sudo apt-get install gmsh
+
 * Make a jupyter kernel for firedrake::
 
    pip3 install ipykernel
    python3 -m ipykernel install --user --name=firedrake
 
-* Try out the icepack demos::
+* Run the demo notebooks::
 
    cd $VIRTUAL_ENV/src/icepack/demo
    jupyter notebook
@@ -70,6 +83,12 @@ The configuration options that firedrake uses to build PETSc do not include buil
 In the recommended installation instructions above, I've added an environment variable that will tell firedrake to download and link PETSc with UMFPACK in addition to the other extras.
 Having a good and fast direct solver like UMFPACK is very useful for isolating errors when they happen (and they will happen).
 
+To run all of the demos, you'll need to have the mesh generator gmsh_.
+Gmsh will take a description of the outline of some domain in 2D and calculate a triangulation of the interior.
+Since the shape of most real glaciers is very irregular and thus can't easily be represented by a rectilinear grid, a tool like gmsh is indispensible.
+Gmsh is available through the package managers of most operating systems or as a binary executable from the project website.
+
+.. _gmsh: http://gmsh.info/
 .. _firedrake: https://www.firedrakeproject.org
 .. _PETSc: https://www.mcs.anl.gov/petsc/
 .. _UMFPACK: http://faculty.cse.tamu.edu/davis/suitesparse.html
