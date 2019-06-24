@@ -28,8 +28,8 @@ extensibility
    :caption: Basics
 
    overview.rst
+   background.rst
    installation.rst
-   reading.rst
    contact.rst
 
 .. toctree::

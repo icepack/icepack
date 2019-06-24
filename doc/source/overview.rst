@@ -1,6 +1,6 @@
 
-Introduction
-============
+Overview
+========
 
 Icepack is a Python library for modeling the flow of glaciers and ice sheets.
 The main functionality it provides is a set of routines for solving certain nonlinear partial differential equations that describe the ice thickness, velocity, temperature, and other fields.
@@ -16,9 +16,6 @@ Firedrake makes it very easy to do computational physics, even if you're not an 
 
 See the :doc:`installation <installation>` page for how to build icepack on your computer.
 From there you can read and run our tutorials to see all the things icepack can do.
-The tutorials are all interactive `jupyter notebooks <https://jupyter.org/>`_.
+The tutorials are interactive `jupyter notebooks <https://jupyter.org/>`_.
 The code samples on this website are taken directly from the demos in the icepack source directory, so you can run them interactively on your own machine too.
-Some of the tutorials use real data, for which you'll also need `this repository <https://github.com/icepack/icepack-data/>`_.
-
-For more background on glacier physics or finite element methods, we have some suggested :doc:`reading material <reading>`.
-If you need to get in touch with the developers, see the :doc:`contact <contact>` page.
+Some of the tutorials use real data, for which you'll need an account with `NASA EarthData <https://urs.earthdata.nasa.gov/>`_.
