@@ -3,7 +3,6 @@ from getpass import getpass
 import subprocess
 import requests
 import pooch
-import mesh
 
 measures_antarctica = pooch.create(
     path=pooch.os_cache('icepack'),
@@ -54,16 +53,5 @@ larsen_outline = pooch.create(
     }
 )
 
-
-def _generate_mesh(geojson_filename, action, dataset):
-    msh_filename = os.path.splitext(geojson_filename)[0] + '.msh'
-    if action in ('update', 'download') or not os.path.exists(msh_filename):
-        geo_filename = os.path.splitext(geojson_filename)[0] + '.geo'
-        mesh.main(geojson_filename, geo_filename)
-        subprocess.call(['gmsh', '-2', '-format', 'msh2', geo_filename])
-
-    return msh_filename
-
-
-def fetch_larsen_mesh():
-    return larsen_outline.fetch('larsen.geojson', processor=_generate_mesh)
+def fetch_larsen_outline():
+    return larsen_outline.fetch('larsen.geojson')

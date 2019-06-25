@@ -1,7 +1,5 @@
-import sys
 import geojson
 import pygmsh
-
 
 def add_loop_to_geometry(geometry, multi_line_string):
     line_loop = []
@@ -42,17 +40,3 @@ def collection_to_geo(collection, lcar=10e3):
     physical_surface = geometry.add_physical(plane_surface)
 
     return geometry
-
-
-def main(input_filename, output_filename):
-    with open(input_filename, 'r') as input_file:
-        collection = geojson.load(input_file)
-
-    outline = collection_to_geo(collection, lcar=10e3)
-    with open(output_filename, 'w') as output_file:
-        output_file.write(outline.get_code())
-
-if __name__ == '__main__':
-    input_filename = sys.argv[1]
-    output_filename = sys.argv[2]
-    main(input_filename, output_filename)
