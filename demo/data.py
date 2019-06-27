@@ -55,3 +55,18 @@ larsen_outline = pooch.create(
 
 def fetch_larsen_outline():
     return larsen_outline.fetch('larsen.geojson')
+
+
+moa = pooch.create(
+    path=pooch.os_cache('icepack'),
+    base_url='https://daacdata.apps.nsidc.org/pub/DATASETS/nsidc0593_moa2009/geotiff/',
+    registry={
+        'moa750_2009_hp1_v01.1.tif.gz':
+        '90d1718ea0971795ec102482c47f308ba08ba2b88383facb9fe210877e80282c'
+    }
+)
+
+def fetch_mosaic_of_antarctica():
+    return moa.fetch('moa750_2009_hp1_v01.1.tif.gz',
+                     downloader=_earthdata_downloader,
+                     processor=pooch.Decompress())
