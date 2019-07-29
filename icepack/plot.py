@@ -90,7 +90,9 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
                                   'triangles')
 
     axes = axes if axes is not None else plt.gca()
-    mesh.init()  # Apprently this doesn't happen automatically?
+    bnd_linewidth = kwargs.pop('bnd_linewidth', kwargs.get('linewidth', 1.5))
+
+    mesh.init()  # Apparently this doesn't happen automatically?
     coordinates = _get_coordinates(mesh)
     coords = coordinates.dat.data_ro
     x, y = coords[:, 0], coords[:, 1]
@@ -111,6 +113,7 @@ def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
     markers = facets.unique_markers
     clrs = _get_colors(bnd_colors, len(markers))
 
+    kwargs['linewidth'] = bnd_linewidth
     bnd_lines = []
     for i, marker in enumerate(markers):
         indices = facets.subset(int(marker)).indices
