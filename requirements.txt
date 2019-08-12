@@ -5,3 +5,8 @@ rasterio
 geojson
 pooch
 pygmsh
+sphinx[doc]
+sphinxcontrib-bibtex[doc]
+sphinx_rtd_theme[doc]
+ipykernel[doc]
+nbconvert[doc]
