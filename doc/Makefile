@@ -7,12 +7,21 @@ notebooks: $(patsubst ../demo/%.ipynb,source/icepack.demo.%.rst,$(DEMO_FILES))
 # For each demo, execute it with a 10-min. timeout, convert it to restructured
 # text, and save the result in the `source` directory with `icepack.demo.`
 # prepended to the name.
-source/icepack.demo.%.rst: ../demo/%.ipynb
+source/icepack.demo.%.rst: executed-demos/%.ipynb
+	jupyter nbconvert \
+	    --to rst \
+	    --output-dir=./source \
+	    --output=`basename $@` \
+	    $<
+
+.PRECIOUS: executed-demos/%.ipynb
+
+executed-demos/%.ipynb: ../demo/%.ipynb
 	PYTHONPATH=`dirname $<` jupyter nbconvert \
-			   --to rst \
+			   --to ipynb \
 			   --execute \
 			   --ExecutePreprocessor.timeout=24000 \
-			   --output-dir=./source \
+			   --output-dir=./executed-demos \
 			   --output=`basename $@` \
 			   $<
 
@@ -26,7 +35,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 clean:
-	rm -rf build source/icepack* source/index.rst source/modules.rst
+	rm -rf build source/icepack* source/index.rst source/modules.rst executed-demos/*.ipynb
 
 .PHONY: help clean Makefile
 
