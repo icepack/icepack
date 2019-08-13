@@ -49,7 +49,7 @@ larsen_outline = pooch.create(
     base_url='https://raw.githubusercontent.com/icepack/glacier-meshes/master/glaciers/',
     registry={
         'larsen.geojson':
-        '06a0ae21a3a55a8391ff32eefb69e0e0ec8f29bca68d9bc4cd23abb5010397f8'
+        '74a632fcb7832df1c2f2d8c04302cfcdb3c1e86e027b8de5ba10e98d14d94856'
     }
 )
 
