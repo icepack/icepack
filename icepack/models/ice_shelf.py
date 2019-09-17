@@ -16,7 +16,7 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
-from icepack.models.mass_transport import MassTransport
+from icepack.models.mass_transport import LaxWendroff
 from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
 
@@ -74,8 +74,9 @@ class IceShelf(object):
           Default implementation of the ice shelf viscous action
     """
     def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
-                 side_friction=side_friction, penalty=normal_flow_penalty):
-        self.mass_transport = MassTransport()
+                 side_friction=side_friction, penalty=normal_flow_penalty,
+                 mass_transport=LaxWendroff()):
+        self.mass_transport = mass_transport
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.penalty = add_kwarg_wrapper(penalty)
@@ -188,9 +189,9 @@ class IceShelf(object):
         return newton_search(action, u, bcs, tol, scale,
                              form_compiler_parameters=params)
 
-    def prognostic_solve(self, dt, h0, a, u, **kwargs):
+    def prognostic_solve(self, dt, h0, a, u, h_inflow=None):
         r"""Propagate the ice thickness forward one timestep
 
         See :meth:`icepack.models.mass_transport.MassTransport.solve`
         """
-        return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
+        return self.mass_transport.solve(dt, h0=h0, a=a, u=u, h_inflow=h_inflow)

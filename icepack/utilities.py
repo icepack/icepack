@@ -26,6 +26,11 @@ def grad_2(q):
     return firedrake.as_tensor((q.dx(0), q.dx(1)))
 
 
+def div_2(q):
+    r"""Compute the horizontal divergence of a 3D field"""
+    return q[0].dx(0) + q[1].dx(1)
+
+
 def diameter(mesh):
     r"""Compute the diameter of the mesh in the L-infinity metric"""
     X = mesh.coordinates.dat.data_ro

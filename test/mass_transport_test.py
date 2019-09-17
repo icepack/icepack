@@ -10,11 +10,12 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import firedrake
 from firedrake import interpolate
 import icepack, icepack.models
-from icepack.models.mass_transport import MassTransport
+from icepack.models.mass_transport import ImplicitEuler, LaxWendroff
 
 def norm(v):
     return icepack.norm(v, norm_type='L1')
@@ -23,14 +24,15 @@ def norm(v):
 # Test solving the mass transport equations with a constant velocity field
 # and check that the solutions converge to the exact solution obtained from
 # the method of characteristics.
-def test_mass_transport_solver_convergence():
+@pytest.mark.parametrize('solver_type', [ImplicitEuler, LaxWendroff])
+def test_mass_transport_solver_convergence(solver_type):
     Lx, Ly = 1.0, 1.0
     u0 = 1.0
     h_in, dh = 1.0, 0.2
 
     delta_x, error = [], []
-    mass_transport = MassTransport()
-    for N in range(16, 97, 4):
+    mass_transport = solver_type()
+    for N in range(24, 97, 4):
         delta_x.append(Lx / N)
 
         mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
@@ -40,17 +42,19 @@ def test_mass_transport_solver_convergence():
         V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
         Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
 
-        h = interpolate(h_in - dh * x / Lx, Q)
+        h0 = interpolate(h_in - dh * x / Lx, Q)
         a = firedrake.Function(Q)
         u = interpolate(firedrake.as_vector((u0, 0)), V)
         T = 0.5
-        num_timesteps = int(0.5 * N * u0 * T / Lx)
-        dt = T / num_timesteps
+        δx = 1.0 / N
+        δt = δx / u0
+        num_timesteps = int(T / δt)
 
-        for k in range(num_timesteps):
-            h = mass_transport.solve(dt, h0=h, a=a, u=u)
+        h = h0.copy(deepcopy=True)
+        for step in range(num_timesteps):
+            h = mass_transport.solve(δt, h0=h, a=a, u=u, h_inflow=h0)
 
-        z = x - u0 * T
+        z = x - u0 * num_timesteps * δt
         h_exact = interpolate(h_in - dh/Lx * firedrake.max_value(0, z), Q)
         error.append(norm(h - h_exact) / norm(h_exact))
 
@@ -60,8 +64,8 @@ def test_mass_transport_solver_convergence():
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    assert slope > degree - 0.05
-    print(slope, intercept)
+    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
+    assert slope > degree - 0.1
 
 
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
@@ -71,7 +75,8 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
 # with thickness and velocity fields that are exactly insteady state.
-def test_ice_shelf_prognostic_solver():
+@pytest.mark.parametrize('solver_type', [ImplicitEuler, LaxWendroff])
+def test_ice_shelf_prognostic_solver(solver_type):
     ρ = ρ_I * (1 - ρ_I / ρ_W)
 
     Lx, Ly = 20.0e3, 20.0e3
@@ -79,7 +84,7 @@ def test_ice_shelf_prognostic_solver():
     u0 = 100.0
     T = 254.15
 
-    model = icepack.models.IceShelf()
+    model = icepack.models.IceShelf(mass_transport=solver_type())
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
 
     delta_x, error = [], []
@@ -119,7 +124,7 @@ def test_ice_shelf_prognostic_solver():
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    print(slope, intercept)
+    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
     assert slope > degree - 0.05
 
 
