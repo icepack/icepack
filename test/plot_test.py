@@ -58,10 +58,17 @@ def test_plot_field():
     Q = firedrake.FunctionSpace(mesh, 'CG', 1)
     x, y = firedrake.SpatialCoordinate(mesh)
     u = firedrake.interpolate(x * y, Q)
-    contours = icepack.plot.tricontourf(u)
-    assert contours is not None
-    colorbar = plt.colorbar(contours)
+
+    filled_contours = icepack.plot.tricontourf(u)
+    assert filled_contours is not None
+    colorbar = plt.colorbar(filled_contours)
     assert colorbar is not None
+
+    contours = icepack.plot.tricontour(u)
+    assert contours is not None
+
+    colors = icepack.plot.tripcolor(u)
+    assert colors is not None
 
 
 def test_streamlines():

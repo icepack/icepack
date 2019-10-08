@@ -34,6 +34,7 @@ import numpy as np
 import scipy.spatial
 import firedrake
 from firedrake import inner, sqrt
+from firedrake.plot import _two_dimension_triangle_func_val
 import icepack
 
 
@@ -149,28 +150,37 @@ def _project_to_2d(function):
     return function if mesh.layers is None else icepack.depth_average(function)
 
 
-def tricontourf(function, *args, **kwargs):
-    r"""Plot a finite element field"""
+def _plot_field(method_name, function, *args, **kwargs):
     function = _project_to_2d(function)
     axes = kwargs.pop('axes', plt.gca())
 
-    mesh = function.ufl_domain()
-    coordinates = _get_coordinates(mesh)
-    coords = coordinates.dat.data_ro
-    x, y = coords[:, 0], coords[:, 1]
-
-    triangles = coordinates.cell_node_map().values
-    triangulation = matplotlib.tri.Triangulation(x, y, triangles)
-
     if len(function.ufl_shape) == 1:
+        mesh = function.ufl_domain()
         element = function.ufl_element().sub_elements()[0]
         Q = firedrake.FunctionSpace(mesh, element)
-        fn = firedrake.interpolate(sqrt(inner(function, function)), Q)
-    elif len(function.ufl_shape) == 0:
-        fn = function
+        function = firedrake.interpolate(sqrt(inner(function, function)), Q)
 
-    vals = np.asarray(fn.at(coords, tolerance=1e-10))
-    return axes.tricontourf(triangulation, vals, *args, **kwargs)
+    num_sample_points = 10
+    triangulation, vals = _two_dimension_triangle_func_val(function,
+                                                           num_sample_points)
+
+    method = getattr(axes, method_name)
+    return method(triangulation, vals, *args, **kwargs)
+
+
+def tricontourf(function, *args, **kwargs):
+    r"""Create a filled contour plot of a finite element field"""
+    return _plot_field('tricontourf', function, *args, **kwargs)
+
+
+def tricontour(function, *args, **kwargs):
+    r"""Create a contour plot of a finite element field"""
+    return _plot_field('tricontour', function, *args, **kwargs)
+
+
+def tripcolor(function, *args, **kwargs):
+    r"""Create a pseudo-color plot of a finite element field"""
+    return _plot_field('tripcolor', function, *args, **kwargs)
 
 
 def quiver(function, *args, **kwargs):
