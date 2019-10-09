@@ -40,7 +40,7 @@ def test_plot_grid_data():
 
     memfile = rasterio.MemoryFile(ext='.tif')
     opts = {'driver': 'GTiff', 'count': 1, 'width': n, 'height': n,
-            'transform': transform, 'nodata': -9999}
+            'dtype': array.dtype, 'transform': transform, 'nodata': -9999}
 
     with memfile.open(**opts) as dataset:
         dataset.write(array, indexes=1)

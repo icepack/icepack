@@ -22,7 +22,7 @@ setup(
     author='Daniel Shapero',
     url='https://github.com/icepack/icepack',
     packages=find_packages(exclude=['doc', 'test']),
-    install_requires=['firedrake', 'numpy', 'scipy', 'matplotlib', 'rasterio',
+    install_requires=['numpy', 'scipy', 'matplotlib', 'rasterio>=1.0.26',
                       'geojson', 'pooch', 'pygmsh'],
     extras_require = {
         'doc': ['sphinx', 'sphinxcontrib-bibtex', 'sphinx_rtd_theme',

@@ -1,7 +1,7 @@
 numpy
 scipy
 matplotlib
-rasterio
+rasterio>=1.0.26
 geojson
 pooch
 pygmsh
