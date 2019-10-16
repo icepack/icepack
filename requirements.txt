@@ -3,6 +3,7 @@ scipy
 matplotlib
 rasterio>=1.0.26
 geojson
+shapely
 pooch
 pygmsh
 sphinx[doc]
