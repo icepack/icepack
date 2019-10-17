@@ -1,11 +1,17 @@
 version: 2.1
 
 commands:
-  build_and_test:
+  build:
     steps:
       - checkout
       - run: pip3 install --editable .
-      - run: pytest --capture=no --verbose
+      - run: pip3 install pytest-cov codecov
+  test:
+    steps:
+      - run: pytest --capture=no --verbose --cov=icepack
+  codecov:
+    steps:
+      - run: codecov
 
 jobs:
   python35:
@@ -13,13 +19,16 @@ jobs:
       - image: icepack/firedrake-python3.5:0.3.0
     working_directory: ~/icepack
     steps:
-      - build_and_test
+      - build
+      - test
   python37:
     docker:
       - image: icepack/firedrake-python3.7:0.3.0
     working_directory: ~/icepack
     steps:
-      - build_and_test
+      - build
+      - test
+      - codecov
 
 workflows:
   version: 2

@@ -1,5 +1,5 @@
 
-# icepack [![CircleCI](https://circleci.com/gh/icepack/icepack/tree/master.svg?style=svg)](https://circleci.com/gh/icepack/icepack/tree/master)
+# icepack [![CircleCI](https://circleci.com/gh/icepack/icepack/tree/master.svg?style=svg)](https://circleci.com/gh/icepack/icepack/tree/master) [![codecov](https://codecov.io/gh/icepack/icepack/branch/master/graph/badge.svg)](https://codecov.io/gh/icepack/icepack)
 
 icepack is a library for modeling the flow of ice sheets and glaciers using the finite element method.
 For more information and installation instructions, see the [project webpage](https://icepack.github.io).
