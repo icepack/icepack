@@ -36,7 +36,7 @@ We've chosen a slightly different convention, so this is something to be aware o
 Reading
 -------
 
-The standard textbook on glaciology is *The Physics of Glaicers* by Cuffey and Paterson :cite:`cuffey2010physics`.
+The standard textbook on glaciology is *The Physics of Glaciers* by Cuffey and Paterson :cite:`cuffey2010physics`.
 This book is great for breadth and covers many more topics than modeling.
 *Dynamics of Ice Sheets and Glaciers* by Greve and Blatter :cite:`greve2009dynamics` focuses more on continuum mechanics and modeling and has some nice introductions to various numerical methods.
 While a thorough knowledge of the finite element method shouldn't be necessary to use icepack, some familiarity is definitely helpful.
