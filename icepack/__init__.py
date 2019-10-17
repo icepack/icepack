@@ -15,3 +15,4 @@ from icepack.interpolate import interpolate
 from icepack.utilities import depth_average, lift3d
 from icepack.models.viscosity import rate_factor
 import icepack.meshing
+import icepack.datasets

@@ -1,17 +1,21 @@
+# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+#
+# This file is part of icepack.
+#
+# icepack is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The full text of the license can be found in the file LICENSE in the
+# icepack source directory or at <http://www.gnu.org/licenses/>.
+
+r"""Routines for fetching the glaciological data sets used in the demos"""
+
 import os
 from getpass import getpass
-import subprocess
 import requests
 import pooch
-
-measures_antarctica = pooch.create(
-    path=pooch.os_cache('icepack'),
-    base_url='https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0484.002/1996.01.01/',
-    registry={
-        'antarctica_ice_velocity_450m_v2.nc':
-        '268be94e3827b9b8137b4b81e3642310ca98a1b9eac48e47f91d53c1b51e4299'
-    }
-)
 
 def _earthdata_downloader(url, output_file, dataset):
     username = os.environ.get('EARTHDATA_USERNAME')
@@ -26,9 +30,20 @@ def _earthdata_downloader(url, output_file, dataset):
     downloader = pooch.HTTPDownloader(auth=(username, password))
     downloader(login.url, output_file, dataset)
 
+
+measures_antarctica = pooch.create(
+    path=pooch.os_cache('icepack'),
+    base_url='https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0484.002/1996.01.01/',
+    registry={
+        'antarctica_ice_velocity_450m_v2.nc':
+        '268be94e3827b9b8137b4b81e3642310ca98a1b9eac48e47f91d53c1b51e4299'
+    }
+)
+
 def fetch_measures_antarctica():
     return measures_antarctica.fetch('antarctica_ice_velocity_450m_v2.nc',
                                      downloader=_earthdata_downloader)
+
 
 bedmap2 = pooch.create(
     path=pooch.os_cache('icepack'),

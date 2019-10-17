@@ -1,0 +1,10 @@
+# Configuration for test coverage
+
+[run]
+# Don't check coverage for the data fetching module
+omit = icepack/datasets.py
+
+[report]
+exclude_lines =
+    # Don't check coverage for corner cases
+    raise ValueError
