@@ -59,9 +59,11 @@ def fetch_bedmap2():
     return [f for f in filenames if os.path.splitext(f)[1] == '.tif']
 
 
+outlines_url = 'https://raw.githubusercontent.com/icepack/glacier-meshes/'
+outlines_commit = '9306972327a127c4c4bdd3b5f61d2102307c2baa'
 larsen_outline = pooch.create(
     path=pooch.os_cache('icepack'),
-    base_url='https://raw.githubusercontent.com/icepack/glacier-meshes/master/glaciers/',
+    base_url=outlines_url + outlines_commit + '/glaciers/',
     registry={
         'larsen.geojson':
         '74a632fcb7832df1c2f2d8c04302cfcdb3c1e86e027b8de5ba10e98d14d94856'
