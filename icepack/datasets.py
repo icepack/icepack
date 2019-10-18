@@ -31,17 +31,19 @@ def _earthdata_downloader(url, output_file, dataset):
     downloader(login.url, output_file, dataset)
 
 
+nsidc_url = 'https://daacdata.apps.nsidc.org/pub/DATASETS/'
+
 measures_antarctica = pooch.create(
     path=pooch.os_cache('icepack'),
-    base_url='https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0484.002/1996.01.01/',
+    base_url=nsidc_url + 'nsidc0754_MEASURES_antarctic_ice_vel_phase_map_v01/',
     registry={
-        'antarctica_ice_velocity_450m_v2.nc':
-        '268be94e3827b9b8137b4b81e3642310ca98a1b9eac48e47f91d53c1b51e4299'
+        'antarctic_ice_vel_phase_map_v01.nc':
+        'fa0957618b8bd98099f4a419d7dc0e3a2c562d89e9791b4d0ed55e6017f52416'
     }
 )
 
 def fetch_measures_antarctica():
-    return measures_antarctica.fetch('antarctica_ice_velocity_450m_v2.nc',
+    return measures_antarctica.fetch('antarctic_ice_vel_phase_map_v01.nc',
                                      downloader=_earthdata_downloader)
 
 
@@ -76,7 +78,7 @@ def fetch_larsen_outline():
 
 moa = pooch.create(
     path=pooch.os_cache('icepack'),
-    base_url='https://daacdata.apps.nsidc.org/pub/DATASETS/nsidc0593_moa2009/geotiff/',
+    base_url=nsidc_url + 'nsidc0593_moa2009/geotiff/',
     registry={
         'moa750_2009_hp1_v01.1.tif.gz':
         '90d1718ea0971795ec102482c47f308ba08ba2b88383facb9fe210877e80282c'
