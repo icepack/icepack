@@ -13,78 +13,61 @@
 """Solver for the damage advection equation
 
 This module contains a solver for the conservative advection equation that
-describes the evolution of ice damage (levermann 2014). Next steps aim to
-incorporate the Keller Hutter damage scheme used to represent 
+describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
-import firedrake
-import icepack.models.viscosity
-import math
 import numpy as np
-from firedrake import grad, dx, ds, dS, sqrt, Identity, inner, sym, tr as trace, det, dot, div,lt
+import firedrake
+from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym, tr as trace,
+                       det, min_value, max_value, conditional)
+from icepack.models.viscosity import M
 from icepack.constants import year, glen_flow_law as n
 
 
-def get_eig(hes):
-    mesh = hes.function_space().mesh()
-    [eigL, eigR] = np.linalg.eig(
-        hes.vector().array().reshape([mesh.num_vertices(), 2, 2]))
-    eig = firedrake.Function(VectorFunctionSpace(mesh, 'CG', 1))
-    eig.vector().set_local(eigL.flatten())
-    return eig
+def M_e(eps_e, A):
+    return sqrt(3.0) * A**(-1/n) * eps_e**(1/n)
 
-def M(eps, A):
-    I = Identity(2)
-    tr = trace(eps)
-    eps_e = sqrt((inner(eps, eps) + tr**2) / 2)
-    mu = 0.5 * A**(-1/n) * eps_e**(1/n - 1)
-    return 2 * mu * (eps + tr * I)
+def heal(e1, eps_h, lh=2e-10 * year):
+    return lh * (e1 - eps_h)
 
-def M_e(eps_e,A):
-	return sqrt(3.0) * A**(-1/n) * eps_e**(1/n)
-
-def heal(e1,eps_h,lh=2.0 * 10**-10*year):
-    return lh*(e1 - eps_h)
-
-def fracture(D,eps_e,ld=0.1):
+def fracture(D, eps_e, ld=0.1):
     return ld * eps_e * (1 - D)
 
 
 class DamageTransport(object):
     def solve(self, dt, D0, u, A, ld=0.1, lh=2.0 * 10**-10*year, D_inflow=None, **kwargs):
-        """Propogate the ice damage forward in time by one timestep
+        """Propogate the damage forward by one timestep
 
-    	This function uses a Runge-Kutta scheme to upwind damage 
-    	(limiting damage diffusion) while sourcing and sinking 
-    	damage assocaited with crevasse opening/crevasse healing
+        This function uses a Runge-Kutta scheme to upwind damage
+        (limiting damage diffusion) while sourcing and sinking
+        damage assocaited with crevasse opening/crevasse healing
 
-		Parameters
-		----------
+        Parameters
+        ----------
+        dt : float
+            Timestep
+        D0 : firedrake.Function
+            initial damage feild should be discontinuous
+        u : firedrake.Function
+            Ice velocity
+        ld : float
+            damage source coefficient
+        lh : float
+            damage healing coefficient
+        A : firedrake.Function
+            fluidity parameter
+        D_inflow : firedrake.Function
+            Damage of the upstream ice that advects into the domain
 
-		dt : float
-			Timestep
-		D0 : firedrake.Function
-			initial damage feild should be discontinuous
-		u : firedrake.Function
-			Ice velocity
-		ld : float
-			damage source coefficient
-		lh : float
-			damage healing coefficient
-		A : firedrake.Function
-			fluidity parameter
-		D_inflow : firedrake.Function
-			Damage of the upstream ice that advects into the domain
-
-		Returns
-		D : firedrake.Function
-			Ice damage at `t + dt`
-		"""
+        Returns
+        D : firedrake.Function
+            Ice damage at `t + dt`
+        """
 
         D_inflow = D_inflow if D_inflow is not None else D0
         Q = D0.function_space()
-        dD, ϕ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
-        d = ϕ * dD * dx
+        dD, φ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
+        d = φ * dD * dx
         D = D0.copy(deepcopy=True)
 
         """ unit normal for facets in mesh, Q """
@@ -92,19 +75,19 @@ class DamageTransport(object):
 
         """ find the upstream direction and solve
             for advected damage """
-        un = 0.5 * (dot(u, n) + abs(dot(u, n)))
-        L1 = dt * (D * div(ϕ * u) * dx
-                   - firedrake.conditional(dot(u, n) < 0, ϕ * dot(u, n)
-                                 * D_inflow, 0.0) * ds
-                   - firedrake.conditional(dot(u, n) > 0, ϕ * dot(u, n) * D, 0.0) * ds
-                   - (ϕ('+') - ϕ('-')) * (un('+') * D('+') - un('-') * D('-')) * dS)
+        un = 0.5 * (inner(u, n) + abs(inner(u, n)))
+        L1 = dt * (D * div(φ * u) * dx
+                   - φ * max_value(inner(u, n), 0) * D * ds
+                   - φ * min_value(inner(u, n), 0) * D_inflow * ds
+                   - (φ('+') - φ('-')) * (un('+') * D('+') - un('-') * D('-')) * dS)
         D1 = firedrake.Function(Q)
         D2 = firedrake.Function(Q)
-        L2 = firedrake.replace(L1, {D: D1}); L3 = firedrake.replace(L1, {D: D2})
+        L2 = firedrake.replace(L1, {D: D1})
+        L3 = firedrake.replace(L1, {D: D2})
 
         dq = firedrake.Function(Q)
 
-        """ three-stage strong-stability-preserving Runge-Kutta 
+        """ three-stage strong-stability-preserving Runge-Kutta
             (SSPRK) scheme for advecting damage """
 
         params = {'ksp_type': 'preonly',
@@ -124,38 +107,34 @@ class DamageTransport(object):
         D.assign((1.0 / 3.0) * D + (2.0 / 3.0) * (D2 + dq))
 
         """ Damage advected, solve for stress and add new damage
-            for von mises criterion σc = 3.0^0.5*B*εdot**(1/n).
-   			for maximum shear stress criterion (Tresca or Guest criterion) 
-            σs = max(|σl|, |σt|,|σl-σt|) """   
+            for von mises criterion σc = 3.0^0.5*B*ε**(1/n).
+            for maximum shear stress criterion (Tresca or Guest criterion)
+            σs = max(|σl|, |σt|,|σl-σt|) """
 
         h_term = firedrake.Function(Q)
-        f_term =firedrake.Function(Q)
+        f_term = firedrake.Function(Q)
         Dnew = firedrake.Function(Q)
 
         eps = sym(grad(u))
         tr_e = trace(eps)
         det_e = det(eps)
-        eig = [1/2*tr_e + sqrt(tr_e**2 - 4*det_e), 1/2*tr_e - sqrt(tr_e**2 - 4*det_e)]
-        e1 = firedrake.max_value(*eig)
-        e2 = firedrake.min_value(*eig)
+        eig = [tr_e / 2 + sqrt(tr_e**2 - 4 * det_e), tr_e / 2 - sqrt(tr_e**2 - 4 * det_e)]
+        e1 = max_value(*eig)
+        e2 = min_value(*eig)
         eps_e = sqrt((inner(eps, eps) + tr_e**2) / 2)
 
-        σ = M(eps,A)
-        σc = M_e(eps_e,A)
+        σ = M(eps, A)
+        σc = M_e(eps_e, A)
         tr_s = trace(σ)
         σ_e = sqrt((inner(σ, σ) + tr_s**2) / 2)
-        eps_h=2.0 * 10**-10*year
-       
+        eps_h = 2e-10 * year
 
-        """ add damage associated with longitudinal spreading after 
+        """ add damage associated with longitudinal spreading after
         advecting damage feild. Heal crevasses proportional to the  """
-        h_term.project(firedrake.conditional(e1-eps_h<0,heal(e1,eps_h,lh),0.0))
-        f_term.project(firedrake.conditional(σ_e - σc >0, fracture(D,eps_e,ld),0.0))
+        h_term.project(conditional(e1 - eps_h < 0, heal(e1, eps_h, lh), 0.0))
+        f_term.project(conditional(σ_e - σc > 0, fracture(D, eps_e, ld), 0.0))
 
         """ we require that damage be in the set [0,1] """
-        Dnew.project(firedrake.conditional(D + f_term + h_term > 1.,1.0,D + f_term + h_term ))
-        Dnew.project(firedrake.conditional(D + f_term + h_term < 0.,0.0,D + f_term + h_term ))
-
-
+        Dnew.project(min_value(max_value(D + f_term + h_term, 0), 1))
 
         return Dnew
