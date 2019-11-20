@@ -19,9 +19,10 @@ describes the evolution of ice damage (Albrecht and Levermann 2014).
 import numpy as np
 import firedrake
 from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym, tr as trace,
-                       det, min_value, max_value, conditional)
+                       min_value, max_value, conditional)
 from icepack.models.viscosity import M
 from icepack.constants import year, glen_flow_law as n
+from icepack.utilities import eigenvalues
 
 
 def M_e(eps_e, A):
@@ -116,12 +117,8 @@ class DamageTransport(object):
         Dnew = firedrake.Function(Q)
 
         eps = sym(grad(u))
-        tr_e = trace(eps)
-        det_e = det(eps)
-        eig = [tr_e / 2 + sqrt(tr_e**2 - 4 * det_e), tr_e / 2 - sqrt(tr_e**2 - 4 * det_e)]
-        e1 = max_value(*eig)
-        e2 = min_value(*eig)
-        eps_e = sqrt((inner(eps, eps) + tr_e**2) / 2)
+        e1 = eigenvalues(eps)[0]
+        eps_e = sqrt((inner(eps, eps) + trace(eps)**2) / 2)
 
         σ = M(eps, A)
         σc = M_e(eps_e, A)

@@ -13,6 +13,7 @@
 import inspect
 import numpy as np
 import firedrake
+from firedrake import sqrt, tr, det
 
 def facet_normal_2(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
@@ -29,6 +30,16 @@ def grad_2(q):
 def div_2(q):
     r"""Compute the horizontal divergence of a 3D field"""
     return q[0].dx(0) + q[1].dx(1)
+
+
+def eigenvalues(a):
+    r"""Return a pair of symbolic expressions for the largest and smallest
+    eigenvalues of a 2D rank-2 tensor"""
+    tr_a = tr(a)
+    det_a = det(a)
+    # TODO: Fret about numerical stability
+    Δ = sqrt(tr_a**2 - 4 * det_a)
+    return ((tr_a + Δ) / 2, (tr_a - Δ) / 2)
 
 
 def diameter(mesh):
