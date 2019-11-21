@@ -129,7 +129,7 @@ class DamageTransport(object):
         """ add damage associated with longitudinal spreading after
         advecting damage feild. Heal crevasses proportional to the  """
         h_term.project(conditional(e1 - eps_h < 0, heal(e1, eps_h, lh), 0.0))
-        f_term.project(conditional(σ_e - σc > 0, fracture(D, eps_e, ld), 0.0))
+        f_term.project(conditional(σ_e - σc > 0, fracture(D, e1, ld), 0.0))
 
         """ we require that damage be in the set [0,1] """
         Dnew.project(min_value(max_value(D + dt * (f_term + h_term), 0), 1))
