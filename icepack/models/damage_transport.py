@@ -19,14 +19,11 @@ describes the evolution of ice damage (Albrecht and Levermann 2014).
 import numpy as np
 import firedrake
 from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym, tr as trace,
-                       min_value, max_value, conditional)
+                       det, min_value, max_value, conditional)
 from icepack.models.viscosity import M
 from icepack.constants import year, glen_flow_law as n
 from icepack.utilities import eigenvalues
 
-
-def M_e(eps_e, A):
-    return sqrt(3.0) * A**(-1/n) * eps_e**(1/n)
 
 def heal(e1, eps_h, lh=2e-10 * year):
     return lh * (e1 - eps_h)
@@ -121,10 +118,9 @@ class DamageTransport(object):
         eps_e = sqrt((inner(eps, eps) + trace(eps)**2) / 2)
 
         σ = M(eps, A)
-        σc = M_e(eps_e, A)
-        tr_s = trace(σ)
-        σ_e = sqrt((inner(σ, σ) + tr_s**2) / 2)
+        σ_e = sqrt(inner(σ, σ) - det(σ))
         eps_h = 2e-10 * year
+        σc = firedrake.Constant(0.07)
 
         """ add damage associated with longitudinal spreading after
         advecting damage feild. Heal crevasses proportional to the  """
