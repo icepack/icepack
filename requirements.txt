@@ -6,6 +6,7 @@ geojson
 shapely
 pooch
 pygmsh
+meshio<=3.2.14
 sphinx[doc]
 sphinxcontrib-bibtex[doc]
 sphinx_rtd_theme[doc]
