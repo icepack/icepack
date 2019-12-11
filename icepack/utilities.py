@@ -10,6 +10,9 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+r"""Miscellaneous utilities for depth-averaging 3D fields, computing
+horizontal gradients of 3D fields, lifting 2D fields into 3D, etc."""
+
 import inspect
 import numpy as np
 import firedrake

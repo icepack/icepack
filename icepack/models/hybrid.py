@@ -29,8 +29,7 @@ def gravity(u, h, s):
     The gravitational part of the hybrid model action functional is
 
     .. math::
-       E(u) = -\int_\Omega\int_0^1\rho_Ig\nabla s\cdot u
-       \hspace{2pt}hd\zeta \hspace{2pt}dx
+       E(u) = -\int_\Omega\int_0^1\rho_Ig\nabla s\cdot u\; h\, d\zeta\; dx
 
     Parameters
     ----------
@@ -68,10 +67,10 @@ def terminus(u, h, s, ice_front_ids=()):
 
     .. math::
         E(u) = \int_\Gamma\int_0^1\left(\rho_Ig(1 - \zeta) -
-        \rho_Wg(\zeta_{\text{sl}} - \zeta)_+\right)hd\zeta ds
+        \rho_Wg(\zeta_{\text{sl}} - \zeta)_+\right)u\cdot\nu\; h\, d\zeta\; ds
 
     where :math:`\zeta_\text{sl}` is the relative depth to sea level and the
-    :math:`(\zeta - \zeta_\text{sl})` denotes only the positive part.
+    :math:`(\zeta_\text{sl} - \zeta)_+` denotes only the positive part.
 
     Parameters
     ----------
@@ -135,8 +134,7 @@ def viscosity(u, s, h, A):
 
     .. math::
         E(u) = \frac{n}{n + 1}\int_\Omega\int_0^1\left(
-        M : \dot\varepsilon_x + \tau_z\cdot\varepsilon_z\right)
-        hd\zeta\hspace{2pt}dx
+        M : \dot\varepsilon_x + \tau_z\cdot\varepsilon_z\right)h\, d\zeta\; dx
 
     where :math:`M(\dot\varepsilon, A)` is the membrane stress tensor and
     :math:`\tau_z` is the vertical shear stress vector.
@@ -178,7 +176,7 @@ def bed_friction(u, C):
     The frictional part of the ice stream action functional is
 
     .. math::
-       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\hspace{2pt}dx,
+       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\; dx,
 
     where everything is evaluated at the ice base (:math:`\zeta = 0`) and
     :math:`\tau(u, C)` is the basal shear stress
@@ -198,7 +196,7 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
 
     .. math::
        E(u) = -\frac{m}{m + 1}\int_\Gamma\int_0^1 \tau(u, C_s)\cdot u
-       \hspace{2pt}hd\zeta\hspace{2pt}ds
+       \; h\, d\zeta\;ds
 
     where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
     is the element of surface area and :math:`\Gamma` are the side walls.

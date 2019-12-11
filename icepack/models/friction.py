@@ -27,7 +27,7 @@ def bed_friction(u, C):
     The frictional part of the ice stream action functional is
 
     .. math::
-       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\hspace{2pt}dx
+       E(u) = -\frac{m}{m + 1}\int_\Omega\tau(u, C)\cdot u\; dx
 
     where :math:`\\tau(u, C)` is the basal shear stress
 
@@ -44,7 +44,7 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
     walls of the domain is
 
     .. math::
-       E(u) = -\frac{m}{m + 1}\int_\Gamma h\tau(u, C_s)\cdot u\hspace{2pt}ds
+       E(u) = -\frac{m}{m + 1}\int_\Gamma h\tau(u, C_s)\cdot u\; ds
 
     where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
     is the element of surface area and :math:`\Gamma` are the side walls.

@@ -27,7 +27,7 @@ def gravity(u, h):
     The gravitational part of the ice shelf action functional is
 
     .. math::
-        E(u) = -\frac{1}{2}\int_\Omega\varrho g\nabla h^2\cdot u\hspace{2pt}dx
+        E(u) = -\frac{1}{2}\int_\Omega\varrho g\nabla h^2\cdot u\; dx
 
     Parameters
     ----------
@@ -50,7 +50,7 @@ def terminus(u, h, ice_front_ids=()):
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
 
     .. math::
-       E(u) = \int_\Gamma\varrho gh^2u\cdot\nu\hspace{2pt}ds
+       E(u) = \int_\Gamma\varrho gh^2u\cdot\nu\; ds
 
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.

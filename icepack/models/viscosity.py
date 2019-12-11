@@ -94,7 +94,7 @@ def viscosity_depth_averaged(u, h, A):
 
     .. math::
         E(u) = \frac{n}{n+1}\int_\Omega h\cdot
-        M(\dot\varepsilon, A):\dot\varepsilon\hspace{2pt} dx
+        M(\dot\varepsilon, A):\dot\varepsilon\; dx
 
     where :math:`M(\dot\varepsilon, A)` is the membrane stress tensor
 

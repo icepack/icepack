@@ -10,6 +10,9 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+r"""Functions for interpolating gridded remote sensing data sets to finite
+element spaces"""
+
 import numpy as np
 import ufl
 import firedrake
