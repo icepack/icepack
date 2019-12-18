@@ -61,6 +61,20 @@ def fetch_bedmap2():
     return [f for f in filenames if os.path.splitext(f)[1] == '.tif']
 
 
+bedmachine_antarctica = pooch.create(
+    path=pooch.os_cache('icepack'),
+    base_url='https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0756.001/1970.01.01/',
+    registry={
+        'BedMachineAntarctica_2019-11-05_v01.nc':
+        '06a01511a51bbc27d5080e4727a6523126659fe62402b03654a5335e25b614c0'
+    }
+)
+
+def fetch_bedmachine_antarctica():
+    return bedmachine_antarctica.fetch('BedMachineAntarctica_2019-11-05_v01.nc',
+                                       downloader=_earthdata_downloader)
+
+
 outlines_url = 'https://raw.githubusercontent.com/icepack/glacier-meshes/'
 outlines_commit = '9306972327a127c4c4bdd3b5f61d2102307c2baa'
 larsen_outline = pooch.create(
