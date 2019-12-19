@@ -214,7 +214,7 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
 
     Parameters
     ----------
-    velocity : firedrake.Function or tuple of icepack.grid.GridData
+    velocity : firedrake.Function
         the velocity field we are integrating
     initial_point : pair of floats
         the starting point for the streamline

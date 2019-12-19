@@ -23,7 +23,7 @@ def interpolate(f, Q):
 
     Parameters
     ----------
-    f : icepack.grid.GridData or tuple of icepack.grid.GridData
+    f : rasterio dataset or tuple of rasterio datasets
         The gridded data set for scalar fields or the tuple of gridded data
         sets for each component
     Q : firedrake.FunctionSpace
