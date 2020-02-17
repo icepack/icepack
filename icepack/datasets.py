@@ -1,4 +1,4 @@
-# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -17,6 +17,8 @@ from getpass import getpass
 import requests
 import pooch
 
+pooch.get_logger().setLevel('WARNING')
+
 def _earthdata_downloader(url, output_file, dataset):
     username = os.environ.get('EARTHDATA_USERNAME')
     if username is None:
@@ -25,9 +27,10 @@ def _earthdata_downloader(url, output_file, dataset):
     password = os.environ.get('EARTHDATA_PASSWORD')
     if password is None:
         password = getpass('EarthData password: ')
+    auth = (username, password)
 
     login = requests.get(url)
-    downloader = pooch.HTTPDownloader(auth=(username, password))
+    downloader = pooch.HTTPDownloader(auth=auth, progressbar=True)
     downloader(login.url, output_file, dataset)
 
 
@@ -57,7 +60,10 @@ bedmap2 = pooch.create(
 )
 
 def fetch_bedmap2():
-    filenames = bedmap2.fetch('bedmap2_tiff.zip', processor=pooch.Unzip())
+    downloader = pooch.HTTPDownloader(progressbar=True)
+    filenames = bedmap2.fetch(
+        'bedmap2_tiff.zip', processor=pooch.Unzip(), downloader=downloader
+    )
     return [f for f in filenames if os.path.splitext(f)[1] == '.tif']
 
 
@@ -87,7 +93,9 @@ larsen_outline = pooch.create(
 )
 
 def fetch_larsen_outline():
-    return larsen_outline.fetch('larsen.geojson')
+    return larsen_outline.fetch(
+        'larsen.geojson', downloader=pooch.HTTPDownloader(progressbar=True)
+    )
 
 
 moa = pooch.create(
@@ -100,6 +108,8 @@ moa = pooch.create(
 )
 
 def fetch_mosaic_of_antarctica():
-    return moa.fetch('moa750_2009_hp1_v01.1.tif.gz',
-                     downloader=_earthdata_downloader,
-                     processor=pooch.Decompress())
+    return moa.fetch(
+        'moa750_2009_hp1_v01.1.tif.gz',
+        downloader=_earthdata_downloader,
+        processor=pooch.Decompress()
+    )
