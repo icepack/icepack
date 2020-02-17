@@ -50,6 +50,31 @@ def fetch_measures_antarctica():
                                      downloader=_earthdata_downloader)
 
 
+measures_greenland = pooch.create(
+    path=pooch.os_cache('icepack'),
+    base_url=nsidc_url + 'NSIDC-0478.002/2015.0.01/',
+    registry={
+        'greenland_vel_mosaic200_2015_2016_vx_v02.1.tif':
+        '77b8eb65a4718da055bb048b75c35b48ca43d76b5bffb650932128d60ed28598',
+        'greenland_vel_mosaic200_2015_2016_vy_v02.1.tif':
+        'fb5dbc07d032de9b1bdb0b990ed02a384964d73a150529515038139efb1e3193',
+        'greenland_vel_mosaic200_2015_2016_ex_v02.1.tif':
+        '7e980fb7845fb8517f3791c9b3912ac62d3ce760938d062f1a4d575fad02ad89',
+        'greenland_vel_mosaic200_2015_2016_ey_v02.1.tif':
+        '9a43092b4c92ac767dbc4e6b7d42e55887420bec94eb654382d724d2a2ab6d9a'
+    }
+)
+
+def fetch_measures_greenland():
+    return [
+        measures_greenland.fetch(
+            'greenland_vel_mosaic200_2015_2016_{}_v02.1.tif'.format(field_name),
+            downloader=_earthdata_downloader
+        )
+        for field_name in ['vx', 'vy', 'ex', 'ey']
+    ]
+
+
 bedmap2 = pooch.create(
     path=pooch.os_cache('icepack'),
     base_url='https://secure.antarctica.ac.uk/data/bedmap2/',
