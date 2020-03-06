@@ -31,7 +31,12 @@ def _earthdata_downloader(url, output_file, dataset):
 
     login = requests.get(url)
     downloader = pooch.HTTPDownloader(auth=auth, progressbar=True)
-    downloader(login.url, output_file, dataset)
+    try:
+        downloader(login.url, output_file, dataset)
+    except requests.exceptions.HTTPError as error:
+        if 'Unauthorized' in str(error):
+            pooch.get_logger().error('Wrong username/password!')
+        raise error
 
 
 nsidc_url = 'https://daacdata.apps.nsidc.org/pub/DATASETS/'
