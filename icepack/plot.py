@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -26,7 +26,6 @@ class `ScalarMappable` so that you can make a colorbar out of it.
 import matplotlib.pyplot as plt
 import matplotlib.cm
 import matplotlib.colors
-import matplotlib.tri
 import matplotlib.streamplot
 from matplotlib.ticker import ScalarFormatter
 from matplotlib.collections import LineCollection
@@ -34,7 +33,6 @@ import numpy as np
 import scipy.spatial
 import firedrake
 from firedrake import inner, sqrt
-from firedrake.plot import _two_dimension_triangle_func_val
 import icepack
 
 
@@ -49,14 +47,6 @@ def _get_coordinates(mesh):
         coordinates = interpolate(coordinates, V)
 
     return coordinates
-
-
-def _get_colors(colors, num_markers):
-    if colors is None:
-        cmap = matplotlib.cm.get_cmap('Dark2')
-        return cmap([k / num_markers for k in range(num_markers)])
-
-    return matplotlib.colors.to_rgba_array(colors)
 
 
 def subplots(*args, **kwargs):
@@ -81,68 +71,9 @@ def subplots(*args, **kwargs):
     return fig, axes
 
 
-def triplot(mesh, bnd_colors=None, axes=None, **kwargs):
+def triplot(mesh, *args, **kwargs):
     r"""Plot a mesh with a different color for each boundary segment"""
-    if (mesh.geometric_dimension() != 2) or (mesh.topological_dimension() != 2):
-        raise NotImplementedError("Plotting meshes only implemented for 2D")
-
-    if mesh.ufl_cell().cellname() == 'quadrilateral':
-        raise NotImplementedError('Plotting meshes only implemented for '
-                                  'triangles')
-
-    axes = axes if axes is not None else plt.gca()
-    bnd_linewidth = kwargs.pop('bnd_linewidth', kwargs.get('linewidth', 1.5))
-
-    mesh.init()  # Apparently this doesn't happen automatically?
-    coordinates = _get_coordinates(mesh)
-    coords = coordinates.dat.data_ro
-    x, y = coords[:, 0], coords[:, 1]
-
-    # Add lines for all of the edges, internal or boundary
-    triangles = coordinates.cell_node_map().values
-    triangulation = matplotlib.tri.Triangulation(x, y, triangles)
-    edges = triangulation.edges
-
-    tri_lines_x = np.insert(x[edges], 2, np.nan, axis=1)
-    tri_lines_y = np.insert(y[edges], 2, np.nan, axis=1)
-    tri_lines = axes.plot(tri_lines_x.ravel(), tri_lines_y.ravel(),
-                          color='k', **kwargs)
-
-    # Add colored lines for the boundary edges
-    facets = mesh.topology.exterior_facets
-    local_facet_id = facets.local_facet_dat.data_ro
-    markers = facets.unique_markers
-    clrs = _get_colors(bnd_colors, len(markers))
-
-    kwargs['linewidth'] = bnd_linewidth
-    bnd_lines = []
-    for i, marker in enumerate(markers):
-        indices = facets.subset(int(marker)).indices
-        n = len(indices)
-        roll = 2 - local_facet_id[indices]
-        cell = coordinates.exterior_facet_node_map().values[indices, :]
-        edges = np.array([np.roll(cell[k, :], roll[k]) for k in range(n)])[:, :2]
-
-        bnd_lines_x = np.insert(x[edges], 2, np.nan, axis=1)
-        bnd_lines_y = np.insert(y[edges], 2, np.nan, axis=1)
-        bnd_lines += axes.plot(bnd_lines_x.ravel(), bnd_lines_y.ravel(),
-                               color=clrs[i], label=marker, **kwargs)
-    axes.legend(loc='upper right')
-
-    return tri_lines + bnd_lines
-
-
-def contourf(dataset, *args, **kwargs):
-    r"""Plot a gridded data set from rasterio"""
-    kwargs['origin'] = 'upper'
-    if 'extent' not in kwargs:
-        extent = (dataset.bounds.left, dataset.bounds.right,
-                  dataset.bounds.bottom, dataset.bounds.top)
-        kwargs['extent'] = extent
-
-    axes = kwargs.pop('axes', plt.gca())
-    data = dataset.read(indexes=1, masked=True)
-    return axes.contourf(data, *args, **kwargs)
+    return firedrake.triplot(mesh, *args, **kwargs)
 
 
 def _project_to_2d(function):
@@ -150,53 +81,24 @@ def _project_to_2d(function):
     return function if mesh.layers is None else icepack.depth_average(function)
 
 
-def _plot_field(method_name, function, *args, **kwargs):
-    function = _project_to_2d(function)
-    axes = kwargs.pop('axes', plt.gca())
-
-    if len(function.ufl_shape) == 1:
-        mesh = function.ufl_domain()
-        element = function.ufl_element().sub_elements()[0]
-        Q = firedrake.FunctionSpace(mesh, element)
-        function = firedrake.interpolate(sqrt(inner(function, function)), Q)
-
-    num_sample_points = 10
-    triangulation, vals = _two_dimension_triangle_func_val(function,
-                                                           num_sample_points)
-
-    method = getattr(axes, method_name)
-    return method(triangulation, vals, *args, **kwargs)
-
-
 def tricontourf(function, *args, **kwargs):
     r"""Create a filled contour plot of a finite element field"""
-    return _plot_field('tricontourf', function, *args, **kwargs)
+    return firedrake.tricontourf(_project_to_2d(function), *args, **kwargs)
 
 
 def tricontour(function, *args, **kwargs):
     r"""Create a contour plot of a finite element field"""
-    return _plot_field('tricontour', function, *args, **kwargs)
+    return firedrake.tricontour(_project_to_2d(function), *args, **kwargs)
 
 
 def tripcolor(function, *args, **kwargs):
     r"""Create a pseudo-color plot of a finite element field"""
-    return _plot_field('tripcolor', function, *args, **kwargs)
+    return firedrake.tripcolor(_project_to_2d(function), *args, **kwargs)
 
 
 def quiver(function, *args, **kwargs):
     r"""Make a quiver plot of a vector field"""
-    if function.ufl_shape != (2,):
-        raise ValueError('Quiver plots only defined for 2D vector fields!')
-
-    function = _project_to_2d(function)
-    axes = kwargs.pop('axes', plt.gca())
-
-    coords = function.ufl_domain().coordinates.dat.data_ro
-    X, Y = coords.T
-    vals = np.asarray(function.at(coords, tolerance=1e-10))
-    C = np.linalg.norm(vals, axis=1)
-    U, V = vals.T
-    return axes.quiver(X, Y, U, V, C, *args, **kwargs)
+    return firedrake.quiver(_project_to_2d(function), *args, **kwargs)
 
 
 def streamline(velocity, initial_point, resolution, max_num_points=np.inf):

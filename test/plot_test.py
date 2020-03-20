@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,7 +12,6 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import rasterio
 import firedrake
 from firedrake import interpolate, as_vector
 import icepack, icepack.plot
@@ -23,36 +22,8 @@ def test_plot_mesh():
     mesh = firedrake.RectangleMesh(nx, ny, Lx, Ly)
     fig, axes = icepack.plot.subplots()
     icepack.plot.triplot(mesh, axes=axes)
-    assert axes.legend_ is not None
-
-
-def test_plot_grid_data():
-    x0 = (0, 0)
-    n = 32
-    dx = 1.0/n
-    transform = rasterio.transform.from_origin(west=0.0, north=1.0,
-                                               xsize=dx, ysize=dx)
-
-    # Interpolate a scalar field
-    array = np.array([[dx * (i + j) for j in range(n + 1)]
-                      for i in range(n + 1)])
-    missing = -9999.0
-    array[0, 0] = missing
-    array = np.flipud(array)
-
-    memfile = rasterio.MemoryFile(ext='.tif')
-    opts = {'driver': 'GTiff', 'count': 1, 'width': n, 'height': n,
-            'dtype': array.dtype, 'transform': transform, 'nodata': -9999}
-
-    with memfile.open(**opts) as dataset:
-        dataset.write(array, indexes=1)
-    dataset = memfile.open()
-
-    levels = np.linspace(-0.5, 0.5, 5)
-    contours = icepack.plot.contourf(dataset, levels=levels)
-    assert contours is not None
-    colorbar = plt.colorbar(contours)
-    assert colorbar is not None
+    legend = axes.legend()
+    assert legend is not None
 
 
 def test_plot_field():
