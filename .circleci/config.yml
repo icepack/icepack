@@ -16,14 +16,14 @@ commands:
 jobs:
   python35:
     docker:
-      - image: icepack/firedrake-python3.5:0.3.0
+      - image: icepack/firedrake-python3.5:0.3.1
     working_directory: ~/icepack
     steps:
       - build
       - test
   python37:
     docker:
-      - image: icepack/firedrake-python3.7:0.3.0
+      - image: icepack/firedrake-python3.7:0.3.1
     working_directory: ~/icepack
     steps:
       - build
