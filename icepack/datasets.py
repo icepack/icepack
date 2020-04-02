@@ -43,7 +43,7 @@ nsidc_url = 'https://daacdata.apps.nsidc.org/pub/DATASETS/'
 
 measures_antarctica = pooch.create(
     path=pooch.os_cache('icepack'),
-    base_url=nsidc_url + 'nsidc0754_MEASURES_antarctic_ice_vel_phase_map_v01/',
+    base_url='https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0754.001/1996.01.01/',
     registry={
         'antarctic_ice_vel_phase_map_v01.nc':
         'fa0957618b8bd98099f4a419d7dc0e3a2c562d89e9791b4d0ed55e6017f52416'
