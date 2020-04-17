@@ -13,7 +13,7 @@
 import firedrake
 from firedrake import inner, sqrt
 from icepack.constants import weertman_sliding_law as m
-from icepack import utilities
+from icepack.utilities import facet_normal_2, diameter
 
 
 def friction_stress(u, C):
@@ -53,7 +53,11 @@ def side_friction(u, h, Cs=firedrake.Constant(0)):
     with rock walls on either side.
     """
     mesh = u.ufl_domain()
-    ν = firedrake.FacetNormal(mesh)
+    if mesh.geometric_dimension() == 2:
+        ν = firedrake.FacetNormal(mesh)
+    else:
+        ν = facet_normal_2(mesh)
+
     u_t = u - inner(u, ν) * ν
     τ = friction_stress(u_t, Cs)
     return -m/(m + 1) * h * inner(τ, u_t)
@@ -68,10 +72,23 @@ def normal_flow_penalty(u, scale=1.0, exponent=None):
     flow to the action functional.
     """
     mesh = u.ufl_domain()
-    ν = firedrake.FacetNormal(mesh)
-    L = utilities.diameter(mesh)
-    δx = firedrake.CellSize(mesh)
-    d = u.ufl_function_space().ufl_element().degree()
+    if mesh.geometric_dimension() == 2:
+        ν = firedrake.FacetNormal(mesh)
+    elif mesh.geometric_dimension() == 3:
+        ν = facet_normal_2(mesh)
+
+    L = diameter(mesh)
+    δx = firedrake.FacetArea(mesh)
+
+    # Get the polynomial degree in the horizontal direction of the velocity
+    # field -- if extruded, the element degree is a tuple of the horizontal
+    # and vertical degrees.
+    degree = u.ufl_function_space().ufl_element().degree()
+    if isinstance(degree, tuple):
+        d = degree[0]
+    else:
+        d = degree
+
     exponent = d + 1 if exponent is None else exponent
     penalty = scale * (L / δx)**exponent
     return 0.5 * penalty * inner(u, ν)**2

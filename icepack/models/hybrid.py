@@ -15,7 +15,8 @@ import sympy
 import firedrake
 from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
                        grad, dx, ds, ds_b, ds_v)
-from icepack.models.friction import bed_friction, friction_stress
+from icepack.models.friction import (bed_friction, side_friction,
+                                     normal_flow_penalty)
 from icepack.models.mass_transport import LaxWendroff
 from icepack.optimization import newton_search
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
@@ -161,51 +162,6 @@ def viscosity(u, s, h, A):
     ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
     M, τ_z = stresses(ε_x, ε_z, A)
     return n / (n + 1) * (inner(M, ε_x) + inner(τ_z, ε_z)) * h
-
-
-def side_friction(u, h, Cs=firedrake.Constant(0)):
-    r"""Return the side wall friction part of the action functional
-
-    The component of the action functional due to friction along the side
-    walls of the domain is
-
-    .. math::
-       E(u) = -\frac{m}{m + 1}\int_\Gamma\int_0^1 \tau(u, C_s)\cdot u
-       \; h\, d\zeta\;ds
-
-    where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
-    is the element of surface area and :math:`\Gamma` are the side walls.
-    Side wall friction is relevant for glaciers that flow through a fjord
-    with rock walls on either side.
-    """
-    mesh = u.ufl_domain()
-    ν = facet_normal_2(mesh)
-    u_t = u - inner(u, ν) * ν
-    τ = friction_stress(u_t, Cs)
-    return -m/(m + 1) * inner(τ, u_t) * h
-
-
-def normal_flow_penalty(u, h, scale=1.0, exponent=None):
-    r"""Return the penalty for flow normal to the domain boundary
-
-    For problems where a glacier flows along some boundary, e.g. a fjord
-    wall, the velocity has to be parallel to this boundary. Rather than
-    enforce this boundary condition directly, we add a penalty for normal
-    flow to the action functional.
-    """
-    mesh = u.ufl_domain()
-
-    # Note that this quantity has units of [length] x [dimensionless] because
-    # the mesh has a "thickness" of 1! If it had dimensions of physical
-    # thickness, we would instead use the square root of the facet area.
-    δx = firedrake.FacetArea(mesh)
-    L = diameter(mesh)
-
-    d = u.ufl_function_space().ufl_element().degree()[0]
-    exponent = d + 1 if (exponent is None) else exponent
-    penalty = scale * (L / δx)**exponent
-    ν = facet_normal_2(mesh)
-    return 0.5 * penalty * inner(u, ν)**2 * h
 
 
 class HybridModel(object):
