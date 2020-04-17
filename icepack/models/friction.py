@@ -11,7 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import inner, dx, ds, sqrt
+from firedrake import inner, sqrt
 from icepack.constants import weertman_sliding_law as m
 from icepack import utilities
 
@@ -34,10 +34,10 @@ def bed_friction(u, C):
     .. math::
        \tau(u, C) = -C|u|^{1/m - 1}u
     """
-    return -m/(m + 1) * inner(tau(u, C), u) * dx
+    return -m/(m + 1) * inner(tau(u, C), u)
 
 
-def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
+def side_friction(u, h, Cs=firedrake.Constant(0)):
     r"""Return the side wall friction part of the action functional
 
     The component of the action functional due to friction along the side
@@ -54,11 +54,10 @@ def side_friction(u, h, Cs=firedrake.Constant(0), side_wall_ids=()):
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     u_t = u - inner(u, ν) * ν
-    ds_side_walls = ds(domain=mesh, subdomain_id=tuple(side_wall_ids))
-    return -m/(m + 1) * h * inner(tau(u_t, Cs), u_t) * ds_side_walls
+    return -m/(m + 1) * h * inner(tau(u_t, Cs), u_t)
 
 
-def normal_flow_penalty(u, scale=1.0, exponent=None, side_wall_ids=()):
+def normal_flow_penalty(u, scale=1.0, exponent=None):
     r"""Return the penalty for flow normal to the domain boundary
 
     For problems where a glacier flows along some boundary, e.g. a fjord
@@ -73,4 +72,4 @@ def normal_flow_penalty(u, scale=1.0, exponent=None, side_wall_ids=()):
     d = u.ufl_function_space().ufl_element().degree()
     exponent = d + 1 if exponent is None else exponent
     penalty = scale * (L / δx)**exponent
-    return 0.5 * penalty * inner(u, ν)**2 * ds(tuple(side_wall_ids))
+    return 0.5 * penalty * inner(u, ν)**2

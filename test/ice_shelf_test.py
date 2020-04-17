@@ -93,7 +93,7 @@ def test_diagnostic_solver_convergence():
 def test_diagnostic_solver_parameterization():
     # Define a new viscosity functional, parameterized in terms of the
     # rheology `B` instead of the fluidity `A`
-    from firedrake import inner, grad, sym, dx, tr as trace, Identity, sqrt
+    from firedrake import inner, grad, sym, tr as trace, Identity, sqrt
 
     def M(ε, B):
         I = Identity(2)
@@ -106,7 +106,7 @@ def test_diagnostic_solver_parameterization():
         return sym(grad(u))
 
     def viscosity(u, h, B):
-        return n/(n + 1) * h * inner(M(ε(u), B), ε(u)) * dx
+        return n/(n + 1) * h * inner(M(ε(u), B), ε(u))
 
     # Make a model object with our new viscosity functional
     ice_shelf = icepack.models.IceShelf(viscosity=viscosity)

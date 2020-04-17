@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -41,10 +41,10 @@ def gravity(u, h):
     firedrake.Form
     """
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return -0.5 * ρ * g * inner(grad(h**2), u) * dx
+    return -0.5 * ρ * g * inner(grad(h**2), u)
 
 
-def terminus(u, h, ice_front_ids=()):
+def terminus(u, h):
     r"""Return the terminus stress part of the ice shelf action functional
 
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
@@ -57,9 +57,8 @@ def terminus(u, h, ice_front_ids=()):
     """
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
-    IDs = tuple(ice_front_ids)
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return 0.5 * ρ * g * h**2 * inner(u, ν) * ds(IDs)
+    return 0.5 * ρ * g * h**2 * inner(u, ν)
 
 
 class IceShelf(object):
@@ -116,11 +115,20 @@ class IceShelf(object):
             and gravity functionals. The ice fluidity coefficient, for
             example, is passed as a keyword argument.
         """
-        viscosity = self.viscosity(u=u, h=h, **kwargs)
-        side_friction = self.side_friction(u=u, h=h, **kwargs)
-        gravity = self.gravity(u=u, h=h, **kwargs)
-        terminus = self.terminus(u=u, h=h, **kwargs)
-        penalty = self.penalty(u=u, h=h, **kwargs)
+        mesh = u.ufl_domain()
+        ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
+        side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
+
+        viscosity = self.viscosity(u=u, h=h, **kwargs) * dx
+        gravity = self.gravity(u=u, h=h, **kwargs) * dx
+
+        ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
+        side_friction = self.side_friction(u=u, h=h, **kwargs) * ds_w
+        penalty = self.penalty(u=u, h=h, **kwargs) * ds_w
+
+        ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
+        terminus = self.terminus(u=u, h=h, **kwargs) * ds_t
+
         return viscosity + side_friction - gravity - terminus + penalty
 
     def scale(self, u, h, **kwargs):
@@ -129,7 +137,7 @@ class IceShelf(object):
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return self.viscosity(u=u, h=h, **kwargs)
+        return self.viscosity(u=u, h=h, **kwargs) * dx
 
     def quadrature_degree(self, u, h, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action

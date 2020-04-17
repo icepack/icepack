@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -19,7 +19,7 @@ Several flow models all have essentially the same viscous part.
 
 import numpy as np
 import firedrake
-from firedrake import grad, dx, sqrt, Identity, inner, sym, tr as trace
+from firedrake import grad, sqrt, Identity, inner, sym, tr as trace
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n
 
 transition_temperature = 263.15      # K
@@ -121,4 +121,4 @@ def viscosity_depth_averaged(u, h, A):
     -------
     firedrake.Form
     """
-    return n/(n + 1) * h * inner(M(ε(u), A), ε(u)) * dx
+    return n/(n + 1) * h * inner(M(ε(u), A), ε(u))
