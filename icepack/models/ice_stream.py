@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -39,10 +39,10 @@ def gravity(u, h, s):
     s : firedrake.Function
         ice surface elevation
     """
-    return -ρ_I * g * h * inner(grad(s), u) * dx
+    return -ρ_I * g * h * inner(grad(s), u)
 
 
-def terminus(u, h, s, ice_front_ids=()):
+def terminus(u, h, s):
     r"""Return the terminal stress part of the ice stream action functional
 
     The power exerted due to stress at the ice calving terminus :math:`\Gamma`
@@ -74,7 +74,7 @@ def terminus(u, h, s, ice_front_ids=()):
     τ_W = ρ_W * g * d**2 / 2
 
     ν = firedrake.FacetNormal(u.ufl_domain())
-    return (τ_I - τ_W) * inner(u, ν) * ds(tuple(ice_front_ids))
+    return (τ_I - τ_W) * inner(u, ν)
 
 
 class IceStream(object):
@@ -102,12 +102,20 @@ class IceStream(object):
     def action(self, u, h, s, **kwargs):
         r"""Return the action functional that gives the ice stream
         diagnostic model as the Euler-Lagrange equations"""
-        viscosity = self.viscosity(u=u, h=h, s=s, **kwargs)
-        friction = self.friction(u=u, h=h, s=s, **kwargs)
-        side_friction = self.side_friction(u=u, h=h, s=s, **kwargs)
-        gravity = self.gravity(u=u, h=h, s=s, **kwargs)
-        terminus = self.terminus(u=u, h=h, s=s, **kwargs)
-        penalty = self.penalty(u=u, h=h, s=s, **kwargs)
+        mesh = u.ufl_domain()
+        ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
+        side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
+
+        viscosity = self.viscosity(u=u, h=h, s=s, **kwargs) * dx
+        friction = self.friction(u=u, h=h, s=s, **kwargs) * dx
+        gravity = self.gravity(u=u, h=h, s=s, **kwargs) * dx
+
+        ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
+        side_friction = self.side_friction(u=u, h=h, s=s, **kwargs) * ds_w
+        penalty = self.penalty(u=u, h=h, s=s, **kwargs) * ds_w
+
+        ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
+        terminus = self.terminus(u=u, h=h, s=s, **kwargs) * ds_t
 
         return (viscosity + friction + side_friction
                 - gravity - terminus + penalty)
@@ -119,7 +127,7 @@ class IceStream(object):
         scale to determine when to terminate an optimization algorithm.
         """
         return (self.viscosity(u=u, h=h, s=s, **kwargs)
-                + self.friction(u=u, h=h, s=s, **kwargs))
+                + self.friction(u=u, h=h, s=s, **kwargs)) * dx
 
     def quadrature_degree(self, u, h, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
