@@ -16,7 +16,7 @@ from icepack.constants import weertman_sliding_law as m
 from icepack import utilities
 
 
-def tau(u, C):
+def friction_stress(u, C):
     r"""Compute the shear stress for a given sliding velocity"""
     return -C * sqrt(inner(u, u))**(1/m - 1) * u
 
@@ -34,7 +34,8 @@ def bed_friction(u, C):
     .. math::
        \tau(u, C) = -C|u|^{1/m - 1}u
     """
-    return -m/(m + 1) * inner(tau(u, C), u)
+    τ = friction_stress(u, C)
+    return -m/(m + 1) * inner(τ, u)
 
 
 def side_friction(u, h, Cs=firedrake.Constant(0)):
@@ -54,7 +55,8 @@ def side_friction(u, h, Cs=firedrake.Constant(0)):
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     u_t = u - inner(u, ν) * ν
-    return -m/(m + 1) * h * inner(tau(u_t, Cs), u_t)
+    τ = friction_stress(u_t, Cs)
+    return -m/(m + 1) * h * inner(τ, u_t)
 
 
 def normal_flow_penalty(u, scale=1.0, exponent=None):
