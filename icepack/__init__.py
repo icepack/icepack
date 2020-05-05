@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,7 +12,7 @@
 
 from icepack.norms import norm
 from icepack.interpolate import interpolate
-from icepack.utilities import depth_average, lift3d
+from icepack.utilities import depth_average, lift3d, compute_surface
 from icepack.models.viscosity import rate_factor
 import icepack.meshing
 import icepack.datasets

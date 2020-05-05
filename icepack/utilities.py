@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -17,6 +17,7 @@ import inspect
 import numpy as np
 import firedrake
 from firedrake import sqrt, tr, det
+from icepack.constants import ice_density as ρ_I, water_density as ρ_W
 
 def facet_normal_2(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
@@ -51,6 +52,23 @@ def diameter(mesh):
     xmin = mesh.comm.allreduce(np.min(X, axis=0), op=np.minimum)
     xmax = mesh.comm.allreduce(np.max(X, axis=0), op=np.maximum)
     return np.max(xmax - xmin)
+
+
+def compute_surface(h, b):
+    r"""Return the ice surface elevation consistent with a given
+    thickness and bathymetry
+
+    If the bathymetry beneath a tidewater glacier is too low, the ice
+    will go afloat. The surface elevation of a floating ice shelf is
+
+    .. math::
+       s = (1 - \rho_I / \rho_W)h,
+
+    provided everything is in hydrostatic balance.
+    """
+    Q = h.ufl_function_space()
+    s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
+    return firedrake.interpolate(s_expr, Q)
 
 
 def depth_average(q3d, weight=firedrake.Constant(1)):

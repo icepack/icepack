@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import warnings
 import functools
 import sympy
 import firedrake
@@ -23,7 +24,8 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                glen_flow_law as n, weertman_sliding_law as m,
                                gravity as g)
 from icepack.utilities import (facet_normal_2, grad_2, diameter,
-                               add_kwarg_wrapper)
+                               add_kwarg_wrapper,
+                               compute_surface as _compute_surface)
 
 def gravity(u, h, s):
     r"""Return the gravitational part of the ice stream action functional
@@ -285,17 +287,8 @@ class HybridModel(object):
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
 
     def compute_surface(self, h, b):
-        r"""Return the ice surface elevation consistent with a given
-        thickness and bathymetry
-
-        If the bathymetry beneath a tidewater glacier is too low, the ice
-        will go afloat. The surface elevation of a floating ice shelf is
-
-        .. math::
-           s = (1 - \rho_I / \rho_W)h,
-
-        provided everything is in hydrostatic balance.
-        """
-        Q = h.ufl_function_space()
-        s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
-        return firedrake.interpolate(s_expr, Q)
+        warnings.warn('Compute surface moved from member function of models to'
+                      ' icepack module; call `icepack.compute_surface` instead'
+                      ' of e.g. `ice_stream.compute_surface`',
+                      DeprecationWarning)
+        return _compute_surface(h, b)

@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -176,7 +176,7 @@ def test_ice_stream_prognostic_solve():
 
     for k in range(num_timesteps):
         h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_inflow)
-        s = model.compute_surface(h=h, b=b)
+        s = icepack.compute_surface(h=h, b=b)
         u = model.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
 
     assert icepack.norm(h, norm_type='Linfty') < np.inf
@@ -233,7 +233,7 @@ def test_hybrid_prognostic_solve():
 
     for k in range(num_timesteps):
         h = model.prognostic_solve(dt, h0=h, a=a, u=u, h_inflow=h_inflow)
-        s = model.compute_surface(h=h, b=b)
+        s = icepack.compute_surface(h=h, b=b)
         u = model.diagnostic_solve(u0=u, h=h, s=s, C=C, A=A, **opts)
 
     assert icepack.norm(h, norm_type='Linfty') < np.inf
