@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -354,80 +354,217 @@ class GradientDescentSolver(InverseSolver):
         self._search_direction_solver.solve()
 
 
-class GaussNewtonOperator(object):
-    def __init__(self, E, R, F, u, p, bc, solver_parameters,
-                 form_compiler_parameters):
-        r"""Encapsulates application of the Gauss-Newton operator"""
+class GaussNewtonCG(object):
+    def __init__(self, solver):
+        r"""State machine for solving the Gauss-Newton subproblem via the
+        preconditioned conjugate gradient method"""
+        self._assemble = solver._assemble
+        u = solver.state
+        p = solver.parameter
+        E = solver._E
         dE = derivative(E, u)
+        R = solver._R
         dR = derivative(R, p)
+        F = solver._F
         dF_du = derivative(F, u)
         dF_dp = derivative(F, p)
+        # TODO: Make this an arbitrary RHS -- the solver can set it to the
+        # gradient if we want
+        dJ = solver.gradient
+        bc = solver._bc
 
         V = u.function_space()
         Q = p.function_space()
 
+        # Create the preconditioned residual and solver
+        z = firedrake.Function(Q)
+        s = firedrake.Function(Q)
+        φ, ψ = firedrake.TestFunction(Q), firedrake.TrialFunction(Q)
+        M = φ * ψ * dx + derivative(dR, p)
+        residual_problem = firedrake.LinearVariationalProblem(
+            M, -dJ, z, form_compiler_parameters=solver._fc_params
+        )
+        residual_solver = firedrake.LinearVariationalSolver(
+            residual_problem, solver_parameters=solver._solver_params
+        )
+
+        self._preconditioner = M
+        self._residual = z
+        self._search_direction = s
+        self._residual_solver = residual_solver
+
+        # Create a variable to store the current solution of the Gauss-Newton
+        # problem and the solutions of the auxiliary tangent sub-problems
         q = firedrake.Function(Q)
-        w = firedrake.Function(V)
-        w_problem = firedrake.LinearVariationalProblem(
-            dF_du, action(dF_dp, q), w, bc,
-            form_compiler_parameters=form_compiler_parameters,
-            constant_jacobian=False
-        )
-        w_solver = firedrake.LinearVariationalSolver(
-            w_problem, solver_parameters=solver_parameters
-        )
-
         v = firedrake.Function(V)
-        v_problem = firedrake.LinearVariationalProblem(
-            adjoint(dF_du), derivative(dE, u, w), v, bc,
-            form_compiler_parameters=form_compiler_parameters,
+        w = firedrake.Function(V)
+
+        # Create linear problem and solver objects for the auxiliary tangent
+        # sub-problems
+        tangent_linear_problem = firedrake.LinearVariationalProblem(
+            dF_du, action(dF_dp, s), w, bc,
+            form_compiler_parameters=solver._fc_params,
             constant_jacobian=False
         )
-        v_solver = firedrake.LinearVariationalSolver(
-            v_problem, solver_parameters=solver_parameters
+        tangent_linear_solver = firedrake.LinearVariationalSolver(
+            tangent_linear_problem, solver_parameters=solver._solver_params
         )
 
-        self._u = u
-        self._v = v
-        self._w = w
-        self._p = p
-        self._q = q
+        adjoint_tangent_linear_problem = firedrake.LinearVariationalProblem(
+            adjoint(dF_du), derivative(dE, u, w), v, bc,
+            form_compiler_parameters=solver._fc_params,
+            constant_jacobian=False
+        )
+        adjoint_tangent_linear_solver = firedrake.LinearVariationalSolver(
+            adjoint_tangent_linear_problem,
+            solver_parameters=solver._solver_params
+        )
 
-        self._v_solver = v_solver
-        self._w_solver = w_solver
+        self._rhs = dJ
+        self._solution = q
+        self._tangent_linear_solution = w
+        self._tangent_linear_solver = tangent_linear_solver
+        self._adjoint_tangent_linear_solution = v
+        self._adjoint_tangent_linear_solver = adjoint_tangent_linear_solver
 
-        self._dE = dE
-        self._dR = dR
-        self._dF_dp = dF_dp
+        self._product = action(adjoint(dF_dp), v) + derivative(dR, p, s)
 
-    def mult(self, q):
-        self._q.assign(q)
-        self._w_solver.solve()
-        self._v_solver.solve()
+        # Create the update to the residual and the associated solver
+        δz = firedrake.Function(Q)
+        Gs = self._product
+        delta_residual_problem = firedrake.LinearVariationalProblem(
+            M, Gs, δz, form_compiler_parameters=solver._fc_params
+        )
+        delta_residual_solver = firedrake.LinearVariationalSolver(
+            delta_residual_problem, solver_parameters=solver._solver_params
+        )
 
-        dF_dp = self._dF_dp
-        u = self._u
-        p = self._p
-        v = self._v
+        self._delta_residual = δz
+        self._delta_residual_solver = delta_residual_solver
 
-        dR = self._dR
-        dF_dp = self._dF_dp
-        return action(adjoint(dF_dp), v) + derivative(dR, p, q)
+        self._residual_energy = 0.
+        self._search_direction_energy = 0.
 
-    def energy_norm(self, q):
-        self._q.assign(q)
-        self._w_solver.solve()
+        self.reinit()
 
-        u = self._u
-        p = self._p
-        w = self._w
-        dE = self._dE
-        dR = self._dR
+    def reinit(self):
+        r"""Restart the solution to 0"""
+        self._iteration = 0
 
-        dE_norm = firedrake.energy_norm(derivative(dE, u), w)
-        dR_norm = firedrake.energy_norm(derivative(dR, p), q)
-        return firedrake.assemble(dE_norm + dR_norm)
+        M = self._preconditioner
+        z = self.residual
+        s = self.search_direction
+        Gs = self.operator_product
+        Q = z.function_space()
 
+        self.solution.assign(firedrake.Function(Q))
+        self._residual_solver.solve()
+        s.assign(z)
+        self._residual_energy = self._assemble(firedrake.energy_norm(M, z))
+
+        self.update_state()
+        self._search_direction_energy = self._assemble(action(Gs, s))
+
+        self._energy = 0.
+        self._objective = 0.
+
+    @property
+    def iteration(self):
+        r"""The number of iterations executed"""
+        return self._iteration
+
+    @property
+    def solution(self):
+        r"""The current guess for the solution"""
+        return self._solution
+
+    @property
+    def tangent_linear_solution(self):
+        r"""The solution of the tangent linear system"""
+        return self._tangent_linear_solution
+
+    @property
+    def adjoint_tangent_linear_solution(self):
+        r"""The solution of the adjoint of the tangent linear system"""
+        return self._adjoint_tangent_linear_solution
+
+    @property
+    def operator_product(self):
+        r"""A form representing the product of the Gauss-Newton operator
+        and the current solution guess"""
+        return self._product
+
+    @property
+    def preconditioner(self):
+        return self._preconditioner
+
+    @property
+    def residual(self):
+        r"""The preconditioned residual for the current solution"""
+        return self._residual
+
+    @property
+    def search_direction(self):
+        r"""The search direction for finding the next solution iterate"""
+        return self._search_direction
+
+    @property
+    def residual_energy(self):
+        r"""The energy norm of the residual w.r.t. the preconditioner"""
+        return self._residual_energy
+
+    @property
+    def search_direction_energy(self):
+        r"""The energy norm of the search direction w.r.t. to the Gauss-
+        Newton operator"""
+        return self._search_direction_energy
+
+    def update_state(self):
+        r"""Update the auxiliary state variables and the residual change"""
+        self._tangent_linear_solver.solve()
+        self._adjoint_tangent_linear_solver.solve()
+        self._delta_residual_solver.solve()
+
+    def step(self):
+        r"""Take one step of the conjugate gradient iteration"""
+        q = self.solution
+        s = self.search_direction
+        z = self.residual
+        δz = self._delta_residual
+        α = self.residual_energy / self.search_direction_energy
+
+        Gs = self.operator_product
+        dJ = self._rhs
+        delta_energy = α * (
+            self._assemble(action(Gs, q)) +
+            0.5 * α * self.search_direction_energy
+        )
+        self._energy += delta_energy
+        self._objective += delta_energy + α * self._assemble(action(dJ, s))
+
+        q.assign(q + firedrake.Constant(α) * s)
+        z.assign(z - firedrake.Constant(α) * δz)
+
+        M = self.preconditioner
+        residual_energy = self._assemble(firedrake.energy_norm(M, z))
+        β = residual_energy / self.residual_energy
+        s.assign(firedrake.Constant(β) * s + z)
+
+        self.update_state()
+        self._residual_energy = residual_energy
+        Gs = self.operator_product
+        self._search_direction_energy = self._assemble(action(Gs, s))
+
+        self._iteration += 1
+
+    def solve(self, tolerance, max_iterations):
+        r"""Run the iteration until the objective functional does not decrease
+        to within tolerance"""
+        objective = np.inf
+        while ((self.iteration < max_iterations) and
+               (objective - self._objective > tolerance * self._energy)):
+            objective = self._objective
+            self.step()
 
 class GaussNewtonSolver(InverseSolver):
     r"""Implementation of `InverseSolver` using an approximation to the Hessian
@@ -454,108 +591,28 @@ class GaussNewtonSolver(InverseSolver):
     iterations.
     """
     def __init__(self, problem, callback=(lambda s: None),
-                 search_tolerance=1e-3):
+                 search_tolerance=1e-6, search_max_iterations=100):
         self._setup(problem, callback)
         self.update_state()
         self.update_adjoint_state()
 
         self._search_tolerance = search_tolerance
+        self._search_max_iterations = search_max_iterations
         self._line_search_options = {'xtol': search_tolerance / 2}
+
+        self._search_solver = GaussNewtonCG(self)
         self.update_search_direction()
 
         self._callback(self)
 
-    def gauss_newton_mult(self, q):
-        """Multiply a field by the Gauss-Newton operator"""
-        u, p = self.state, self.parameter
-
-        dE = derivative(self._E, u)
-        dR = derivative(self._R, p)
-        dF_du, dF_dp = self._dF_du, derivative(self._F, p)
-
-        w = firedrake.Function(u.function_space())
-        firedrake.solve(dF_du == action(dF_dp, q), w, self._bc,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
-
-        v = firedrake.Function(u.function_space())
-        firedrake.solve(adjoint(dF_du) == derivative(dE, u, w), v, self._bc,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
-
-        return action(adjoint(dF_dp), v) + derivative(dR, p, q)
-
-    def gauss_newton_energy_norm(self, q):
-        r"""Compute the energy norm of a field w.r.t. the Gauss-Newton operator
-
-        The energy norm of a field :math:`q` w.r.t. the Gauss-Newton operator
-        :math:`H` can be computed using one fewer linear solve than if we were
-        to calculate the action of :math:`H\cdot q` on :math:`q`. This saves
-        computation when using the conjugate gradient method to solve for the
-        search direction.
-        """
-        u, p = self.state, self.parameter
-
-        dE = derivative(self._E, u)
-        dR = derivative(self._R, p)
-        dF_du, dF_dp = self._dF_du, derivative(self._F, p)
-
-        v = firedrake.Function(u.function_space())
-        firedrake.solve(dF_du == action(dF_dp, q), v, self._bc,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
-
-        return self._assemble(firedrake.energy_norm(derivative(dE, u), v) +
-                              firedrake.energy_norm(derivative(dR, p), q))
-
     def update_search_direction(self):
         r"""Solve the Gauss-Newton system for the new search direction using
         the preconditioned conjugate gradient method"""
-        p, q, dJ = self.parameter, self.search_direction, self.gradient
-
-        dR = derivative(self.regularization, self.parameter)
-        Q = q.function_space()
-        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx + \
-            derivative(dR, p)
-
-        # Compute the preconditioned residual
-        z = firedrake.Function(Q)
-        firedrake.solve(M == -dJ, z,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
-
-        # This variable is a search direction for a search direction, which
-        # is definitely not confusing at all.
-        s = z.copy(deepcopy=True)
-        q *= 0.0
-
-        old_cost = np.inf
-        while True:
-            z_mnorm = self._assemble(firedrake.energy_norm(M, z))
-            s_hnorm = self.gauss_newton_energy_norm(s)
-            α = z_mnorm / s_hnorm
-
-            δz = firedrake.Function(Q)
-            g = self.gauss_newton_mult(s)
-            firedrake.solve(M == g, δz,
-                            solver_parameters=self._solver_params,
-                            form_compiler_parameters=self._fc_params)
-
-            q += α * s
-            z -= α * δz
-
-            β = self._assemble(firedrake.energy_norm(M, z)) / z_mnorm
-            s *= β
-            s += z
-
-            energy_norm = self.gauss_newton_energy_norm(q)
-            cost = 0.5 * energy_norm + self._assemble(action(dJ, q))
-
-            if (abs(old_cost - cost) / (0.5 * energy_norm)
-                    < self._search_tolerance):
-                return
-
-            old_cost = cost
+        self._search_solver.reinit()
+        self._search_solver.solve(
+            self._search_tolerance, self._search_max_iterations
+        )
+        self.search_direction.assign(self._search_solver.solution)
 
 
 class BFGSSolver(InverseSolver):
