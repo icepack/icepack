@@ -183,6 +183,17 @@ class InverseSolver(object):
         dR = derivative(self._R, self._p)
         self._dJ = (action(adjoint(dF_dp), self._λ) + dR)
 
+        # Create problem and solver objects for the adjoint state
+        L = adjoint(self._dF_du)
+        adjoint_problem = firedrake.LinearVariationalProblem(
+            L, -self._dE, self._λ, self._bc,
+            form_compiler_parameters=self._fc_params,
+            constant_jacobian=False
+        )
+        self._adjoint_solver = firedrake.LinearVariationalSolver(
+            adjoint_problem, solver_parameters=self._solver_params
+        )
+
     @property
     def problem(self):
         r"""The instance of the inverse problem we're solving"""
@@ -246,11 +257,7 @@ class InverseSolver(object):
     def update_adjoint_state(self):
         r"""Update the adjoint state for new values of the observable state and
         parameters so that we can calculate derivatives"""
-        λ = self.adjoint_state
-        L = adjoint(self._dF_du)
-        firedrake.solve(L == -self._dE, λ, self._bc,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
+        self._adjoint_solver.solve()
 
     def line_search(self):
         r"""Perform a line search along the descent direction to get a new
@@ -327,18 +334,99 @@ class GradientDescentSolver(InverseSolver):
         self._setup(problem, callback)
         self.update_state()
         self.update_adjoint_state()
+
+        q, dJ = self.search_direction, self.gradient
+        Q = q.function_space()
+        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
+        problem = firedrake.LinearVariationalProblem(
+            M, -dJ, q, form_compiler_parameters=self._fc_params
+        )
+        self._search_direction_solver = firedrake.LinearVariationalSolver(
+            problem, solver_parameters=self._solver_params
+        )
+
         self.update_search_direction()
         self._callback(self)
 
     def update_search_direction(self):
         r"""Set the search direction to be the inverse of the mass matrix times
         the gradient of the objective"""
-        q, dJ = self.search_direction, self.gradient
-        Q = q.function_space()
-        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-        firedrake.solve(M == -dJ, q,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
+        self._search_direction_solver.solve()
+
+
+class GaussNewtonOperator(object):
+    def __init__(self, E, R, F, u, p, bc, solver_parameters,
+                 form_compiler_parameters):
+        r"""Encapsulates application of the Gauss-Newton operator"""
+        dE = derivative(E, u)
+        dR = derivative(R, p)
+        dF_du = derivative(F, u)
+        dF_dp = derivative(F, p)
+
+        V = u.function_space()
+        Q = p.function_space()
+
+        q = firedrake.Function(Q)
+        w = firedrake.Function(V)
+        w_problem = firedrake.LinearVariationalProblem(
+            dF_du, action(dF_dp, q), w, bc,
+            form_compiler_parameters=form_compiler_parameters,
+            constant_jacobian=False
+        )
+        w_solver = firedrake.LinearVariationalSolver(
+            w_problem, solver_parameters=solver_parameters
+        )
+
+        v = firedrake.Function(V)
+        v_problem = firedrake.LinearVariationalProblem(
+            adjoint(dF_du), derivative(dE, u, w), v, bc,
+            form_compiler_parameters=form_compiler_parameters,
+            constant_jacobian=False
+        )
+        v_solver = firedrake.LinearVariationalSolver(
+            v_problem, solver_parameters=solver_parameters
+        )
+
+        self._u = u
+        self._v = v
+        self._w = w
+        self._p = p
+        self._q = q
+
+        self._v_solver = v_solver
+        self._w_solver = w_solver
+
+        self._dE = dE
+        self._dR = dR
+        self._dF_dp = dF_dp
+
+    def mult(self, q):
+        self._q.assign(q)
+        self._w_solver.solve()
+        self._v_solver.solve()
+
+        dF_dp = self._dF_dp
+        u = self._u
+        p = self._p
+        v = self._v
+
+        dR = self._dR
+        dF_dp = self._dF_dp
+        return action(adjoint(dF_dp), v) + derivative(dR, p, q)
+
+    def energy_norm(self, q):
+        self._q.assign(q)
+        self._w_solver.solve()
+
+        u = self._u
+        p = self._p
+        w = self._w
+        dE = self._dE
+        dR = self._dR
+
+        dE_norm = firedrake.energy_norm(derivative(dE, u), w)
+        dR_norm = firedrake.energy_norm(derivative(dR, p), q)
+        return firedrake.assemble(dE_norm + dR_norm)
 
 
 class GaussNewtonSolver(InverseSolver):
@@ -493,10 +581,17 @@ class BFGSSolver(InverseSolver):
 
         q, dJ = self.search_direction, self.gradient
         M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-        firedrake.solve(M == -dJ, q,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
+        f = firedrake.Function(Q)
+        problem = firedrake.LinearVariationalProblem(
+            M, dJ, f, form_compiler_parameters=self._fc_params
+        )
+        self._search_direction_solver = firedrake.LinearVariationalSolver(
+            problem, solver_parameters=self._solver_params
+        )
+        self._search_direction_solver.solve()
+        q.assign(-f)
 
+        self._f = f
         self._rho = []
         self._ps = [self.parameter.copy(deepcopy=True)]
         self._fs = [q.copy(deepcopy=True)]
@@ -518,12 +613,8 @@ class BFGSSolver(InverseSolver):
         objective functional. See Nocedal and Wright, Numerical Optimization,
         2nd ed., algorithm 7.4."""
         p, q, dJ = self.parameter, self.search_direction, self.gradient
-        Q = q.function_space()
-        M = firedrake.TrialFunction(Q) * firedrake.TestFunction(Q) * dx
-        f = firedrake.Function(Q)
-        firedrake.solve(M == dJ, f,
-                        solver_parameters=self._solver_params,
-                        form_compiler_parameters=self._fc_params)
+        self._search_direction_solver.solve()
+        f = self._f
 
         # Append the latest values of the parameters and the objective gradient
         # and compute the curvature factor
