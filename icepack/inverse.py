@@ -22,7 +22,7 @@ used to specify the problem to be solved, while the classes that inherit from
 import numpy as np
 import scipy.optimize
 import firedrake
-from firedrake import action, adjoint, derivative, replace, ln, dx
+from firedrake import action, adjoint, derivative, replace, dx, Constant
 
 
 def _bracket(f):
@@ -173,7 +173,7 @@ class InverseSolver(object):
         # Create Dirichlet BCs where they apply for the adjoint solve
         rank = self._λ.ufl_element().num_sub_elements()
         if rank == 0:
-            zero = firedrake.Constant(0)
+            zero = Constant(0)
         else:
             zero = firedrake.as_vector((0,) * rank)
         self._bc = firedrake.DirichletBC(V, zero, problem.dirichlet_ids)
@@ -264,7 +264,7 @@ class InverseSolver(object):
         value of the parameter"""
         u, p, q = self.state, self.parameter, self.search_direction
 
-        s = firedrake.Constant(0)
+        s = Constant(0)
         p_s = p + s * q
         u_s = u.copy(deepcopy=True)
 
@@ -293,7 +293,7 @@ class InverseSolver(object):
         and descent direction."""
         p, q = self.parameter, self.search_direction
         t = self.line_search()
-        p += t * q
+        p.assign(p + Constant(t) * q)
         self.update_state()
         self.update_adjoint_state()
         self.update_search_direction()
@@ -542,13 +542,13 @@ class GaussNewtonCG(object):
         self._energy += delta_energy
         self._objective += delta_energy + α * self._assemble(action(dJ, s))
 
-        q.assign(q + firedrake.Constant(α) * s)
-        z.assign(z - firedrake.Constant(α) * δz)
+        q.assign(q + Constant(α) * s)
+        z.assign(z - Constant(α) * δz)
 
         M = self.preconditioner
         residual_energy = self._assemble(firedrake.energy_norm(M, z))
         β = residual_energy / self.residual_energy
-        s.assign(firedrake.Constant(β) * s + z)
+        s.assign(Constant(β) * s + z)
 
         self.update_state()
         self._residual_energy = residual_energy
@@ -690,7 +690,7 @@ class BFGSSolver(InverseSolver):
         α = np.zeros(m)
         for i in range(m - 1, -1, -1):
             α[i] = ρ[i] * self._assemble(f * (ps[i + 1] - ps[i]) * dx)
-            g -= α[i] * (fs[i + 1] - fs[i])
+            g.assign(g - Constant(α[i]) * (fs[i + 1] - fs[i]))
 
         r = g.copy(deepcopy=True)
         dp, df = ps[-1] - ps[-2], fs[-1] - fs[-2]
@@ -698,6 +698,6 @@ class BFGSSolver(InverseSolver):
 
         for i in range(m):
             β = ρ[i] * self._assemble((fs[i + 1] - fs[i]) * r * dx)
-            r += (α[i] - β) * (ps[i + 1] - ps[i])
+            r.assign(r + Constant(α[i] - β) * (ps[i + 1] - ps[i]))
 
         q.assign(-r)
