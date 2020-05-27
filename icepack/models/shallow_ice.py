@@ -12,10 +12,9 @@
 
 import firedrake
 from firedrake import inner, grad, dx
-from icepack.constants import (ice_density as ρ_I, gravity as g, 
+from icepack.constants import (ice_density as ρ_I, gravity as g,
                                glen_flow_law as n)
 from icepack.models.mass_transport import LaxWendroff
-from icepack.optimization import newton_search
 from icepack.utilities import add_kwarg_wrapper
 
 

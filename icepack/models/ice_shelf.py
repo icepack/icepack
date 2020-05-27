@@ -17,7 +17,7 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import LaxWendroff
-from icepack.optimization import newton_search
+from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.utilities import add_kwarg_wrapper
 
 
@@ -194,8 +194,10 @@ class IceShelf(object):
         # Solve the nonlinear optimization problem
         action = self.action(u=u, h=h, **kwargs)
         scale = self.scale(u=u, h=h, **kwargs)
-        return newton_search(action, u, bcs, tol, scale,
-                             form_compiler_parameters=params)
+        problem = MinimizationProblem(action, scale, u, bcs, params)
+        solver = NewtonSolver(problem, tol)
+        solver.solve()
+        return u
 
     def prognostic_solve(self, dt, h0, a, u, h_inflow=None):
         r"""Propagate the ice thickness forward one timestep

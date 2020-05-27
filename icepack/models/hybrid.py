@@ -19,7 +19,7 @@ from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
 from icepack.models.mass_transport import LaxWendroff
-from icepack.optimization import newton_search
+from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                glen_flow_law as n, weertman_sliding_law as m,
                                gravity as g)
@@ -280,8 +280,10 @@ class HybridModel(object):
 
         action = self.action(u=u, h=h, s=s, **kwargs)
         scale = self.scale(u=u, h=h, s=s, **kwargs)
-        return newton_search(action, u, bcs, tol, scale,
-                             form_compiler_parameters=params)
+        problem = MinimizationProblem(action, scale, u, bcs, params)
+        solver = NewtonSolver(problem, tol)
+        solver.solve()
+        return u
 
     def prognostic_solve(self, dt, h0, a, u, **kwargs):
         return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)

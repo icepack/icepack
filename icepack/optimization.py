@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,73 +12,129 @@
 
 import firedrake
 
-def newton_search(E, u, bc, tolerance, scale,
-                  max_iterations=50, armijo=1e-4, contraction_factor=0.5,
-                  form_compiler_parameters={},
-                  solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'}):
-    r"""Find the minimizer of a convex functional
+default_solver_parameters = {
+    'ksp_type': 'preonly',
+    'pc_type': 'lu'
+}
 
-    Parameters
-    ----------
-    E : firedrake.Form
-        The functional to be minimized
-    u0 : firedrake.Function
-        Initial guess for the minimizer
-    tolerance : float
-        Stopping criterion for the optimization procedure
-    scale : firedrake.Form
-        A positive scale functional by which to measure the objective
-    max_iterations : int, optional
-        Optimization procedure will stop at this many iterations regardless
-        of convergence
-    armijo : float, optional
-        The constant in the Armijo condition (see Nocedal and Wright)
-    contraction_factor : float, optional
-        The amount by which to backtrack in the line search if the Armijo
-        condition is not satisfied
-    form_compiler_parameters : dict, optional
-        Extra options to pass to the firedrake form compiler
-    solver_parameters : dict, optional
-        Extra options to pass to the linear solver
+class MinimizationProblem(object):
+    def __init__(self, E, S, u, bcs, form_compiler_parameters, **kwargs):
+        r"""Nonlinear optimization problem argmin E(u).
 
-    Returns
-    -------
-    firedrake.Function
-        The approximate minimizer of `E` to within tolerance
-    """
-    F = firedrake.derivative(E, u)
-    H = firedrake.derivative(F, u)
-    v = firedrake.Function(u.function_space())
-    dE_dv = firedrake.action(F, v)
+        Parameters
+        ----------
+        E : firedrake.Form
+            The functional to be minimized
+        S : firedrake.Form
+            A positive functional measure the scale of the solution
+        u : firedrake.Function
+            Initial guess for the minimizer
+        bcs : firedrake.DirichletBC
+            any essential boundary conditions for the solution
+        """
+        self.E = E
+        self.S = S
+        self.u = u
+        self.bcs = bcs
+        self.form_compiler_parameters = form_compiler_parameters
 
-    def assemble(*args, **kwargs):
-        return firedrake.assemble(
-            *args, **kwargs, form_compiler_parameters=form_compiler_parameters)
+    def assemble(self, *args, **kwargs):
+        kwargs['form_compiler_parameters'] = self.form_compiler_parameters
+        return firedrake.assemble(*args, **kwargs)
 
-    problem = firedrake.LinearVariationalProblem(H, -F, v, bc,
-                  form_compiler_parameters=form_compiler_parameters,
-                  constant_jacobian=False)
-    solver = firedrake.LinearVariationalSolver(problem,
-                 solver_parameters=solver_parameters)
 
-    n = 0
-    while True:
-        # Compute a search direction
-        solver.solve()
+class NewtonSolver(object):
+    def __init__(self, problem, tolerance, solver_parameters=None, **kwargs):
+        r"""Solve a MinimizationProblem using Newton's method with backtracking
+        line search
 
-        # Compute the directional derivative, check if we're done
-        slope = assemble(dE_dv)
-        assert slope < 0
-        if (abs(slope) < assemble(scale) * tolerance) or (n >= max_iterations):
-            return u
+        Parameters
+        ----------
+        problem : MinimizationProblem
+            The particular problem instance to solve
+        tolerance : float
+            dimensionless tolerance for when to stop iterating, measured with
+            with respect to the problem's scale functional
+        solver_parameters : dict (optional)
+            Linear solve parameters for computing the search direction
+        armijo : float (optional)
+            Parameter in the Armijo condition for line search; defaults to
+            1e-4, see Nocedal and Wright
+        contraction : float (optional)
+            shrinking factor for backtracking line search; defaults to .5
+        max_iterations : int (optional)
+            maximum number of outer-level Newton iterations; defaults to 50
+        """
+        self.problem = problem
+        self.tolerance = tolerance
+        if solver_parameters is None:
+            solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
 
-        # Backtracking search
-        E0 = assemble(E)
-        α = firedrake.Constant(1)
-        Eα = firedrake.replace(E, {u: u + α * v})
-        while assemble(Eα) > E0 + armijo * α.values()[0] * slope:
-            α.assign(α * contraction_factor)
+        self.armijo = kwargs.pop('armijo', 1e-4)
+        self.contraction = kwargs.pop('contraction', 0.5)
+        self.max_iterations = kwargs.pop('max_iterations', 50)
 
-        u.assign(u + α * v)
-        n += 1
+        u = self.problem.u
+        V = u.function_space()
+        v = firedrake.Function(V)
+        self.v = v
 
+        E = self.problem.E
+        self.F = firedrake.derivative(E, u)
+        self.J = firedrake.derivative(self.F, u)
+        self.dE_dv = firedrake.action(self.F, v)
+
+        bcs = firedrake.homogenize(self.problem.bcs)
+        problem = firedrake.LinearVariationalProblem(
+            self.J, -self.F, v, bcs, constant_jacobian=False,
+            form_compiler_parameters=self.problem.form_compiler_parameters
+        )
+        self.search_direction_solver = firedrake.LinearVariationalSolver(
+            problem, solver_parameters=solver_parameters
+        )
+
+        self.search_direction_solver.solve()
+        self.t = firedrake.Constant(0.)
+        self.iteration = 0
+
+    def step(self):
+        r"""Perform a backtracking line search for the next value of the
+        solution and compute the search direction for the next step"""
+        E = self.problem.E
+        u = self.problem.u
+        v = self.v
+        t = self.t
+
+        t.assign(1.)
+        E_0 = self.problem.assemble(E)
+        slope = self.problem.assemble(self.dE_dv)
+        if slope > 0:
+            raise firedrake.ConvergenceError(
+                'Minimization solver has invalid search direction. This is '
+                'likely due to a negative thickness or friction coefficient or'
+                'otherwise physically invalid input data.'
+            )
+
+        E_t = firedrake.replace(E, {u: u + t * v})
+
+        armijo = self.armijo
+        contraction = self.contraction
+        while self.problem.assemble(E_t) > E_0 + armijo * float(t) * slope:
+            t.assign(t * contraction)
+
+        u.assign(u + t * v)
+        self.search_direction_solver.solve()
+        self.iteration += 1
+
+    def solve(self):
+        r"""Step the Newton iteration until convergence"""
+        dE_dv = self.dE_dv
+        S = self.problem.S
+        _assemble = self.problem.assemble
+        while abs(_assemble(dE_dv)) > self.tolerance * _assemble(S):
+            self.step()
+            if self.iteration >= self.max_iterations:
+                raise firedrake.ConvergenceError(
+                    'Newton search did not converge after {} iterations!'
+                    .format(self.max_iterations)
+                )
