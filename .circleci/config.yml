@@ -14,16 +14,16 @@ commands:
       - run: codecov
 
 jobs:
-  python35:
+  python36:
     docker:
-      - image: icepack/firedrake-python3.5:0.3.2
+      - image: icepack/firedrake-python3.6:0.4.0
     working_directory: ~/icepack
     steps:
       - build
       - test
-  python37:
+  python38:
     docker:
-      - image: icepack/firedrake-python3.7:0.3.2
+      - image: icepack/firedrake-python3.8:0.4.0
     working_directory: ~/icepack
     steps:
       - build
@@ -34,5 +34,5 @@ workflows:
   version: 2
   tests:
     jobs:
-      - python35
-      - python37
+      - python36
+      - python38
