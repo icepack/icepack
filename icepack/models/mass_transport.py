@@ -24,6 +24,40 @@ from firedrake import dx, inner
 from icepack import utilities
 
 
+class Continuity(object):
+    r"""Describes the form of the mass continuity equation"""
+    def __init__(self, dimension):
+        if dimension == 2:
+            self.facet_normal = firedrake.FacetNormal
+            self.grad = firedrake.grad
+            self.div = firedrake.div
+            self.ds = firedrake.ds
+        elif dimension == 3:
+            self.facet_normal = utilities.facet_normal_2
+            self.grad = utilities.grad_2
+            self.div = utilities.div_2
+            self.ds = firedrake.ds_v
+        else:
+            raise ValueError('Dimension must be 2 or 3!')
+
+    def __call__(self, dt, **kwargs):
+        h = kwargs['h']
+        u = kwargs['u']
+        a = kwargs['a']
+        h_inflow = kwargs['h_inflow']
+
+        Q = h.function_space()
+        q = firedrake.TestFunction(Q)
+
+        grad, ds, n = self.grad, self.ds, self.facet_normal(Q.mesh())
+        u_n = inner(u, n)
+        flux_cells = -inner(h * u, grad(q)) * dx
+        flux_out = h * firedrake.max_value(u_n, 0) * q * ds
+        flux_in = h_inflow * firedrake.min_value(u_n, 0) * q * ds
+        accumulation = a * q * dx
+        return accumulation - (flux_in + flux_out + flux_cells)
+
+
 class MassTransport(object):
     def __init__(self, dimension):
         if dimension == 2:

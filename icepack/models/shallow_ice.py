@@ -14,12 +14,12 @@ import firedrake
 from firedrake import inner, grad, dx
 from icepack.constants import (ice_density as ρ_I, gravity as g,
                                glen_flow_law as n)
-from icepack.models.mass_transport import LaxWendroff
+from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.utilities import add_kwarg_wrapper
 
 
 def mass(u):
-    r"""Return mass function for the shallow ice action functional
+    r"""Return the mass term for the shallow ice action functional
 
     Mass fuction for the shallow ice action functional is
 
@@ -39,7 +39,7 @@ def mass(u):
 
 
 def gravity(u, h, s, A):
-    r"""Return gravity function for the shallow ice action functional
+    r"""Return the gravity term for the shallow ice action functional
 
     The gravity function for the shallow ice action functional is
 
@@ -61,13 +61,13 @@ def gravity(u, h, s, A):
     -------
     firedrake.Form
     """
-    return ((2 * A * (ρ_I * g)**n) / (n + 2)) * inner(grad(s), u) * (h ** (n + 1)) * (grad(s) ** (n - 1))
+    return (2 * A * (ρ_I * g)**n / (n + 2)) * h**(n + 1) * grad(s)**(n - 1) * inner(grad(s), u)
 
 
 def penalty(u):
     r"""Return the penalty of the shallow ice action functional
 
-    The penalty of the shallow ice action functional is 
+    The penalty for the shallow ice action functional is
 
     .. math::
         E(u) = \frac{1}{2}\int_\Omega l^2\nabla u\cdot \nabla u\; dx
@@ -91,12 +91,14 @@ class ShallowIce(object):
     and surface elevation of a grounded area of slow flowing ice.
 
     """
-    def __init__(self, mass=mass, gravity=gravity, penalty=penalty, 
-                 mass_transport=LaxWendroff()):
+    def __init__(self, mass=mass, gravity=gravity, penalty=penalty,
+                 mass_transport=LaxWendroff(),
+                 continuity=Continuity(dimension=2)):
         self.mass_transport = mass_transport
         self.mass = add_kwarg_wrapper(mass)
         self.gravity = add_kwarg_wrapper(gravity)
         self.penalty = add_kwarg_wrapper(penalty)
+        self.continuity = continuity
 
     def action(self, u, h, s, A, **kwargs):
         r"""Return the action functional that gives the shallow ice
@@ -135,7 +137,16 @@ class ShallowIce(object):
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return ((self.mass(u=u, **kwargs) * dx) + (self.penalty(u=u, **kwargs) * dx))
+        return (self.mass(u=u, **kwargs) + self.penalty(u=u, **kwargs)) * dx
+
+    def quadrature_degree(self, u, h, s, **kwargs):
+        r"""Return the quadrature degree necessary to integrate the action
+        functional accurately"""
+        degree_u = u.ufl_element().degree()
+        degree_h = h.ufl_element().degree()
+        degree_s = s.ufl_element().degree()
+
+        return int((n + 1) * degree_h + n * degree_s + degree_u)
 
     def diagnostic_solve(self, u0, h, s, A, **kwargs):
         r"""Solve for the ice velocity from the thickness and surface
@@ -166,7 +177,7 @@ class ShallowIce(object):
         """
         u = u0.copy(deepcopy=True)
         action = self.action(u=u, h=h, s=s, A=A, **kwargs)
-                
+
         F = firedrake.derivative(action,u)
         firedrake.solve(F == 0, u, form_compiler_parameters={'quadrature_degree': 4})
 

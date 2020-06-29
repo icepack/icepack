@@ -16,7 +16,7 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
-from icepack.models.mass_transport import LaxWendroff
+from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.utilities import add_kwarg_wrapper
 
@@ -74,13 +74,15 @@ class IceShelf(object):
     """
     def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
                  side_friction=side_friction, penalty=normal_flow_penalty,
-                 mass_transport=LaxWendroff()):
+                 mass_transport=LaxWendroff(),
+                 continuity=Continuity(dimension=2)):
         self.mass_transport = mass_transport
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.penalty = add_kwarg_wrapper(penalty)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
+        self.continuity = continuity
 
     def action(self, u, h, **kwargs):
         r"""Return the action functional that gives the ice shelf diagnostic
