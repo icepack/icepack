@@ -186,7 +186,6 @@ def test_computing_surface():
     b0 = ρ_I / ρ_W * (dh / 2 - h0)
     b = interpolate(firedrake.Constant(b0), Q)
 
-    ice_stream = icepack.models.IceStream()
     s = icepack.compute_surface(h=h, b=b)
     x0, y0 = Lx/2, Ly/2
     assert abs(s((x0, y0)) - (1 - ρ_I / ρ_W) * h((x0, y0))) < 1e-8
