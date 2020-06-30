@@ -97,6 +97,11 @@ class NewtonSolver(object):
         self.t = firedrake.Constant(0.)
         self.iteration = 0
 
+    def reinit(self):
+        self.search_direction_solver.solve()
+        self.t.assign(0.)
+        self.iteration = 0
+
     def step(self):
         r"""Perform a backtracking line search for the next value of the
         solution and compute the search direction for the next step"""
@@ -128,6 +133,8 @@ class NewtonSolver(object):
 
     def solve(self):
         r"""Step the Newton iteration until convergence"""
+        self.reinit()
+
         dE_dv = self.dE_dv
         S = self.problem.S
         _assemble = self.problem.assemble
