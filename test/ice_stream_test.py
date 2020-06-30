@@ -85,10 +85,14 @@ def test_manufactured_solution():
 # Now test our numerical solvers against this analytical solution.
 import firedrake
 from firedrake import interpolate, as_vector
-import icepack, icepack.models
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               glen_flow_law as n, weertman_sliding_law as m,
-                               gravity as g)
+import icepack, icepack.models, icepack.solvers
+from icepack.constants import (
+    ice_density as ρ_I,
+    water_density as ρ_W,
+    glen_flow_law as n,
+    weertman_sliding_law as m,
+    gravity as g
+)
 
 Lx, Ly = 20e3, 20e3
 h0, dh = 500.0, 100.0
@@ -140,8 +144,8 @@ def norm(v):
 
 
 def test_diagnostic_solver_convergence():
-    ice_stream = icepack.models.IceStream()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+    model = icepack.models.IceStream()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
 
     for degree in range(1, 4):
         delta_x, error = [], []
@@ -160,8 +164,8 @@ def test_diagnostic_solver_convergence():
             C = interpolate(friction(x), Q)
             A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
-            u = ice_stream.diagnostic_solve(h=h, s=s, A=A, C=C, u0=u_guess,
-                                            **opts)
+            solver = icepack.solvers.FlowSolver(model, **opts)
+            u = solver.diagnostic_solve(u=u_guess, h=h, s=s, A=A, C=C)
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 

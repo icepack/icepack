@@ -12,7 +12,7 @@
 
 import numpy as np
 import firedrake
-import icepack, icepack.models
+import icepack, icepack.models, icepack.solvers
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g, glen_flow_law as n)
 
@@ -58,7 +58,8 @@ def test_order_0():
     u0 = firedrake.interpolate(u_expr, V2d)
 
     model2d = icepack.models.IceStream()
-    u2d = model2d.diagnostic_solve(u0=u0, h=h, s=s, A=A, C=C, **opts)
+    solver2d = icepack.solvers.FlowSolver(model2d, **opts)
+    u2d = solver2d.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
 
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
     x, y, ζ = firedrake.SpatialCoordinate(mesh)
@@ -72,7 +73,8 @@ def test_order_0():
     u0 = firedrake.interpolate(u_expr, V3d)
 
     model3d = icepack.models.HybridModel()
-    u3d = model3d.diagnostic_solve(u0=u0, h=h, s=s, A=A, C=C, **opts)
+    solver3d = icepack.solvers.FlowSolver(model3d, **opts)
+    u3d = solver3d.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
 
     U2D, U3D = u2d.dat.data_ro, u3d.dat.data_ro
     assert np.linalg.norm(U3D - U2D) / np.linalg.norm(U2D) < 1e-2
@@ -101,10 +103,11 @@ def test_diagnostic_solver():
     xs = np.array([(Lx/2, Ly/2, k / Nz) for k in range(Nz + 1)])
     us = np.zeros((max_degree + 1, Nz + 1))
     for vdegree in range(max_degree, 0, -1):
+        solver = icepack.solvers.FlowSolver(model, **opts)
         V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
                                           vfamily='GL', vdegree=vdegree)
         u0 = firedrake.interpolate(u_expr, V)
-        u = model.diagnostic_solve(u0=u0, h=h, s=s, A=A, C=C, **opts)
+        u = solver.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
 
         V0 = firedrake.VectorFunctionSpace(
             mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=0)

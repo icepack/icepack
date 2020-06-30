@@ -15,18 +15,20 @@ import pygmsh
 import os
 import matplotlib.pyplot as plt
 import firedrake
-from firedrake import (inner, grad, dx, interpolate, as_vector, max_value,
-                      assemble)
-import icepack, icepack.models
-from icepack.constants import (ice_density as ρ_I, glen_flow_law as n,
-                               gravity as g)
+from firedrake import inner, grad, interpolate, max_value, assemble
+import icepack, icepack.models, icepack.solvers
+from icepack.constants import (
+    ice_density as ρ_I,
+    glen_flow_law as n,
+    gravity as g
+)
 
 # Test our numerical solvers against this analytical solution.
 R = 100e3 # Radius of ice sheet in meters
-R_mesh = R * .75 # Radius of mesh (set to <1 to ignore interpolation 
+R_mesh = R * .75 # Radius of mesh (set to <1 to ignore interpolation
                  # errors at the edge)
 alpha = firedrake.Constant(R)
-T = 254.15
+T = firedrake.Constant(254.15)
 A = icepack.rate_factor(T)
 A0 = 2 * A * (ρ_I * g) ** n / (n + 2)
 
@@ -42,7 +44,7 @@ def make_mesh(R, δx):
     physical_lines = [geometry.add_physical(arc) for arc in arcs]
     physical_surface = geometry.add_physical(plane_surface)
     with open('shallow-ice.geo', 'w') as geo_file:
-        geo_file.write(geometry.get_code())    
+        geo_file.write(geometry.get_code())
     transform_file = "gmsh -v 0 -2 -format msh2 -o shallow-ice.msh shallow-ice.geo"
     os.system(transform_file)
     mesh = firedrake.Mesh('shallow-ice.msh')
@@ -55,11 +57,11 @@ def make_mesh(R, δx):
 
 # Pick a geometry in order to have an exact solution. We'll use the
 # Bueler profile from section 5.6.3 in Greve and Blatter (2009).
-# Citation: Greve, Ralf, and Heinz Blatter. Dynamics of ice sheets 
+# Citation: Greve, Ralf, and Heinz Blatter. Dynamics of ice sheets
 # and glaciers. Springer Science & Business Media, 2009.
 def Bueler_profile(mesh, R):
     x, y = firedrake.SpatialCoordinate(mesh)
-    r = (x**2 + y**2)**(1/2) 
+    r = firedrake.sqrt(x**2 + y**2)
     h_divide = (2 * R * (alpha/A0)**(1/n) * (n-1)/n)**(n/(2*n+2))
     h_part2 = (n+1)*(r/R) - n*(r/R)**((n+1)/n) + n*(max_value(1-(r/R),0))**((n+1)/n) - 1
     h_expr = (h_divide/((n-1)**(n/(2*n+2)))) * (max_value(h_part2,0))**(n/(2*n+2))
@@ -68,8 +70,8 @@ def Bueler_profile(mesh, R):
 
 def exact_u(h_expr, Q):
     h = interpolate(h_expr,Q)
-    u_exact = -1 * A0 * (h ** (n+1)) * inner(grad(h),grad(h)) * grad(h)
-    return u_exact 
+    u_exact = -A0 * h**(n + 1) * inner(grad(h), grad(h)) * grad(h)
+    return u_exact
 
 
 def norm(v):
@@ -77,12 +79,11 @@ def norm(v):
 
 
 def test_diagnostic_solver_convergence():
-    shallow_ice = icepack.models.ShallowIce()
+    model = icepack.models.ShallowIce()
 
     for degree in range(1, 4):
         delta_x, error = [], []
         for N in range(10, 110 - 20 * (degree - 1), 10):
-            
             mesh = make_mesh(R_mesh, R / N)
 
             Q = firedrake.FunctionSpace(mesh, 'CG', degree)
@@ -94,18 +95,19 @@ def test_diagnostic_solver_convergence():
             h = interpolate(h_expr, Q)
             s = interpolate(h_expr, Q)
             u = firedrake.Function(V)
-    
-            u_num = shallow_ice.diagnostic_solve(u0=u, h=h, s=s, A=A)
+
+            solver = icepack.solvers.FlowSolver(model)
+            u_num = solver.diagnostic_solve(u=u, h=h, s=s, A=A)
             error.append(norm(u_exact - u_num) / norm(u_exact))
             delta_x.append(R / N)
 
             print(delta_x[-1], error[-1])
 
-            assert assemble(shallow_ice.scale(u=u_num)) > 0
+            assert assemble(model.scale(u=u_num)) > 0
 
         log_delta_x = np.log2(np.array(delta_x))
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
-        
+
         print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
-        assert slope > 0.9 
+        assert slope > 0.9

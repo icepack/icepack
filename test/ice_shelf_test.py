@@ -13,9 +13,10 @@
 import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
-import icepack, icepack.models
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               gravity as g, glen_flow_law as n)
+import icepack, icepack.models, icepack.solvers
+from icepack.constants import (
+    ice_density as ρ_I, water_density as ρ_W, gravity as g, glen_flow_law as n
+)
 
 # The domain is a 20km x 20km square, with ice flowing in from the left.
 Lx, Ly = 20.0e3, 20.0e3
@@ -53,8 +54,8 @@ def norm(v):
 # mesh is refined using an exact solution of the ice shelf model.
 def test_diagnostic_solver_convergence():
     # Create an ice shelf model
-    ice_shelf = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+    model = icepack.models.IceShelf()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
 
     # Solve the ice shelf model for successively higher mesh resolution
     for degree in range(1, 4):
@@ -72,7 +73,8 @@ def test_diagnostic_solver_convergence():
             h = interpolate(h0 - dh * x / Lx, Q)
             A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
-            u = ice_shelf.diagnostic_solve(h=h, A=A, u0=u_guess, **opts)
+            solver = icepack.solvers.FlowSolver(model, **opts)
+            u = solver.diagnostic_solve(u=u_guess, h=h, A=A)
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 
@@ -109,8 +111,8 @@ def test_diagnostic_solver_parameterization():
         return n/(n + 1) * h * inner(M(ε(u), B), ε(u))
 
     # Make a model object with our new viscosity functional
-    ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
-    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
+    model = icepack.models.IceShelf(viscosity=viscosity)
+    opts = {'dirichlet_ids': [1, 3, 4]}
 
     # Same as before
     delta_x, error = [], []
@@ -127,7 +129,8 @@ def test_diagnostic_solver_parameterization():
         h = interpolate(h0 - dh * x / Lx, Q)
         B = interpolate(firedrake.Constant(icepack.rate_factor(T)**(-1/n)), Q)
 
-        u = ice_shelf.diagnostic_solve(h=h, B=B, u0=u_guess, **opts)
+        solver = icepack.solvers.FlowSolver(model, **opts)
+        u = solver.diagnostic_solve(u=u_guess, h=h, B=B)
         error.append(norm(u_exact - u) / norm(u_exact))
         delta_x.append(Lx / N)
 
@@ -141,17 +144,12 @@ def test_diagnostic_solver_parameterization():
     assert slope > degree - 0.05
 
 
-def perturb_v(x, y):
-    px, py = x/Lx, y/Ly
-    return 20 * px * (py - 0.5)
-
-
 # Check that the diagnostic solver gives a sensible result when we add friction
 # at the side walls. There is probably no analytical solution for this so all
 # we have is a sanity test.
 def test_diagnostic_solver_side_friction():
-    ice_shelf = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+    model = icepack.models.IceShelf()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
 
     mesh = firedrake.RectangleMesh(32, 32, Lx, Ly)
     degree = 2
@@ -170,6 +168,8 @@ def test_diagnostic_solver_side_friction():
     τ = 0.01
     u_max = icepack.norm(u_initial, norm_type='Linfty')
     Cs = firedrake.Constant(τ * u_max**(-1/m))
-    u = ice_shelf.diagnostic_solve(u0=u_initial, h=h, A=A, Cs=Cs, **opts)
+
+    solver = icepack.solvers.FlowSolver(model, **opts)
+    u = solver.diagnostic_solve(u=u_initial, h=h, A=A, Cs=Cs)
 
     assert icepack.norm(u) < icepack.norm(u_initial)

@@ -18,7 +18,7 @@ from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
                        grad, dx, ds, ds_b, ds_v)
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
-from icepack.models.mass_transport import LaxWendroff
+from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                glen_flow_law as n, weertman_sliding_law as m,
@@ -178,7 +178,8 @@ class HybridModel(object):
     """
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  gravity=gravity, terminus=terminus,
-                 mass_transport=LaxWendroff(dimension=3)):
+                 mass_transport=LaxWendroff(dimension=3),
+                 continuity=Continuity(dimension=3)):
         self.mass_transport = mass_transport
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
@@ -186,6 +187,7 @@ class HybridModel(object):
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
         self.penalty = add_kwarg_wrapper(normal_flow_penalty)
+        self.continuity = continuity
 
     def action(self, u, h, s, **kwargs):
         r"""Return the action functional that gives the hybrid model as its

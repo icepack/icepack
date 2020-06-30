@@ -18,7 +18,7 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
-from icepack.models.mass_transport import LaxWendroff
+from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.utilities import (add_kwarg_wrapper,
                                compute_surface as _compute_surface)
@@ -92,7 +92,8 @@ class IceStream(object):
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  side_friction=side_friction, penalty=normal_flow_penalty,
                  gravity=gravity, terminus=terminus,
-                 mass_transport=LaxWendroff()):
+                 mass_transport=LaxWendroff(),
+                 continuity=Continuity(dimension=2)):
         self.mass_transport = mass_transport
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
@@ -100,6 +101,7 @@ class IceStream(object):
         self.penalty = add_kwarg_wrapper(penalty)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
+        self.continuity = continuity
 
     def action(self, u, h, s, **kwargs):
         r"""Return the action functional that gives the ice stream
