@@ -23,6 +23,7 @@ import numpy as np
 import scipy.optimize
 import firedrake
 from firedrake import action, adjoint, derivative, replace, dx, Constant
+from .solvers import FlowSolver
 
 
 def _bracket(f):
@@ -62,22 +63,23 @@ class InverseProblem(object):
     with, say, the mass conservation equation, which is hyperbolic.
     """
 
-    def __init__(self, model, method, objective, regularization,
+    def __init__(self, model, objective, regularization,
                  state_name, state, parameter_name, parameter,
-                 model_args={}, dirichlet_ids=[]):
+                 solver_type=FlowSolver, solver_kwargs={},
+                 diagnostic_solve_kwargs={}):
         r"""Initialize the inverse problem
 
         Parameters
         ----------
         model
-            The forward model physics
-        method
-            The method of `model` to solve the forward model physics
+            The forward model physics; either ``IceShelf``, ``IceStream``, etc.
         objective
-            A python function that returns the model-data misfit functional
+            A python function that takes in the velocity field and returns
+            the model-data misfit functional
         regularization
-            A python function that returns the regularization functional,
-            i.e. the penalty for unphysical parameter fields
+            A python function that takes in the field to infer and returns
+            the regularization functional, i.e. the penalty for unphysical
+            parameter values
         state_name : str
             The name of the state variable as expected by `model.solve`
         state : firedrake.Function
@@ -86,21 +88,25 @@ class InverseProblem(object):
             The name of the parameter variable as expected by `model.solve`
         parameter : firedrake.Function
             The initial value of the parameter variable
-        model_args : dict, optional
-            Any additional arguments to `model.solve`
-        dirichlet_ids : list of int, optional
-            IDs of points on the domain boundary where Dirichlet conditions
-            are applied
+        solver_type: class, optional
+            The type of the solver object for the diagnostic equations; must
+            have a ``diagnostic_solve`` method
+        solver_kwargs : dict, optional
+            Any additional arguments to initialize the solver, i.e. tolerances
+            or boundary IDs
+        diagnostic_solve_kwargs : dict, optional
+            Any additional arguments to pass when calling the diagnostic solve
+            procedure, including additional physical fields
 
         The state variable must be an argument of the objective functional,
         and the parameter variable must be an argument of the
         regularization functional.
         """
         self.model = model
-        self.method = method
-
-        self.model_args = model_args
-        self.dirichlet_ids = dirichlet_ids
+        self.solver_type = solver_type
+        self.solver_kwargs = solver_kwargs
+        self.diagnostic_solve_kwargs = diagnostic_solve_kwargs
+        self.dirichlet_ids = solver_kwargs.get('dirichlet_ids', [])
 
         self.parameter_name = parameter_name
         self.parameter = parameter
@@ -140,13 +146,17 @@ class InverseSolver(object):
         self._p = problem.parameter.copy(deepcopy=True)
         self._u = problem.state.copy(deepcopy=True)
 
-        self._model_args = dict(**problem.model_args,
-                                dirichlet_ids=problem.dirichlet_ids)
+        self._solver = self.problem.solver_type(
+            self.problem.model, **self.problem.solver_kwargs
+        )
         u_name, p_name = problem.state_name, problem.parameter_name
-        args = dict(**self._model_args, **{u_name: self._u, p_name: self._p})
+        solve_kwargs = dict(
+            **problem.diagnostic_solve_kwargs,
+            **{u_name: self._u, p_name: self._p}
+        )
 
         # Make the form compiler use a reasonable number of quadrature points
-        degree = problem.model.quadrature_degree(**args)
+        degree = problem.model.quadrature_degree(**solve_kwargs)
         self._fc_params = {'quadrature_degree': degree}
 
         # Create the error, regularization, and barrier functionals
@@ -156,11 +166,13 @@ class InverseSolver(object):
 
         # Create the weak form of the forward model, the adjoint state, and
         # the derivative of the objective functional
-        self._F = derivative(problem.model.action(**args), self._u)
+        A = problem.model.action(**solve_kwargs)
+        self._F = derivative(A, self._u)
         self._dF_du = derivative(self._F, self._u)
 
         # Create a search direction
         dR = derivative(self._R, self._p)
+        # TODO: Make this customizable
         self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         Q = self._p.function_space()
         self._q = firedrake.Function(Q)
@@ -240,14 +252,19 @@ class InverseSolver(object):
         return self._dJ
 
     def _forward_solve(self, p):
-        method = self.problem.method
-        model = self.problem.model
-        args = self._model_args
-        return method(model, **args, **{self.problem.parameter_name: p})
+        solver = self._solver
+        problem = self.problem
+        state_name, parameter_name = problem.state_name, problem.parameter_name
+        kwargs = dict(
+            **{state_name: self.state, parameter_name: p},
+            **self.problem.diagnostic_solve_kwargs,
+        )
+        return solver.diagnostic_solve(**kwargs)
 
     def _assemble(self, *args, **kwargs):
-        return firedrake.assemble(*args, **kwargs,
-                                  form_compiler_parameters=self._fc_params)
+        return firedrake.assemble(
+            *args, **kwargs, form_compiler_parameters=self._fc_params
+        )
 
     def update_state(self):
         r"""Update the observable state for a new value of the parameters"""
@@ -263,15 +280,12 @@ class InverseSolver(object):
         r"""Perform a line search along the descent direction to get a new
         value of the parameter"""
         u, p, q = self.state, self.parameter, self.search_direction
-
-        s = Constant(0)
-        p_s = p + s * q
-        u_s = u.copy(deepcopy=True)
+        u_t, p_t = u.copy(deepcopy=True), p.copy(deepcopy=True)
 
         def f(t):
-            s.assign(t)
-            u_s.assign(self._forward_solve(p_s))
-            return self._assemble(replace(self._J, {u: u_s, p: p_s}))
+            p_t.assign(p + firedrake.Constant(t) * q)
+            u_t.assign(self._forward_solve(p_t))
+            return self._assemble(replace(self._J, {u: u_t, p: p_t}))
 
         try:
             line_search_options = self._line_search_options

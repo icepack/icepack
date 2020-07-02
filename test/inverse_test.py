@@ -15,11 +15,18 @@ import numpy as np
 import numpy.random as random
 import firedrake
 from firedrake import inner, grad, dx, exp, interpolate, as_vector
-import icepack, icepack.models
-from icepack.inverse import GradientDescentSolver, BFGSSolver, \
+import icepack, icepack.models, icepack.solvers
+from icepack.inverse import (
+    GradientDescentSolver,
+    BFGSSolver,
     GaussNewtonSolver
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               gravity as g, glen_flow_law as n)
+)
+from icepack.constants import (
+    ice_density as ρ_I,
+    water_density as ρ_W,
+    gravity as g,
+    glen_flow_law as n
+)
 
 
 class PoissonModel(object):
@@ -31,15 +38,39 @@ class PoissonModel(object):
         degree_u = u.ufl_element().degree()
         return max(degree_q + 2 * (degree_u - 1), 2 * degree_u)
 
-    def solve(self, q, f, dirichlet_ids=[], **kwargs):
-        u = firedrake.Function(f.function_space())
-        L = self.action(q, u, f)
+class PoissonSolver(object):
+    def __init__(self, model, **kwargs):
+        self.model = model
+        self.dirichlet_ids = kwargs.pop('dirichlet_ids', [])
+
+    def _setup(self, **kwargs):
+        q = kwargs['q'].copy(deepcopy=True)
+        f = kwargs['f'].copy(deepcopy=True)
+        u = kwargs['u'].copy(deepcopy=True)
+
+        L = self.model.action(u=u, q=q, f=f)
         F = firedrake.derivative(L, u)
         V = u.function_space()
-        bc = firedrake.DirichletBC(V, firedrake.Constant(0), dirichlet_ids)
-        firedrake.solve(F == 0, u, bc,
-            solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'})
-        return u
+        bc = firedrake.DirichletBC(V, u, self.dirichlet_ids)
+        params = {
+            'solver_parameters': {
+                'ksp_type': 'preonly',
+                'pc_type': 'lu'
+            }
+        }
+        problem = firedrake.NonlinearVariationalProblem(F, u, bc)
+        self._solver = firedrake.NonlinearVariationalSolver(problem, **params)
+        self._fields = {'q': q, 'f': f, 'u': u}
+
+    def diagnostic_solve(self, **kwargs):
+        if not hasattr(self, '_solver'):
+            self._setup(**kwargs)
+        else:
+            for name, field in kwargs.items():
+                self._fields[name].assign(field)
+
+        self._solver.solve()
+        return self._fields['u'].copy(deepcopy=True)
 
 
 @pytest.mark.parametrize('solver_type',
@@ -48,7 +79,7 @@ def test_poisson_inverse(solver_type):
     Nx, Ny = 32, 32
     mesh = firedrake.UnitSquareMesh(Nx, Ny)
     degree = 2
-    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     q_true = interpolate(-4 * ((x - 0.5)**2 + (y - 0.5)**2), Q)
@@ -56,10 +87,12 @@ def test_poisson_inverse(solver_type):
 
     dirichlet_ids = [1, 2, 3, 4]
     model = PoissonModel()
-    u_obs = model.solve(q=q_true, f=f, dirichlet_ids=dirichlet_ids)
+    poisson_solver = PoissonSolver(model, dirichlet_ids=dirichlet_ids)
+    u_bdry = firedrake.Function(Q)
+    u_obs = poisson_solver.diagnostic_solve(u=u_bdry, q=q_true, f=f)
 
-    q0 = interpolate(firedrake.Constant(0), Q)
-    u0 = model.solve(q=q0, f=f, dirichlet_ids=dirichlet_ids)
+    q0 = firedrake.Function(Q)
+    u0 = poisson_solver.diagnostic_solve(u=u_bdry, q=q0, f=f)
 
     def callback(inverse_solver):
         misfit = firedrake.assemble(inverse_solver.objective)
@@ -71,15 +104,15 @@ def test_poisson_inverse(solver_type):
     L = firedrake.Constant(1e-4)
     problem = icepack.inverse.InverseProblem(
         model=model,
-        method=PoissonModel.solve,
         objective=lambda u: 0.5 * (u - u_obs)**2 * dx,
         regularization=lambda q: L**2/2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u0,
         parameter_name='q',
         parameter=q0,
-        model_args={'f': f},
-        dirichlet_ids=dirichlet_ids
+        solver_type=PoissonSolver,
+        solver_kwargs={'dirichlet_ids': dirichlet_ids},
+        diagnostic_solve_kwargs={'f': f}
     )
 
     solver = solver_type(problem, callback)
@@ -119,8 +152,8 @@ def test_ice_shelf_inverse(solver_type):
 
     mesh = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
     degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)
@@ -131,16 +164,15 @@ def test_ice_shelf_inverse(solver_type):
         A = A0 * firedrake.exp(-q / n)
         return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
 
-    ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
+    model = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
-    tol = 1e-12
+    flow_solver = icepack.solvers.FlowSolver(model, dirichlet_ids=dirichlet_ids)
 
     r = firedrake.sqrt((x/Lx - 1/2)**2 + (y/Ly - 1/2)**2)
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
     q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
-    u_true = ice_shelf.diagnostic_solve(h=h, q=q_true, u0=u_initial,
-                                        dirichlet_ids=dirichlet_ids, tol=tol)
+    u_true = flow_solver.diagnostic_solve(u=u_initial, h=h, q=q_true)
 
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
 
@@ -154,16 +186,15 @@ def test_ice_shelf_inverse(solver_type):
 
     L = 1e-4 * Lx
     problem = icepack.inverse.InverseProblem(
-        model=ice_shelf,
-        method=icepack.models.IceShelf.diagnostic_solve,
+        model=model,
         objective=lambda u: 0.5 * (u - u_true)**2 * dx,
         regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u_initial,
         parameter_name='q',
         parameter=q_initial,
-        model_args={'h': h, 'u0': u_initial, 'tol': tol},
-        dirichlet_ids=dirichlet_ids
+        solver_kwargs = {'dirichlet_ids': dirichlet_ids},
+        diagnostic_solve_kwargs={'h': h}
     )
 
     solver = solver_type(problem, callback)
@@ -202,8 +233,8 @@ def test_ice_shelf_inverse_with_noise(solver_type):
 
     mesh = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
     degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)
@@ -214,16 +245,15 @@ def test_ice_shelf_inverse_with_noise(solver_type):
         A = A0 * firedrake.exp(-q / n)
         return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
 
-    ice_shelf = icepack.models.IceShelf(viscosity=viscosity)
+    model = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
-    tol = 1e-12
+    flow_solver = icepack.solvers.FlowSolver(model, dirichlet_ids=dirichlet_ids)
 
     r = firedrake.sqrt((x/Lx - 1/2)**2 + (y/Ly - 1/2)**2)
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
     q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
-    u_true = ice_shelf.diagnostic_solve(h=h, q=q_true, u0=u_initial,
-                                        dirichlet_ids=dirichlet_ids, tol=tol)
+    u_true = flow_solver.diagnostic_solve(u=u_initial, h=h, q=q_true)
 
     # Make the noise equal to 1% of the signal
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
@@ -245,16 +275,15 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     L = 0.25 * Lx
     regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
     problem = icepack.inverse.InverseProblem(
-        model=ice_shelf,
-        method=icepack.models.IceShelf.diagnostic_solve,
+        model=model,
         objective=lambda u: 0.5 * ((u - u_obs)/σ)**2 * dx,
         regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name='u',
         state=u_initial,
         parameter_name='q',
         parameter=q_initial,
-        model_args={'h': h, 'u0': u_initial, 'tol': tol},
-        dirichlet_ids=dirichlet_ids
+        solver_kwargs = {'dirichlet_ids': dirichlet_ids},
+        diagnostic_solve_kwargs={'h': h}
     )
 
     solver = solver_type(problem, callback)
