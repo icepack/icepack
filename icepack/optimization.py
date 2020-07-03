@@ -84,7 +84,9 @@ class NewtonSolver(object):
         self.J = firedrake.derivative(self.F, u)
         self.dE_dv = firedrake.action(self.F, v)
 
-        bcs = firedrake.homogenize(self.problem.bcs)
+        bcs = None
+        if self.problem.bcs:
+            bcs = firedrake.homogenize(self.problem.bcs)
         problem = firedrake.LinearVariationalProblem(
             self.J, -self.F, v, bcs, constant_jacobian=False,
             form_compiler_parameters=self.problem.form_compiler_parameters

@@ -58,7 +58,9 @@ class FlowSolver(object):
         u = self.fields['u']
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
-        bcs = firedrake.DirichletBC(V, Constant((0, 0)), self.dirichlet_ids)
+        bcs = None
+        if self.dirichlet_ids:
+            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self.dirichlet_ids)
 
         # Find the numeric IDs for the ice front
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
