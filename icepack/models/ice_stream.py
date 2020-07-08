@@ -177,6 +177,10 @@ class IceStream(object):
             `viscosity`, `friction`, `gravity`, and `terminus` functions
             that were set when this model object was initialized
         """
+        warnings.warn('Solving methods have moved to the FlowSolver class, '
+                      'this method will be removed in future versions.',
+                      DeprecationWarning)
+
         u = u0.copy(deepcopy=True)
 
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers

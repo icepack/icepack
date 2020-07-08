@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import warnings
 import firedrake
 from firedrake import inner, grad, dx
 from icepack.constants import (ice_density as ρ_I, gravity as g,
@@ -175,6 +176,10 @@ class ShallowIce(object):
             'mass', 'gravity' and 'penalty' functions
             that was set when this model object was initialized
         """
+        warnings.warn('Solving methods have moved to the FlowSolver class, '
+                      'this method will be removed in future versions.',
+                      DeprecationWarning)
+
         u = u0.copy(deepcopy=True)
         action = self.action(u=u, h=h, s=s, A=A, **kwargs)
 

@@ -19,6 +19,7 @@ grounded glaciers will also need to update the ice surface elevation in a
 manner consistent with the bed elevation and where the ice may go afloat.
 """
 
+import warnings
 import firedrake
 from firedrake import dx, inner
 from icepack import utilities
@@ -106,6 +107,10 @@ class ImplicitEuler(MassTransport):
         h : firedrake.Function
             Ice thickness at `t + dt`
         """
+        warnings.warn('Solving methods have moved to the FlowSolver class, '
+                      'this method will be removed in future versions.',
+                      DeprecationWarning)
+
         grad, ds = self.grad, self.ds
 
         h_inflow = h_inflow if h_inflow is not None else h0
@@ -161,6 +166,10 @@ class LaxWendroff(MassTransport):
         h : firedrake.Function
             Ice thickness at `t + dt`
         """
+        warnings.warn('Solving methods have moved to the FlowSolver class, '
+                      'this method will be removed in future versions.',
+                      DeprecationWarning)
+
         grad, div, ds = self.grad, self.div, self.ds
 
         h_inflow = h_inflow if h_inflow is not None else h0
