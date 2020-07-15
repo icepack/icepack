@@ -15,14 +15,7 @@ r"""Solvers for ice physics models"""
 import firedrake
 from firedrake import dx, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
-
-
-def _copy(q):
-    try:
-        return q.copy(deepcopy=True)
-    except AttributeError:
-        return q
-
+from . import utilities
 
 class FlowSolver(object):
     r"""Solves the diagnostic and prognostic models of ice physics
@@ -52,7 +45,7 @@ class FlowSolver(object):
             if name in self.fields.keys():
                 self.fields[name].assign(field)
             else:
-                self.fields[name] = _copy(field)
+                self.fields[name] = utilities.copy(field)
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self.fields['u']
@@ -101,7 +94,7 @@ class FlowSolver(object):
             if name in self.fields.keys():
                 self.fields[name].assign(field)
             else:
-                self.fields[name] = _copy(field)
+                self.fields[name] = utilities.copy(field)
 
         # Create the residual equation represending the PDE
         dt = Constant(1.)

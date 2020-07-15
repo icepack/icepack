@@ -10,5 +10,8 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-from .flow_solver import FlowSolver
-from .heat_transport import HeatTransportSolver
+def copy(q):
+    try:
+        return q.copy(deepcopy=True)
+    except AttributeError:
+        return q

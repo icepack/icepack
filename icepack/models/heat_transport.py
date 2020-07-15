@@ -26,8 +26,77 @@ class HeatTransport3D(object):
     enthalpy because it comes out to a nice round number (about 500 MPa/m^3)
     in the unit system we use.
     """
-    def __init__(self):
-        pass
+    def __init__(self, surface_exchange_coefficient=9):
+        r"""Create a heat transport model
+
+        Parameters
+        ----------
+        surface_exchange_coefficient : float, optional
+            Penalty parameter for deviation of the surface energy from the
+            atmospheric value; this is very poorly constrained
+        """
+        self.surface_exchange_coefficient = surface_exchange_coefficient
+
+    def advective_flux(self, **kwargs):
+        E = kwargs['E']
+        u = kwargs['u']
+        w = kwargs['w']
+        h = kwargs['h']
+        E_inflow = kwargs['E_inflow']
+        E_surface = kwargs['E_surface']
+
+        Q = E.function_space()
+        ψ = firedrake.TestFunction(Q)
+
+        U = firedrake.as_vector((u[0], u[1], w))
+        flux_cells = -E * inner(U, grad(ψ)) * h * dx
+
+        mesh = Q.mesh()
+        ν = facet_normal_2(mesh)
+        outflow = firedrake.max_value(inner(u, ν), 0)
+        inflow = firedrake.min_value(inner(u, ν), 0)
+
+        flux_outflow = (
+            E * outflow * ψ * h * ds_v +
+            E * firedrake.max_value(-w, 0) * ψ * h * ds_b +
+            E * firedrake.max_value(+w, 0) * ψ * h * ds_t
+        )
+
+        flux_inflow = (
+            E_inflow * inflow * ψ * h * ds_v +
+            E_surface * firedrake.min_value(-w, 0) * ψ * h * ds_b +
+            E_surface * firedrake.min_value(+w, 0) * ψ * h * ds_t
+        )
+
+        return flux_cells + flux_outflow + flux_inflow
+
+    def diffusive_flux(self, **kwargs):
+        E = kwargs['E']
+        h = kwargs['h']
+        E_surface = kwargs['E_surface']
+
+        Q = E.function_space()
+        ψ = firedrake.TestFunction(Q)
+
+        κ = self.surface_exchange_coefficient
+        cell_flux = α * E.dx(2) * ψ.dx(2) / h * dx
+        surface_flux = κ * α * (E - E_surface) * ψ / h * ds_t
+
+        return cell_flux + surface_flux
+
+    def sources(self, **kwargs):
+        E = kwargs['E']
+        h = kwargs['h']
+        q = kwargs['q']
+        q_bed = kwargs['q_bed']
+
+        Q = E.function_space()
+        ψ = firedrake.TestFunction(Q)
+
+        internal_sources = q * ψ * h * dx
+        boundary_sources = q_bed * ψ * ds_b
+
+        return internal_sources + boundary_sources
 
     def _advect(self, dt, E, u, w, h, s, E_inflow, E_surface):
         Q = E.function_space()
@@ -81,6 +150,10 @@ class HeatTransport3D(object):
 
     def solve(self, dt, E0, u, w, h, s, q, q_bed, E_inflow, E_surface):
         r"""Propagate the energy density forward by one timestep"""
+        warnings.warn('Solving methods have moved to the HeatTransportSolver '
+                      'class, this method will be removed in future versions.',
+                      DeprecationWarning)
+
         E_inflow = E_inflow if E_inflow is not None else E0
         E_surface = E_surface if E_surface is not None else E0
         E = E0.copy(deepcopy=True)
