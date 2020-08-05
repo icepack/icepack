@@ -23,8 +23,8 @@ setup(
     url='https://github.com/icepack/icepack',
     packages=find_packages(exclude=['doc', 'test']),
     install_requires=['numpy', 'scipy', 'matplotlib', 'rasterio>=1.0.26',
-                      'geojson', 'shapely', 'pooch>=1.0.0', 'pygmsh',
-                      'meshio>=3.3.1'],
+                      'netCDF4', 'geojson', 'shapely', 'pooch>=1.0.0',
+                      'pygmsh', 'meshio>=3.3.1'],
     extras_require = {
         'doc': ['sphinx', 'sphinxcontrib-bibtex', 'sphinx_rtd_theme',
                 'ipykernel', 'nbconvert']
