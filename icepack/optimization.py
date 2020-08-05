@@ -11,11 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-
-default_solver_parameters = {
-    'ksp_type': 'preonly',
-    'pc_type': 'lu'
-}
+from .utilities import default_solver_parameters
 
 class MinimizationProblem(object):
     def __init__(self, E, S, u, bcs, form_compiler_parameters, **kwargs):
@@ -68,7 +64,7 @@ class NewtonSolver(object):
         self.problem = problem
         self.tolerance = tolerance
         if solver_parameters is None:
-            solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
+            solver_parameters = default_solver_parameters
 
         self.armijo = kwargs.pop('armijo', 1e-4)
         self.contraction = kwargs.pop('contraction', 0.5)

@@ -19,6 +19,13 @@ import firedrake
 from firedrake import sqrt, tr, det
 from icepack.constants import ice_density as ρ_I, water_density as ρ_W
 
+default_solver_parameters = {
+    'ksp_type': 'preonly',
+    'pc_type': 'lu',
+    'pc_factor_mat_solver_type': 'mumps'
+}
+
+
 def facet_normal_2(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
     to a mesh"""

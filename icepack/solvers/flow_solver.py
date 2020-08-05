@@ -16,6 +16,7 @@ import firedrake
 from firedrake import dx, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from . import utilities
+from ..utilities import default_solver_parameters
 
 class FlowSolver(object):
     r"""Solves the diagnostic and prognostic models of ice physics
@@ -107,9 +108,8 @@ class FlowSolver(object):
         # Create problem and solver objects for this equation
         # TODO: make form compiler and solver parameters customizable
         problem = firedrake.NonlinearVariationalProblem(F, h)
-        params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         self._prognostic_solver = firedrake.NonlinearVariationalSolver(
-            problem, solver_parameters=params
+            problem, solver_parameters=default_solver_parameters
         )
         self._thickness_old = h_0
         self._timestep = dt

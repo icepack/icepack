@@ -13,6 +13,7 @@
 import firedrake
 from firedrake import dx, Constant
 from . import utilities
+from ..utilities import default_solver_parameters
 
 class HeatTransportSolver(object):
     def __init__(self, model):
@@ -54,9 +55,8 @@ class HeatTransportSolver(object):
             F, E, form_compiler_parameters=fc_params
         )
 
-        solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
         self._solver = firedrake.NonlinearVariationalSolver(
-            problem, solver_parameters=solver_parameters
+            problem, solver_parameters=default_solver_parameters
         )
 
         self._energy_old = E_0

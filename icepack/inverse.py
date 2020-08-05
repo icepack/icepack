@@ -24,7 +24,7 @@ import scipy.optimize
 import firedrake
 from firedrake import action, adjoint, derivative, replace, dx, Constant
 from .solvers import FlowSolver
-
+from .utilities import default_solver_parameters
 
 def _bracket(f):
     r"""Given a decreasing real function of a single variable, return a value
@@ -173,7 +173,7 @@ class InverseSolver(object):
         # Create a search direction
         dR = derivative(self._R, self._p)
         # TODO: Make this customizable
-        self._solver_params = {'ksp_type': 'preonly', 'pc_type': 'lu'}
+        self._solver_params = default_solver_parameters
         Q = self._p.function_space()
         self._q = firedrake.Function(Q)
 
