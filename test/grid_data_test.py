@@ -13,60 +13,108 @@
 import numpy as np
 import rasterio
 import firedrake
+from firedrake import dx
 import icepack
 
-def test_interpolating_to_mesh():
-    # Make the mesh the square `[1/4, 3/4] x [1/4, 3/4]`
+def test_interpolating_function():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
+    x = firedrake.SpatialCoordinate(mesh)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2)
+    q = icepack.interpolate(x[0]**2 - x[1]**2, Q)
+    assert abs(firedrake.assemble(q * dx)) < 1e-6
+
+
+def make_rio_dataset(array, missing=-9999.):
+    ny = array.shape[0] - 1
+    nx = array.shape[1] - 1
+    transform = rasterio.transform.from_origin(
+        west=0.0, north=1.0, xsize=1 / nx, ysize=1 / ny
+    )
+
+    memfile = rasterio.MemoryFile(ext='.tif')
+    opts = {
+        'driver': 'GTiff',
+        'count': 1,
+        'width': nx + 1,
+        'height': ny + 1,
+        'dtype': array.dtype,
+        'transform': transform,
+        'nodata': missing
+    }
+
+    with memfile.open(**opts) as dataset:
+        dataset.write(array, indexes=1)
+    return memfile.open()
+
+
+# Make a mesh of the square `[1/4, 3/4] x [1/4, 3/4]`
+def make_domain(nx, ny):
+    mesh = firedrake.UnitSquareMesh(nx, ny, diagonal='crossed')
     x, y = firedrake.SpatialCoordinate(mesh)
     Vc = mesh.coordinates.function_space()
     f = firedrake.interpolate(firedrake.as_vector((x/2 + 1/4, y/2 + 1/4)), Vc)
     mesh.coordinates.assign(f)
+    return mesh
 
-    # Set up the geometry of the gridded data set
-    x0 = (0, 0)
+
+def test_interpolating_scalar_field():
     n = 32
-    dx = 1.0/n
-    transform = rasterio.transform.from_origin(west=0.0, north=1.0,
-                                               xsize=dx, ysize=dx)
-
-    # Interpolate a scalar field
-    array = np.array([[dx * (i + j) for j in range(n + 1)]
+    array = np.array([[(i + j) / n for j in range(n + 1)]
                       for i in range(n + 1)])
     missing = -9999.0
     array[0, 0] = missing
     array = np.flipud(array)
+    dataset = make_rio_dataset(array, missing)
 
-    memfile = rasterio.MemoryFile(ext='.tif')
-    opts = {'driver': 'GTiff', 'count': 1, 'width': n + 1, 'height': n + 1,
-            'dtype': array.dtype, 'transform': transform, 'nodata': -9999}
-
-    with memfile.open(**opts) as dataset:
-        dataset.write(array, indexes=1)
-    dataset = memfile.open()
-
+    mesh = make_domain(48, 48)
+    x, y = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
     p = firedrake.interpolate(x + y, Q)
     q = icepack.interpolate(dataset, Q)
 
-    assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-6
+    assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
 
-    # Interpolate a vector field
-    array_vx = np.copy(array)
-    array_vy = np.array([[dx * (j - i) for j in range(n + 1)]
+
+def test_nearest_neighbor_interpolation():
+    n = 32
+    array = np.array([[(i + j) / n for j in range(n + 1)]
+                      for i in range(n + 1)])
+    missing = -9999.0
+    array[0, 0] = missing
+    array = np.flipud(array)
+    dataset = make_rio_dataset(array, missing)
+
+    mesh = make_domain(48, 48)
+    x, y = firedrake.SpatialCoordinate(mesh)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
+    p = firedrake.interpolate(x + y, Q)
+    q = icepack.interpolate(dataset, Q, method='nearest')
+
+    relative_error = firedrake.norm(p - q) / firedrake.norm(p)
+    assert (relative_error > 1e-10) and (relative_error < 1 / n)
+
+
+def test_interpolating_vector_field():
+    n = 32
+    array_vx = np.array([[(i + j) / n for j in range(n + 1)]
+                         for i in range(n + 1)])
+    missing = -9999.0
+    array_vx[0, 0] = missing
+    array_vx = np.flipud(array_vx)
+
+    array_vy = np.array([[(j - i) / n for j in range(n + 1)]
                          for i in range(n + 1)])
     array_vy[-1, -1] = -9999.0
     array_vy = np.flipud(array_vy)
 
-    memfile_vx, memfile_vy = rasterio.MemoryFile(), rasterio.MemoryFile()
-    with memfile_vx.open(**opts) as vx, memfile_vy.open(**opts) as vy:
-        vx.write(array_vx, indexes=1)
-        vy.write(array_vy, indexes=1)
-    vx, vy = memfile_vx.open(), memfile_vy.open()
+    vx = make_rio_dataset(array_vx, missing)
+    vy = make_rio_dataset(array_vy, missing)
 
+    mesh = make_domain(48, 48)
+    x, y = firedrake.SpatialCoordinate(mesh)
     V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=1)
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
-    assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-6
+    assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10

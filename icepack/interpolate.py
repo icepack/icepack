@@ -27,6 +27,8 @@ def _sample(dataset, X, method):
     xs = np.linspace(upper_left[0], lower_right[0], dataset.width)
     ys = np.linspace(lower_right[1], upper_left[1], dataset.height)
 
+    # TODO: Make this into a windowed read so that we only get the part of the
+    # raster around the mesh.
     data = np.flipud(dataset.read(indexes=1)).T
     interpolator = RegularGridInterpolator((xs, ys), data, method=method)
     return interpolator(X, method=method)
