@@ -21,15 +21,28 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 def _sample(dataset, X, method):
-    transform = dataset.transform
-    upper_left = transform * (0, 0)
-    lower_right = transform * (dataset.width - 1, dataset.height - 1)
-    xs = np.linspace(upper_left[0], lower_right[0], dataset.width)
-    ys = np.linspace(lower_right[1], upper_left[1], dataset.height)
+    xres, yres = dataset.res
+    xmin, xmax = X[:, 0].min() - 2 * xres, X[:, 0].max() + 2 * xres
+    ymin, ymax = X[:, 1].min() - 2 * yres, X[:, 1].max() + 2 * yres
 
-    # TODO: Make this into a windowed read so that we only get the part of the
-    # raster around the mesh.
-    data = np.flipud(dataset.read(indexes=1)).T
+    window = rasterio.windows.from_bounds(
+        left=xmin,
+        right=xmax,
+        bottom=ymin,
+        top=ymax,
+        width=dataset.width,
+        height=dataset.height,
+        transform=dataset.transform
+    )
+    window = window.round_lengths(op='ceil').round_offsets(op='floor')
+    transform = rasterio.windows.transform(window, dataset.transform)
+
+    upper_left = transform * (0, 0)
+    lower_right = transform * (window.width - 1, window.height - 1)
+    xs = np.linspace(upper_left[0], lower_right[0], window.width)
+    ys = np.linspace(lower_right[1], upper_left[1], window.height)
+
+    data = np.flipud(dataset.read(indexes=1, window=window, masked=True)).T
     interpolator = RegularGridInterpolator((xs, ys), data, method=method)
     return interpolator(X, method=method)
 
