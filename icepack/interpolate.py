@@ -17,8 +17,22 @@ import numpy as np
 import ufl
 import firedrake
 import rasterio
+from scipy.interpolate import RegularGridInterpolator
 
-def interpolate(f, Q):
+
+def _sample(dataset, X, method):
+    transform = dataset.transform
+    upper_left = transform * (0, 0)
+    lower_right = transform * (dataset.width - 1, dataset.height - 1)
+    xs = np.linspace(upper_left[0], lower_right[0], dataset.width)
+    ys = np.linspace(lower_right[1], upper_left[1], dataset.height)
+
+    data = np.flipud(dataset.read(indexes=1)).T
+    interpolator = RegularGridInterpolator((xs, ys), data, method=method)
+    return interpolator(X, method=method)
+
+
+def interpolate(f, Q, method='linear'):
     r"""Interpolate an expression or a gridded data set to a function space
 
     Parameters
@@ -45,18 +59,15 @@ def interpolate(f, Q):
 
     V = firedrake.VectorFunctionSpace(mesh, element)
     X = firedrake.interpolate(mesh.coordinates, V).dat.data_ro
-    num_points = X.shape[0]
 
     q = firedrake.Function(Q)
 
     if isinstance(f, rasterio.DatasetReader):
-        q.dat.data[:] = np.fromiter(f.sample(X, indexes=1),
-                                    dtype=np.float64, count=num_points)
+        q.dat.data[:] = _sample(f, X, method)
     elif (isinstance(f, tuple) and
           all(isinstance(fi, rasterio.DatasetReader) for fi in f)):
         for i, fi in enumerate(f):
-            q.dat.data[:, i] = np.fromiter(fi.sample(X, indexes=1),
-                                           dtype=np.float64, count=num_points)
+            q.dat.data[:, i] = _sample(fi, X, method)
     else:
         raise ValueError('Argument must be a rasterio data set or a tuple of '
                          'data sets!')

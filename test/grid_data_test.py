@@ -39,7 +39,7 @@ def test_interpolating_to_mesh():
     array = np.flipud(array)
 
     memfile = rasterio.MemoryFile(ext='.tif')
-    opts = {'driver': 'GTiff', 'count': 1, 'width': n, 'height': n,
+    opts = {'driver': 'GTiff', 'count': 1, 'width': n + 1, 'height': n + 1,
             'dtype': array.dtype, 'transform': transform, 'nodata': -9999}
 
     with memfile.open(**opts) as dataset:
@@ -50,7 +50,7 @@ def test_interpolating_to_mesh():
     p = firedrake.interpolate(x + y, Q)
     q = icepack.interpolate(dataset, Q)
 
-    assert firedrake.norm(p - q) / firedrake.norm(p) < 1/n
+    assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-6
 
     # Interpolate a vector field
     array_vx = np.copy(array)
@@ -69,4 +69,4 @@ def test_interpolating_to_mesh():
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
-    assert firedrake.norm(u - v) / firedrake.norm(u) < 1/n
+    assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-6
