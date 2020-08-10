@@ -314,19 +314,42 @@ class InverseSolver(object):
         self.update_search_direction()
         self._callback(self)
 
-    def solve(self, atol=0.0, rtol=1e-6, max_iterations=None):
+    def solve(self, atol=0., rtol=1e-6, etol=0., max_iterations=200):
         r"""Search for a new value of the parameters, stopping once either
         the objective functional gets below a threshold value or stops
-        improving."""
-        max_iterations = max_iterations or np.inf
+        improving.
+
+        Parameters
+        ----------
+        atol : float
+            Absolute stopping tolerance; stop iterating when the objective
+            drops below this value
+        rtol : float
+            Relative stopping tolerance; stop iterating when the relative
+            decrease in the objective drops below this value
+        etol : float
+            Expectation stopping tolerance; stop iterating when the relative
+            expected decrease in the objective from the Newton decrement drops
+            below this value
+        max_iterations : int
+            Maximum number of iterations to take
+        """
         J_initial = np.inf
 
         for iteration in range(max_iterations):
             J = self._assemble(self._J)
-            if ((J_initial - J) < rtol * J_initial) or (J <= atol):
-                return iteration
-            J_initial = J
 
+            q = self.search_direction
+            dJ_dq = self._assemble(firedrake.action(self.gradient, q))
+
+            if (
+                ((J_initial - J) < rtol * J_initial) or
+                (-dJ_dq < etol * J) or
+                (J <= atol)
+            ):
+                return iteration
+
+            J_initial = J
             self.step()
 
         return max_iterations
