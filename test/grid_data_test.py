@@ -48,12 +48,12 @@ def make_rio_dataset(array, missing=-9999.):
     return memfile.open()
 
 
-# Make a mesh of the square `[1/4, 3/4] x [1/4, 3/4]`
-def make_domain(nx, ny):
+def make_domain(nx, ny, xmin, ymin, width, height):
     mesh = firedrake.UnitSquareMesh(nx, ny, diagonal='crossed')
     x, y = firedrake.SpatialCoordinate(mesh)
     Vc = mesh.coordinates.function_space()
-    f = firedrake.interpolate(firedrake.as_vector((x/2 + 1/4, y/2 + 1/4)), Vc)
+    expr = firedrake.as_vector((width * x + xmin, height * y + ymin))
+    f = firedrake.interpolate(expr, Vc)
     mesh.coordinates.assign(f)
     return mesh
 
@@ -67,7 +67,7 @@ def test_interpolating_scalar_field():
     array = np.flipud(array)
     dataset = make_rio_dataset(array, missing)
 
-    mesh = make_domain(48, 48)
+    mesh = make_domain(48, 48, xmin=1/4, ymin=1/4, width=1/2, height=1/2)
     x, y = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
     p = firedrake.interpolate(x + y, Q)
@@ -85,7 +85,7 @@ def test_nearest_neighbor_interpolation():
     array = np.flipud(array)
     dataset = make_rio_dataset(array, missing)
 
-    mesh = make_domain(48, 48)
+    mesh = make_domain(48, 48, xmin=1/4, ymin=1/4, width=1/2, height=1/2)
     x, y = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
     p = firedrake.interpolate(x + y, Q)
@@ -111,10 +111,24 @@ def test_interpolating_vector_field():
     vx = make_rio_dataset(array_vx, missing)
     vy = make_rio_dataset(array_vy, missing)
 
-    mesh = make_domain(48, 48)
+    mesh = make_domain(48, 48, xmin=1/4, ymin=1/4, width=1/2, height=1/2)
     x, y = firedrake.SpatialCoordinate(mesh)
     V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=1)
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
     assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10
+
+
+def test_close_to_edge():
+    n = 32
+    array = np.array([[(i + j) / n for j in range(n + 1)]
+                      for i in range(n + 1)])
+    missing = -9999.0
+    array = np.flipud(array)
+    dataset = make_rio_dataset(array, missing)
+
+    xmin, ymin = 1 / (2 * n), 3 / (4 * n)
+    mesh = make_domain(48, 48, xmin=xmin, ymin=ymin, width=1/2, height=1/2)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
+    q = icepack.interpolate(dataset, Q)
