@@ -20,19 +20,19 @@ used to specify the problem to be solved, while the classes that inherit from
 """
 
 import numpy as np
-import scipy.optimize
+from scipy.optimize import bracket, minimize_scalar
 import firedrake
 from firedrake import action, adjoint, derivative, replace, dx, Constant
 from .solvers import FlowSolver
 from .utilities import default_solver_parameters
 
-def _bracket(f):
+def _bracket(f, max_iterations):
     r"""Given a decreasing real function of a single variable, return a value
     `t` such that `f(t) < f(0)`, which can then be used for a more thorough
     line search"""
     f_0 = f(0)
     t = 1.0
-    while True:
+    for iteration in range(max_iterations):
         try:
             f_t = f(t)
             if f_t < f_0:
@@ -41,6 +41,8 @@ def _bracket(f):
             pass
 
         t /= 2
+
+    return t
 
 
 class InverseProblem(object):
@@ -292,9 +294,8 @@ class InverseSolver(object):
         except AttributeError:
             line_search_options = {}
 
-        bracket = scipy.optimize.bracket(f, xa=0.0, xb=_bracket(f))[:3]
-        result = scipy.optimize.minimize_scalar(f, bracket=bracket,
-                                                options=line_search_options)
+        brack = bracket(f, xa=0.0, xb=_bracket(f, max_iterations=30))[:3]
+        result = minimize_scalar(f, bracket=brack, options=line_search_options)
 
         if not result.success:
             raise ValueError("Line search failed: {}".format(result.message))
