@@ -152,7 +152,7 @@ class HeatTransport3D(object):
         r"""Propagate the energy density forward by one timestep"""
         warnings.warn('Solving methods have moved to the HeatTransportSolver '
                       'class, this method will be removed in future versions.',
-                      DeprecationWarning)
+                      FutureWarning)
 
         E_inflow = E_inflow if E_inflow is not None else E0
         E_surface = E_surface if E_surface is not None else E0

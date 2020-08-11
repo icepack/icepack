@@ -17,6 +17,7 @@ This module contains a solver for the conservative advection equation that
 describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
+import warnings
 import numpy as np
 import firedrake
 from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym,
@@ -101,6 +102,9 @@ class DamageTransport(object):
         D : firedrake.Function
             Ice damage at `t + dt`
         """
+        warnings.warn('Solving methods have moved to the DamageSolver class, '
+                      'this method will be removed in future versions.',
+                      FutureWarning)
 
         D_inflow = D_inflow if D_inflow is not None else D0
         Q = D0.function_space()

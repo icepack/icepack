@@ -109,7 +109,7 @@ class ImplicitEuler(MassTransport):
         """
         warnings.warn('Solving methods have moved to the FlowSolver class, '
                       'this method will be removed in future versions.',
-                      DeprecationWarning)
+                      FutureWarning)
 
         grad, ds = self.grad, self.ds
 
@@ -168,7 +168,7 @@ class LaxWendroff(MassTransport):
         """
         warnings.warn('Solving methods have moved to the FlowSolver class, '
                       'this method will be removed in future versions.',
-                      DeprecationWarning)
+                      FutureWarning)
 
         grad, div, ds = self.grad, self.div, self.ds
 

@@ -179,7 +179,7 @@ class IceStream(object):
         """
         warnings.warn('Solving methods have moved to the FlowSolver class, '
                       'this method will be removed in future versions.',
-                      DeprecationWarning)
+                      FutureWarning)
 
         u = u0.copy(deepcopy=True)
 
@@ -210,5 +210,5 @@ class IceStream(object):
         warnings.warn('Compute surface moved from member function of models to'
                       ' icepack module; call `icepack.compute_surface` instead'
                       ' of e.g. `ice_stream.compute_surface`',
-                      DeprecationWarning)
+                      FutureWarning)
         return _compute_surface(h, b)

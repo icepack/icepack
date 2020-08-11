@@ -178,7 +178,7 @@ class ShallowIce(object):
         """
         warnings.warn('Solving methods have moved to the FlowSolver class, '
                       'this method will be removed in future versions.',
-                      DeprecationWarning)
+                      FutureWarning)
 
         u = u0.copy(deepcopy=True)
         action = self.action(u=u, h=h, s=s, A=A, **kwargs)
