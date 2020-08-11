@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2018-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -15,7 +15,7 @@ import numpy as np
 import numpy.random as random
 import firedrake
 from firedrake import inner, grad, dx, exp, interpolate, as_vector
-import icepack, icepack.models, icepack.solvers
+import icepack
 from icepack.inverse import (
     GradientDescentSolver,
     BFGSSolver,

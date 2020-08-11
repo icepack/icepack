@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 import firedrake
 from firedrake import interpolate
-import icepack, icepack.models, icepack.solvers
+import icepack
 
 def norm(v):
     return icepack.norm(v, norm_type='L1')

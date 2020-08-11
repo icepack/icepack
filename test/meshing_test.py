@@ -1,4 +1,4 @@
-# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 from numpy import pi as π
 import geojson
-import icepack.meshing
+import icepack
 
 
 def needs_snapping():

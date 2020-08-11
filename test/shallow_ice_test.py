@@ -16,7 +16,7 @@ import os
 import matplotlib.pyplot as plt
 import firedrake
 from firedrake import inner, grad, interpolate, max_value, assemble
-import icepack, icepack.models, icepack.solvers
+import icepack
 from icepack.constants import (
     ice_density as ρ_I,
     glen_flow_law as n,

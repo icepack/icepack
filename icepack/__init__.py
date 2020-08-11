@@ -16,3 +16,6 @@ from icepack.utilities import depth_average, lift3d, compute_surface
 from icepack.models.viscosity import rate_factor
 import icepack.meshing
 import icepack.datasets
+import icepack.models
+import icepack.solvers
+import icepack.inverse

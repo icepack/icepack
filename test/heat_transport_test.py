@@ -1,4 +1,4 @@
-# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 import numpy as np
 import firedrake
 from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
-import icepack.models, icepack.solvers
+import icepack
 from icepack.constants import (year, thermal_diffusivity as α,
                                melting_temperature as Tm)
 

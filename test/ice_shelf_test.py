@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
-import icepack, icepack.models, icepack.solvers
+import icepack
 from icepack.constants import (
     ice_density as ρ_I, water_density as ρ_W, gravity as g, glen_flow_law as n
 )

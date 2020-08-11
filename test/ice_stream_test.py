@@ -85,7 +85,7 @@ def test_manufactured_solution():
 # Now test our numerical solvers against this analytical solution.
 import firedrake
 from firedrake import interpolate, as_vector
-import icepack, icepack.models, icepack.solvers
+import icepack
 from icepack.constants import (
     ice_density as ρ_I,
     water_density as ρ_W,
