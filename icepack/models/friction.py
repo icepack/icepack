@@ -10,10 +10,11 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import warnings
 import firedrake
 from firedrake import inner, sqrt
 from icepack.constants import weertman_sliding_law as m
-from icepack.utilities import facet_normal_2, diameter
+from icepack.utilities import facet_normal_2, diameter, get_kwargs_alt
 
 
 def friction_stress(u, C):
@@ -21,7 +22,7 @@ def friction_stress(u, C):
     return -C * sqrt(inner(u, u))**(1/m - 1) * u
 
 
-def bed_friction(u, C):
+def bed_friction(u=None, C=None, **kwargs):
     r"""Return the bed friction part of the ice stream action functional
 
     The frictional part of the ice stream action functional is
@@ -34,11 +35,23 @@ def bed_friction(u, C):
     .. math::
        \tau(u, C) = -C|u|^{1/m - 1}u
     """
+    # NOTE: This mess is for backwards-compatibility, so users can still pass
+    # in the velocity, thickness, and fluidity as positional arguments if they
+    # are still using old code.
+    if (u is not None) or (C is not None):
+        warnings.warn("Abbreviated names (u, C) have been deprecated, use full"
+                      " names (velocity, friction) instead.", FutureWarning)
+
+    if u is None:
+        u = kwargs['velocity']
+    if C is None:
+        C = kwargs['friction']
+
     τ = friction_stress(u, C)
     return -m/(m + 1) * inner(τ, u)
 
 
-def side_friction(u, h, Cs=firedrake.Constant(0)):
+def side_friction(**kwargs):
     r"""Return the side wall friction part of the action functional
 
     The component of the action functional due to friction along the side
@@ -52,6 +65,9 @@ def side_friction(u, h, Cs=firedrake.Constant(0)):
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
+    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    Cs = kwargs.get('side_friction', kwargs.get('Cs', firedrake.Constant(0.)))
+
     mesh = u.ufl_domain()
     if mesh.geometric_dimension() == 2:
         ν = firedrake.FacetNormal(mesh)
@@ -63,7 +79,7 @@ def side_friction(u, h, Cs=firedrake.Constant(0)):
     return -m/(m + 1) * h * inner(τ, u_t)
 
 
-def normal_flow_penalty(u, scale=1.0, exponent=None):
+def normal_flow_penalty(**kwargs):
     r"""Return the penalty for flow normal to the domain boundary
 
     For problems where a glacier flows along some boundary, e.g. a fjord
@@ -71,6 +87,9 @@ def normal_flow_penalty(u, scale=1.0, exponent=None):
     enforce this boundary condition directly, we add a penalty for normal
     flow to the action functional.
     """
+    u, = get_kwargs_alt(kwargs, ('velocity',), ('u',))
+    scale = kwargs.get('scale', firedrake.Constant(1.))
+
     mesh = u.ufl_domain()
     if mesh.geometric_dimension() == 2:
         ν = firedrake.FacetNormal(mesh)
@@ -88,7 +107,7 @@ def normal_flow_penalty(u, scale=1.0, exponent=None):
         d = degree[0]
     else:
         d = degree
+    exponent = kwargs.get('exponent', d + 1)
 
-    exponent = d + 1 if exponent is None else exponent
     penalty = scale * (L / δx)**exponent
     return 0.5 * penalty * inner(u, ν)**2

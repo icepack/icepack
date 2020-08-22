@@ -17,6 +17,7 @@ and, in particular, the viscous part of the action functional for ice flow.
 Several flow models all have essentially the same viscous part.
 """
 
+import warnings
 import numpy as np
 import firedrake
 from firedrake import grad, sqrt, Identity, inner, sym, tr as trace
@@ -87,7 +88,7 @@ def ε(u):
     return sym(grad(u))
 
 
-def viscosity_depth_averaged(u, h, A):
+def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
     r"""Return the viscous part of the action for depth-averaged models
 
     The viscous component of the action for depth-averaged ice flow is
@@ -110,15 +111,27 @@ def viscosity_depth_averaged(u, h, A):
 
     Parameters
     ----------
-    u : firedrake.Function
-        ice velocity
-    h : firedrake.Function
-        ice thickness
-    A : firedrake.Function
-        ice fluidity parameter
+    velocity : firedrake.Function
+    thickness : firedrake.Function
+    fluidity : firedrake.Function
 
     Returns
     -------
     firedrake.Form
     """
+    # NOTE: This mess is for backwards-compatibility, so users can still pass
+    # in the velocity, thickness, and fluidity as positional arguments if they
+    # are still using old code.
+    if (u is not None) or (h is not None) or (A is not None):
+        warnings.warn("Abbreviated names (u, h, A) have been deprecated, use "
+                      "full names (velocity, thickness, fluidity) instead.",
+                      FutureWarning)
+
+    if u is None:
+        u = kwargs['velocity']
+    if h is None:
+        h = kwargs['thickness']
+    if A is None:
+        A = kwargs['fluidity']
+
     return n/(n + 1) * h * inner(M(ε(u), A), ε(u))

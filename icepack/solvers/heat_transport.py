@@ -15,6 +15,9 @@ from firedrake import dx, Constant
 from . import utilities
 from ..utilities import default_solver_parameters
 
+# TODO: Remove fetching 'E' from fields dictionary once this naming scheme is
+# fully deprecated
+
 class HeatTransportSolver(object):
     def __init__(self, model):
         self._model = model
@@ -43,8 +46,8 @@ class HeatTransportSolver(object):
         dflux = self.model.diffusive_flux(**self.fields)
         sources = self.model.sources(**self.fields)
         dE_dt = sources - aflux - dflux
-        E = self.fields['E']
-        h = self.fields['h']
+        E = self.fields.get('energy', self.fields.get('E'))
+        h = self.fields.get('thickness', self.fields.get('h'))
         E_0 = E.copy(deepcopy=True)
         ψ = firedrake.TestFunction(E.function_space())
         F = (E - E_0) * ψ * h * dx - dt * dE_dt
@@ -70,7 +73,7 @@ class HeatTransportSolver(object):
                 if isinstance(field, firedrake.Function):
                     self.fields[name].assign(field)
 
-        E = self.fields['E']
+        E = self.fields.get('energy', self.fields.get('E'))
         self._energy_old.assign(E)
         self._timestep.assign(dt)
         self._solver.solve()

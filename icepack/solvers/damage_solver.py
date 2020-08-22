@@ -51,7 +51,7 @@ class DamageSolver(object):
         flux = self.model.flux(**self.fields)
 
         # Create the finite element mass matrix
-        D = self.fields['D']
+        D = self.fields.get('damage', self.fields.get('D'))
         Q = D.function_space()
         φ, ψ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
         M = φ * ψ * dx
@@ -94,7 +94,7 @@ class DamageSolver(object):
 
         δt = self._timestep
         δt.assign(dt)
-        D = self.fields['D']
+        D = self.fields.get('damage', self.fields.get('D'))
 
         solver1, solver2, solver3 = self._solvers
         D1, D2 = self._stages

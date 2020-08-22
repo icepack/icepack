@@ -16,10 +16,10 @@ from firedrake import inner, grad, dx
 from icepack.constants import (ice_density as ρ_I, gravity as g,
                                glen_flow_law as n)
 from icepack.models.mass_transport import LaxWendroff, Continuity
-from icepack.utilities import add_kwarg_wrapper
+from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
 
 
-def mass(u):
+def mass(**kwargs):
     r"""Return the mass term for the shallow ice action functional
 
     Mass fuction for the shallow ice action functional is
@@ -36,10 +36,11 @@ def mass(u):
     -------
     firedrake.Form
     """
-    return .5 * (inner(u,u))
+    u = kwargs.get('velocity', kwargs.get('u'))
+    return .5 * inner(u, u)
 
 
-def gravity(u, h, s, A):
+def gravity(**kwargs):
     r"""Return the gravity term for the shallow ice action functional
 
     The gravity function for the shallow ice action functional is
@@ -49,23 +50,23 @@ def gravity(u, h, s, A):
 
     Parameters
     ----------
-    u : firedrake.Function
-        ice velocity
-    h : firedrake.Function
-        ice thickness
-    s : firedrake.Function
-        ice surface elevation
-    A : firedrake.Function or firedrake.Constant
-        rate factor
+    velocity : firedrake.Function
+    thickness : firedrake.Function
+    surface : firedrake.Function
+    fluidity : firedrake.Function or firedrake.Constant
 
     Returns
     -------
     firedrake.Form
     """
+    keys = ('velocity', 'thickness', 'surface', 'fluidity')
+    keys_alt = ('u', 'h', 's', 'A')
+    u, h, s, A = get_kwargs_alt(kwargs, keys, keys_alt)
+
     return (2 * A * (ρ_I * g)**n / (n + 2)) * h**(n + 1) * grad(s)**(n - 1) * inner(grad(s), u)
 
 
-def penalty(u):
+def penalty(**kwargs):
     r"""Return the penalty of the shallow ice action functional
 
     The penalty for the shallow ice action functional is
@@ -75,13 +76,13 @@ def penalty(u):
 
     Parameters
     ----------
-    u : firedrake.Function
-        ice velocity
+    velocity : firedrake.Function
 
     Returns
     -------
     firedrake.Form
     """
+    u, = get_kwargs_alt(kwargs, ('velocity',), ('u',))
     l = 2 * firedrake.CellDiameter(u.ufl_domain())
     return .5 * l**2 * inner(grad(u), grad(u))
 
@@ -101,20 +102,16 @@ class ShallowIce(object):
         self.penalty = add_kwarg_wrapper(penalty)
         self.continuity = continuity
 
-    def action(self, u, h, s, A, **kwargs):
+    def action(self, **kwargs):
         r"""Return the action functional that gives the shallow ice
         diagnostic model as the Euler-Lagrange equations
 
         Parameters
         ----------
-        u : firedrake.Function
-            Ice velocity
-        h : firedrake.Function
-            Ice thickness
-        s : firedrake.Function
-            Ice surface elevation
-        A : firedrake.Function or firedrake.Constant
-            Rate factor
+        velocity : firedrake.Function
+        thickness : firedrake.Function
+        surface : firedrake.Function
+        fluidity : firedrake.Function or firedrake.Constant
 
         Returns
         -------
@@ -127,22 +124,26 @@ class ShallowIce(object):
             All other keyword arguments will be passed on to the
             'mass', 'gravity' and 'penalty' functionals
         """
-        mass = self.mass(u=u, **kwargs) * dx
-        gravity = self.gravity(u=u, h=h, s=s, A=A, **kwargs) * dx
-        penalty = self.penalty(u=u, **kwargs) * dx
+        mass = self.mass(**kwargs) * dx
+        gravity = self.gravity(**kwargs) * dx
+        penalty = self.penalty(**kwargs) * dx
         return mass + gravity + penalty
 
-    def scale(self, u, **kwargs):
+    def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional
 
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return (self.mass(u=u, **kwargs) + self.penalty(u=u, **kwargs)) * dx
+        return (self.mass(**kwargs) + self.penalty(**kwargs)) * dx
 
-    def quadrature_degree(self, u, h, s, **kwargs):
+    def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
+        u = kwargs.get('velocity', kwargs.get('u'))
+        h = kwargs.get('thickness', kwargs.get('h'))
+        s = kwargs.get('surface', kwargs.get('s'))
+
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         degree_s = s.ufl_element().degree()

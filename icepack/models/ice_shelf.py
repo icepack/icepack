@@ -19,10 +19,10 @@ from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.utilities import add_kwarg_wrapper
+from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
 
 
-def gravity(u, h):
+def gravity(**kwargs):
     r"""Return the gravitational part of the ice shelf action functional
 
     The gravitational part of the ice shelf action functional is
@@ -41,11 +41,13 @@ def gravity(u, h):
     -------
     firedrake.Form
     """
+    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+
     ρ = ρ_I * (1 - ρ_I / ρ_W)
     return -0.5 * ρ * g * inner(grad(h**2), u)
 
 
-def terminus(u, h):
+def terminus(**kwargs):
     r"""Return the terminus stress part of the ice shelf action functional
 
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
@@ -56,6 +58,8 @@ def terminus(u, h):
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.
     """
+    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     ρ = ρ_I * (1 - ρ_I / ρ_W)
@@ -85,7 +89,7 @@ class IceShelf(object):
         self.terminus = add_kwarg_wrapper(terminus)
         self.continuity = continuity
 
-    def action(self, u, h, **kwargs):
+    def action(self, **kwargs):
         r"""Return the action functional that gives the ice shelf diagnostic
         model as the Euler-Lagrange equations
 
@@ -118,31 +122,32 @@ class IceShelf(object):
             and gravity functionals. The ice fluidity coefficient, for
             example, is passed as a keyword argument.
         """
+        u = kwargs.get('velocity', kwargs.get('u'))
         mesh = u.ufl_domain()
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
 
-        viscosity = self.viscosity(u=u, h=h, **kwargs) * dx
-        gravity = self.gravity(u=u, h=h, **kwargs) * dx
+        viscosity = self.viscosity(**kwargs) * dx
+        gravity = self.gravity(**kwargs) * dx
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(u=u, h=h, **kwargs) * ds_w
-        penalty = self.penalty(u=u, h=h, **kwargs) * ds_w
+        side_friction = self.side_friction(**kwargs) * ds_w
+        penalty = self.penalty(**kwargs) * ds_w
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
-        terminus = self.terminus(u=u, h=h, **kwargs) * ds_t
+        terminus = self.terminus(**kwargs) * ds_t
 
         return viscosity + side_friction - gravity - terminus + penalty
 
-    def scale(self, u, h, **kwargs):
+    def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional
 
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return self.viscosity(u=u, h=h, **kwargs) * dx
+        return self.viscosity(**kwargs) * dx
 
-    def quadrature_degree(self, u, h, **kwargs):
+    def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately
 
@@ -151,6 +156,9 @@ class IceShelf(object):
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
+        u = kwargs.get('velocity', kwargs.get('u'))
+        h = kwargs.get('thickness', kwargs.get('h'))
+
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return 3 * (degree_u - 1) + 2 * degree_h
@@ -196,7 +204,7 @@ class IceShelf(object):
             set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
         bcs = firedrake.DirichletBC(
             u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
-        params = {'quadrature_degree': self.quadrature_degree(u, h, **kwargs)}
+        params = {'quadrature_degree': self.quadrature_degree(u=u, h=h, **kwargs)}
 
         # Solve the nonlinear optimization problem
         action = self.action(u=u, h=h, **kwargs)

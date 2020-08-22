@@ -24,10 +24,10 @@ from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                glen_flow_law as n, weertman_sliding_law as m,
                                gravity as g)
 from icepack.utilities import (facet_normal_2, grad_2, diameter,
-                               add_kwarg_wrapper,
+                               add_kwarg_wrapper, get_kwargs_alt,
                                compute_surface as _compute_surface)
 
-def gravity(u, h, s):
+def gravity(**kwargs):
     r"""Return the gravitational part of the ice stream action functional
 
     The gravitational part of the hybrid model action functional is
@@ -44,6 +44,10 @@ def gravity(u, h, s):
     s : firedrake.Function
         ice surface elevation
     """
+    keys = ('velocity', 'thickness', 'surface')
+    keys_alt = ('u', 'h', 's')
+    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+
     return -ρ_I * g * inner(grad_2(s), u) * h
 
 
@@ -64,7 +68,7 @@ def _pressure_approx(N):
     return sympy.lambdify((ζ, ζ_sl), sympy.simplify(polynomial))
 
 
-def terminus(u, h, s):
+def terminus(**kwargs):
     r"""Return the terminal stress part of the hybrid model action functional
 
     The power exerted due to stress at the calving terminus :math:`\Gamma` is
@@ -88,6 +92,10 @@ def terminus(u, h, s):
         numeric IDs of the parts of the boundary corresponding to the
         calving front
     """
+    keys = ('velocity', 'thickness', 'surface')
+    keys_alt = ('u', 'h', 's')
+    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
 
@@ -128,7 +136,7 @@ def vertical_strain(u, h):
     return 0.5 * du_dζ / h
 
 
-def viscosity(u, s, h, A):
+def viscosity(**kwargs):
     r"""Return the viscous part of the hybrid model action functional
 
     The viscous component of the action for the hybrid model is
@@ -146,21 +154,22 @@ def viscosity(u, s, h, A):
     as an argument when initializing model objects to use your functional
     instead.
 
-    Parameters
-    ----------
-    u : firedrake.Function
-        ice velocity
-    s : firedrake.Function
-        ice surface elevation
-    h : firedrake.Function
-        ice thickness
-    A : firedrake.Function
-        ice fluidity parameter
+    Keyword arguments
+    -----------------
+    velocity : firedrake.Function
+    surface : firedrake.Function
+    thickness : firedrake.Function
+    fluidity : firedrake.Function
+        `A` in Glen's flow law
 
     Returns
     -------
     firedrake.Form
     """
+    keys = ('velocity', 'thickness', 'surface', 'fluidity')
+    keys_alt = ('u', 'h', 's', 'A')
+    u, h, s, A = get_kwargs_alt(kwargs, keys, keys_alt)
+
     ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
     M, τ_z = stresses(ε_x, ε_z, A)
     return n / (n + 1) * (inner(M, ε_x) + inner(τ_z, ε_z)) * h
@@ -189,42 +198,44 @@ class HybridModel(object):
         self.penalty = add_kwarg_wrapper(normal_flow_penalty)
         self.continuity = continuity
 
-    def action(self, u, h, s, **kwargs):
+    def action(self, **kwargs):
         r"""Return the action functional that gives the hybrid model as its
         Euler-Lagrange equations"""
+        u = kwargs.get('velocity', kwargs.get('u'))
+        h = kwargs.get('thickness', kwargs.get('h'))
+
         mesh = u.ufl_domain()
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
 
-        viscosity = self.viscosity(u=u, h=h, s=s, **kwargs) * dx
-        gravity = self.gravity(u=u, h=h, s=s, **kwargs) * dx
+        viscosity = self.viscosity(**kwargs) * dx
+        gravity = self.gravity(**kwargs) * dx
 
-        friction = self.friction(u=u, h=h, s=s, **kwargs) * ds_b
+        friction = self.friction(**kwargs) * ds_b
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(u=u, h=h, s=s, **kwargs) * ds_w
-        penalty = self.penalty(u=u, h=h, s=s, **kwargs) * ds_w
+        side_friction = self.side_friction(**kwargs) * ds_w
+        penalty = self.penalty(**kwargs) * ds_w
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
         degree = (xdegree_u + degree_h, 2 * zdegree_u + 1)
         metadata = {'quadrature_degree': degree}
         ds_t = ds_v(domain=mesh, subdomain_id=ice_front_ids, metadata=metadata)
-        terminus = self.terminus(u=u, h=h, s=s, **kwargs) * ds_t
+        terminus = self.terminus(**kwargs) * ds_t
 
         return (viscosity + friction + side_friction
                 - gravity - terminus + penalty)
 
-    def scale(self, u, h, s, **kwargs):
+    def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional
 
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return (self.viscosity(u=u, h=h, s=s, **kwargs) * dx +
-                self.friction(u=u, h=h, s=s, **kwargs) * ds_b)
+        return (self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b)
 
-    def quadrature_degree(self, u, h, **kwargs):
+    def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately
 
@@ -233,6 +244,9 @@ class HybridModel(object):
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
+        u = kwargs.get('velocity', kwargs.get('u'))
+        h = kwargs.get('thickness', kwargs.get('h'))
+
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
         return (3 * (xdegree_u - 1) + 2 * degree_h,
@@ -282,7 +296,7 @@ class HybridModel(object):
             set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
         bcs = firedrake.DirichletBC(
             u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
-        params = {'quadrature_degree': self.quadrature_degree(u, h, **kwargs)}
+        params = {'quadrature_degree': self.quadrature_degree(u=u, h=h, **kwargs)}
 
         action = self.action(u=u, h=h, s=s, **kwargs)
         scale = self.scale(u=u, h=h, s=s, **kwargs)

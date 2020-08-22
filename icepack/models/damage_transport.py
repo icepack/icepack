@@ -24,7 +24,7 @@ from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym,
                        det, min_value, max_value, conditional)
 from icepack.models.viscosity import M
 from icepack.constants import year
-from icepack.utilities import eigenvalues
+from icepack.utilities import eigenvalues, get_kwargs_alt
 
 
 class DamageTransport(object):
@@ -36,9 +36,9 @@ class DamageTransport(object):
         self.healing_rate = healing_rate
 
     def flux(self, **kwargs):
-        D = kwargs['D']
-        u = kwargs['u']
-        D_inflow = kwargs['D_inflow']
+        keys = ('damage', 'velocity', 'damage_inflow')
+        keys_alt = ('D', 'u', 'D_inflow')
+        D, u, D_inflow = get_kwargs_alt(kwargs, keys, keys_alt)
 
         Q = D.function_space()
         φ = firedrake.TestFunction(Q)
@@ -56,9 +56,9 @@ class DamageTransport(object):
         return flux_faces + flux_cells + flux_out + flux_in
 
     def sources(self, **kwargs):
-        D = kwargs['D']
-        u = kwargs['u']
-        A = kwargs['A']
+        keys = ('damage', 'velocity', 'fluidity')
+        keys_alt = ('D', 'u', 'A')
+        D, u, A = get_kwargs_alt(kwargs, keys, keys_alt)
 
         # Increase/decrease damage depending on stress and strain rates
         ε = sym(grad(u))

@@ -18,6 +18,9 @@ from icepack.optimization import MinimizationProblem, NewtonSolver
 from . import utilities
 from ..utilities import default_solver_parameters
 
+# TODO: Remove all dictionary access of 'u' and 'h' once these names are
+# fully deprecated from the library
+
 class FlowSolver(object):
     r"""Solves the diagnostic and prognostic models of ice physics
 
@@ -49,7 +52,7 @@ class FlowSolver(object):
                 self.fields[name] = utilities.copy(field)
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self.fields['u']
+        u = self.fields.get('velocity', self.fields.get('u'))
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
         bcs = None
@@ -88,7 +91,8 @@ class FlowSolver(object):
 
         # Solve the minimization problem and return the velocity field
         self._diagnostic_solver.solve()
-        return self.fields['u'].copy(deepcopy=True)
+        u = self.fields.get('velocity', self.fields.get('u'))
+        return u.copy(deepcopy=True)
 
     def _prognostic_setup(self, **kwargs):
         for name, field in kwargs.items():
@@ -100,7 +104,7 @@ class FlowSolver(object):
         # Create the residual equation represending the PDE
         dt = Constant(1.)
         dh_dt = self.model.continuity(dt, **self.fields)
-        h = self.fields['h']
+        h = self.fields.get('thickness', self.fields.get('h'))
         h_0 = h.copy(deepcopy=True)
         q = firedrake.TestFunction(h.function_space())
         F = (h - h_0) * q * dx - dt * dh_dt
@@ -124,7 +128,7 @@ class FlowSolver(object):
                 if isinstance(field, firedrake.Function):
                     self.fields[name].assign(field)
 
-        h = self.fields['h']
+        h = self.fields.get('thickness', self.fields.get('h'))
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
         self._prognostic_solver.solve()
