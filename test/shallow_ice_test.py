@@ -97,13 +97,18 @@ def test_diagnostic_solver_convergence():
             u = firedrake.Function(V)
 
             solver = icepack.solvers.FlowSolver(model)
-            u_num = solver.diagnostic_solve(u=u, h=h, s=s, A=A)
+            u_num = solver.diagnostic_solve(
+                velocity=u,
+                thickness=h,
+                surface=s,
+                fluidity=A
+            )
             error.append(norm(u_exact - u_num) / norm(u_exact))
             delta_x.append(R / N)
 
             print(delta_x[-1], error[-1])
 
-            assert assemble(model.scale(u=u_num)) > 0
+            assert assemble(model.scale(velocity=u_num)) > 0
 
         log_delta_x = np.log2(np.array(delta_x))
         log_error = np.log2(np.array(error))

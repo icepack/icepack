@@ -64,11 +64,12 @@ def test_manufactured_solution():
 
     T = 254.15
     rheology = icepack.rate_factor(T)**(-1/constants.glen_flow_law)
-    values = {u0: 100, dh: 100, h0: 500, L: 20e3, hf: 10, B: rheology,
-              ρ_I: constants.ice_density, ρ_W: constants.water_density,
-              n: constants.glen_flow_law, m: constants.weertman_sliding_law,
-              g: constants.gravity}
-
+    values = {
+        u0: 100, dh: 100, h0: 500, L: 20e3, hf: 10, B: rheology,
+        ρ_I: constants.ice_density, ρ_W: constants.water_density,
+        n: constants.glen_flow_law, m: constants.weertman_sliding_law,
+        g: constants.gravity
+    }
 
     τ_b = lambdify(x, friction(x, u, C).subs(values), 'numpy')
     τ_d = lambdify(x, driving_stress(x, h, s).subs(values), 'numpy')
@@ -165,7 +166,13 @@ def test_diagnostic_solver_convergence():
             A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
             solver = icepack.solvers.FlowSolver(model, **opts)
-            u = solver.diagnostic_solve(u=u_guess, h=h, s=s, A=A, C=C)
+            u = solver.diagnostic_solve(
+                velocity=u_guess,
+                thickness=h,
+                surface=s,
+                fluidity=A,
+                friction=C
+            )
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 

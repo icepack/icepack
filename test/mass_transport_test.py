@@ -51,7 +51,13 @@ def test_mass_transport_solver_convergence():
 
         h = h0.copy(deepcopy=True)
         for step in range(num_timesteps):
-            h = solver.prognostic_solve(δt, h=h, a=a, u=u, h_inflow=h0)
+            h = solver.prognostic_solve(
+                δt,
+                thickness=h,
+                velocity=u,
+                accumulation=a,
+                thickness_inflow=h0
+            )
 
         z = x - u0 * num_timesteps * δt
         h_exact = interpolate(h_in - dh/Lx * firedrake.max_value(0, z), Q)
@@ -110,14 +116,27 @@ def test_ice_shelf_prognostic_solver():
 
         solver = icepack.solvers.FlowSolver(model, **opts)
         u_guess = interpolate(firedrake.as_vector((ux, 0)), V)
-        u = solver.diagnostic_solve(u=u_guess, h=h, A=A)
+        u = solver.diagnostic_solve(
+            velocity=u_guess, thickness=h, fluidity=A
+        )
 
         final_time, dt = 1.0, 1.0/12
         num_timesteps = int(final_time / dt)
 
         for k in range(num_timesteps):
-            h = solver.prognostic_solve(dt, h=h, a=a, u=u, h_inflow=h_initial)
-            u = solver.diagnostic_solve(u=u, h=h, A=A)
+            h = solver.prognostic_solve(
+                dt,
+                thickness=h,
+                velocity=u,
+                accumulation=a,
+                thickness_inflow=h_initial
+            )
+
+            u = solver.diagnostic_solve(
+                velocity=u,
+                thickness=h,
+                fluidity=A
+            )
 
         error.append(norm(h - h_initial) / norm(h_initial))
         print(delta_x[-1], error[-1])
@@ -173,15 +192,33 @@ def test_ice_stream_prognostic_solve():
     final_time, dt = 1.0, 1.0/12
     num_timesteps = int(final_time / dt)
 
-    u = solver.diagnostic_solve(u=u0, h=h, s=s, C=C, A=A)
-    a0 = firedrake.Function(Q)
-    h_n = solver.prognostic_solve(dt, h=h, u=u, a=a0, h_inflow=h_inflow)
-    a = interpolate((h_n - h) / dt, Q)
+    u = solver.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, friction=C, fluidity=A
+    )
+
+    a = firedrake.Function(Q)
+    h_n = solver.prognostic_solve(
+        dt, thickness=h, velocity=u, accumulation=a, thickness_inflow=h_inflow
+    )
+    a.interpolate((h_n - h) / dt)
 
     for k in range(num_timesteps):
-        h = solver.prognostic_solve(dt, h=h, a=a, u=u, h_inflow=h_inflow)
-        s = icepack.compute_surface(h=h, b=b)
-        u = solver.diagnostic_solve(u=u, h=h, s=s, C=C, A=A)
+        h = solver.prognostic_solve(
+            dt,
+            thickness=h,
+            velocity=u,
+            accumulation=a,
+            thickness_inflow=h_inflow
+        )
+        s = icepack.compute_surface(thickness=h, bed=b)
+
+        u = solver.diagnostic_solve(
+            velocity=u,
+            thickness=h,
+            surface=s,
+            friction=C,
+            fluidity=A
+        )
 
     assert icepack.norm(h, norm_type='Linfty') < np.inf
 
@@ -195,7 +232,7 @@ def test_hybrid_prognostic_solve():
     u_in = 100.0
 
     model = icepack.models.HybridModel()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-12}
 
     Nx, Ny = 32, 32
     mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
@@ -232,15 +269,32 @@ def test_hybrid_prognostic_solve():
     num_timesteps = int(final_time / dt)
 
     solver = icepack.solvers.FlowSolver(model, **opts)
-    u = solver.diagnostic_solve(u=u0, h=h, s=s, C=C, A=A)
+    u = solver.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
+    )
 
-    a0 = firedrake.Function(Q)
-    h_n = solver.prognostic_solve(dt, h=h, u=u, a=a0, h_inflow=h_inflow)
-    a = interpolate((h_n - h) / dt, Q)
+    a = firedrake.Function(Q)
+    h_n = solver.prognostic_solve(
+        dt, thickness=h, velocity=u, accumulation=a, thickness_inflow=h_inflow
+    )
+    a.interpolate((h_n - h) / dt)
 
     for k in range(num_timesteps):
-        h = solver.prognostic_solve(dt, h=h, a=a, u=u, h_inflow=h_inflow)
-        s = icepack.compute_surface(h=h, b=b)
-        u = solver.diagnostic_solve(u=u, h=h, s=s, C=C, A=A)
+        h = solver.prognostic_solve(
+            dt,
+            thickness=h,
+            velocity=u,
+            accumulation=a,
+            thickness_inflow=h_inflow
+        )
+        s = icepack.compute_surface(thickness=h, bed=b)
+
+        u = solver.diagnostic_solve(
+            velocity=u,
+            thickness=h,
+            surface=s,
+            fluidity=A,
+            friction=C
+        )
 
     assert icepack.norm(h, norm_type='Linfty') < np.inf

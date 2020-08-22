@@ -160,9 +160,15 @@ def test_ice_shelf_inverse(solver_type):
     q_initial = interpolate(firedrake.Constant(0), Q)
     h = interpolate(h0 - δh * x / Lx, Q)
 
-    def viscosity(u, h, q):
+    def viscosity(**kwargs):
+        u = kwargs['velocity']
+        h = kwargs['thickness']
+        q = kwargs['log_fluidity']
+
         A = A0 * firedrake.exp(-q / n)
-        return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
+        return icepack.models.viscosity.viscosity_depth_averaged(
+            velocity=u, thickness=h, fluidity=A
+        )
 
     model = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
@@ -172,7 +178,9 @@ def test_ice_shelf_inverse(solver_type):
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
     q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
-    u_true = flow_solver.diagnostic_solve(u=u_initial, h=h, q=q_true)
+    u_true = flow_solver.diagnostic_solve(
+        velocity=u_initial, thickness=h, log_fluidity=q_true
+    )
 
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
 
@@ -184,17 +192,17 @@ def test_ice_shelf_inverse(solver_type):
         error = firedrake.norm(q - q_true) / np.sqrt(area)
         print(misfit, regularization, error)
 
-    L = 1e-4 * Lx
+    L = firedrake.Constant(1e-4 * Lx)
     problem = icepack.inverse.InverseProblem(
         model=model,
         objective=lambda u: 0.5 * (u - u_true)**2 * dx,
         regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
-        state_name='u',
+        state_name='velocity',
         state=u_initial,
-        parameter_name='q',
+        parameter_name='log_fluidity',
         parameter=q_initial,
         solver_kwargs = {'dirichlet_ids': dirichlet_ids},
-        diagnostic_solve_kwargs={'h': h}
+        diagnostic_solve_kwargs={'thickness': h}
     )
 
     solver = solver_type(problem, callback)
@@ -241,9 +249,15 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     q_initial = interpolate(firedrake.Constant(0), Q)
     h = interpolate(h0 - δh * x / Lx, Q)
 
-    def viscosity(u, h, q):
+    def viscosity(**kwargs):
+        u = kwargs['velocity']
+        h = kwargs['thickness']
+        q = kwargs['log_fluidity']
+
         A = A0 * firedrake.exp(-q / n)
-        return icepack.models.viscosity.viscosity_depth_averaged(u, h, A)
+        return icepack.models.viscosity.viscosity_depth_averaged(
+            velocity=u, thickness=h, fluidity=A
+        )
 
     model = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
@@ -253,7 +267,9 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     R = 1/4
     expr = firedrake.max_value(0, δA * (1 - (r/R)**2))
     q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
-    u_true = flow_solver.diagnostic_solve(u=u_initial, h=h, q=q_true)
+    u_true = flow_solver.diagnostic_solve(
+        velocity=u_initial, thickness=h, log_fluidity=q_true
+    )
 
     # Make the noise equal to 1% of the signal
     area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
@@ -272,18 +288,17 @@ def test_ice_shelf_inverse_with_noise(solver_type):
         error = firedrake.norm(q - q_true) / np.sqrt(area)
         print(misfit, regularization, error, flush=True)
 
-    L = 0.25 * Lx
-    regularization = L**2/2 * inner(grad(q_initial), grad(q_initial)) * dx
+    L = firedrake.Constant(0.25 * Lx)
     problem = icepack.inverse.InverseProblem(
         model=model,
         objective=lambda u: 0.5 * ((u - u_obs)/σ)**2 * dx,
         regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
-        state_name='u',
+        state_name='velocity',
         state=u_initial,
-        parameter_name='q',
+        parameter_name='log_fluidity',
         parameter=q_initial,
         solver_kwargs = {'dirichlet_ids': dirichlet_ids},
-        diagnostic_solve_kwargs={'h': h}
+        diagnostic_solve_kwargs={'thickness': h}
     )
 
     solver = solver_type(problem, callback)

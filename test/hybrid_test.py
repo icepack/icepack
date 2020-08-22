@@ -45,7 +45,7 @@ def test_order_0():
 
     A = firedrake.Constant(icepack.rate_factor(254.15))
     C = firedrake.Constant(0.001)
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tol': 1e-12}
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-14}
 
     Nx, Ny = 64, 64
     mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
@@ -59,7 +59,13 @@ def test_order_0():
 
     model2d = icepack.models.IceStream()
     solver2d = icepack.solvers.FlowSolver(model2d, **opts)
-    u2d = solver2d.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
+    u2d = solver2d.diagnostic_solve(
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C
+    )
 
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
     x, y, ζ = firedrake.SpatialCoordinate(mesh)
@@ -74,7 +80,13 @@ def test_order_0():
 
     model3d = icepack.models.HybridModel()
     solver3d = icepack.solvers.FlowSolver(model3d, **opts)
-    u3d = solver3d.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
+    u3d = solver3d.diagnostic_solve(
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C
+    )
 
     U2D, U3D = u2d.dat.data_ro, u3d.dat.data_ro
     assert np.linalg.norm(U3D - U2D) / np.linalg.norm(U2D) < 1e-2
@@ -104,13 +116,21 @@ def test_diagnostic_solver():
     us = np.zeros((max_degree + 1, Nz + 1))
     for vdegree in range(max_degree, 0, -1):
         solver = icepack.solvers.FlowSolver(model, **opts)
-        V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
-                                          vfamily='GL', vdegree=vdegree)
+        V = firedrake.VectorFunctionSpace(
+            mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=vdegree
+        )
         u0 = firedrake.interpolate(u_expr, V)
-        u = solver.diagnostic_solve(u=u0, h=h, s=s, A=A, C=C)
+        u = solver.diagnostic_solve(
+            velocity=u0,
+            thickness=h,
+            surface=s,
+            fluidity=A,
+            friction=C
+        )
 
         V0 = firedrake.VectorFunctionSpace(
-            mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=0)
+            mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=0
+        )
 
         depth_avg_u = firedrake.project(u, V0)
         shear_u = firedrake.project(u - depth_avg_u, V)

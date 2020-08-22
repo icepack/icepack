@@ -74,7 +74,11 @@ def test_diagnostic_solver_convergence():
             A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
             solver = icepack.solvers.FlowSolver(model, **opts)
-            u = solver.diagnostic_solve(u=u_guess, h=h, A=A)
+            u = solver.diagnostic_solve(
+                velocity=u_guess,
+                thickness=h,
+                fluidity=A
+            )
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 
@@ -107,7 +111,10 @@ def test_diagnostic_solver_parameterization():
     def ε(u):
         return sym(grad(u))
 
-    def viscosity(u, h, B):
+    def viscosity(**kwargs):
+        u = kwargs['velocity']
+        h = kwargs['thickness']
+        B = kwargs['rheology']
         return n/(n + 1) * h * inner(M(ε(u), B), ε(u))
 
     # Make a model object with our new viscosity functional
@@ -130,7 +137,11 @@ def test_diagnostic_solver_parameterization():
         B = interpolate(firedrake.Constant(icepack.rate_factor(T)**(-1/n)), Q)
 
         solver = icepack.solvers.FlowSolver(model, **opts)
-        u = solver.diagnostic_solve(u=u_guess, h=h, B=B)
+        u = solver.diagnostic_solve(
+            velocity=u_guess,
+            thickness=h,
+            rheology=B
+        )
         error.append(norm(u_exact - u) / norm(u_exact))
         delta_x.append(Lx / N)
 
@@ -170,6 +181,12 @@ def test_diagnostic_solver_side_friction():
     Cs = firedrake.Constant(τ * u_max**(-1/m))
 
     solver = icepack.solvers.FlowSolver(model, **opts)
-    u = solver.diagnostic_solve(u=u_initial, h=h, A=A, Cs=Cs)
+    fields = {
+        'velocity': u_initial,
+        'thickness': h,
+        'fluidity': A,
+        'side_friction': Cs
+    }
+    u = solver.diagnostic_solve(**fields)
 
     assert icepack.norm(u) < icepack.norm(u_initial)

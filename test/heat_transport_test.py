@@ -14,8 +14,11 @@ import numpy as np
 import firedrake
 from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
 import icepack
-from icepack.constants import (year, thermal_diffusivity as α,
-                               melting_temperature as Tm)
+from icepack.constants import (
+    year,
+    thermal_diffusivity as α,
+    melting_temperature as Tm
+)
 
 # Using the same mesh and data for every test case.
 Nx, Ny = 32, 32
@@ -23,12 +26,17 @@ Lx, Ly = 20e3, 20e3
 mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
 mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
-Q = firedrake.FunctionSpace(mesh, family='CG', degree=2,
-                            vfamily='GL', vdegree=4)
-V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
-                                  vfamily='GL', vdegree=4)
-W = firedrake.FunctionSpace(mesh, family='DG', degree=1,
-                            vfamily='GL', vdegree=5)
+Q = firedrake.FunctionSpace(
+    mesh, family='CG', degree=2, vfamily='GL', vdegree=4
+)
+
+V = firedrake.VectorFunctionSpace(
+    mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=4
+)
+
+W = firedrake.FunctionSpace(
+    mesh, family='DG', degree=1, vfamily='GL', vdegree=5
+)
 
 x, y, ζ = firedrake.SpatialCoordinate(mesh)
 
@@ -57,8 +65,8 @@ def test_diffusion():
             super(DiffusionTransportModel, self).__init__()
 
         def advective_flux(self, **kwargs):
-            E = kwargs['E']
-            h = kwargs['h']
+            E = kwargs['energy']
+            h = kwargs['thickness']
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
             return firedrake.Constant(0) * ψ * h * dx
@@ -70,8 +78,14 @@ def test_diffusion():
     final_time = 6000
     num_steps = int(final_time / dt) + 1
     for step in range(num_steps):
-        E = solver.solve(dt, E=E, h=h, E_surface=Constant(E_surface),
-                         q=Constant(0), q_bed=Constant(q_bed))
+        E = solver.solve(
+            dt,
+            energy=E,
+            thickness=h,
+            energy_surface=Constant(E_surface),
+            heat=Constant(0),
+            heat_bed=Constant(q_bed)
+        )
 
     assert assemble((E - E_true)**2 * ds_t) / assemble(E_true**2 * ds_t) < 1e-3
     assert assemble((E - E_true)**2 * ds_b) / assemble(E_true**2 * ds_b) < 1e-3
@@ -88,8 +102,8 @@ def test_advection():
             super(AdvectionTransportModel, self).__init__()
 
         def diffusive_flux(self, **kwargs):
-            E = kwargs['E']
-            h = kwargs['h']
+            E = kwargs['energy']
+            h = kwargs['thickness']
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
             return firedrake.Constant(0) * ψ * h * dx
@@ -107,9 +121,18 @@ def test_advection():
     final_time = Lx / u0
     num_steps = int(final_time / dt) + 1
     for step in range(num_steps):
-        E = solver.solve(dt, E=E, u=u, w=w, h=h, s=s,
-                         q=Constant(0), q_bed=Constant(q_bed),
-                         E_inflow=E_initial, E_surface=Constant(E_surface))
+        E = solver.solve(
+            dt,
+            energy=E,
+            velocity=u,
+            vertical_velocity=w,
+            thickness=h,
+            surface=s,
+            heat=Constant(0),
+            heat_bed=Constant(q_bed),
+            energy_inflow=E_initial,
+            energy_surface=Constant(E_surface)
+        )
 
     error_surface = assemble((E - E_surface)**2 * ds_t)
     assert error_surface / assemble(E_surface**2 * ds_t(mesh)) < 1e-2
@@ -133,9 +156,18 @@ def test_advection_diffusion():
     model = icepack.models.HeatTransport3D()
     solver = icepack.solvers.HeatTransportSolver(model)
     for step in range(num_steps):
-        E = solver.solve(dt, E=E, u=u, w=w, h=h, s=s,
-                         q=Constant(0), q_bed=q_bed,
-                         E_inflow=E_initial, E_surface=Constant(E_surface))
+        E = solver.solve(
+            dt,
+            energy=E,
+            velocity=u,
+            vertical_velocity=w,
+            thickness=h,
+            surface=s,
+            heat=Constant(0),
+            heat_bed=q_bed,
+            energy_inflow=E_initial,
+            energy_surface=Constant(E_surface)
+        )
 
     rms = np.sqrt(assemble(E**2 * h * dx) / assemble(h * dx))
     assert (E_surface - 5 < rms) and (rms < E_surface + 5 + q_bed / α * h0)
@@ -171,8 +203,11 @@ def test_strain_heating():
     E_q = E_initial.copy(deepcopy=True)
     E_0 = E_initial.copy(deepcopy=True)
 
-    from icepack.models.hybrid import (horizontal_strain, vertical_strain,
-                                       stresses)
+    from icepack.models.hybrid import (
+        horizontal_strain,
+        vertical_strain,
+        stresses
+    )
     model = icepack.models.HeatTransport3D()
     T = model.temperature(E_q)
     A = icepack.rate_factor(T)
@@ -180,8 +215,15 @@ def test_strain_heating():
     τ_x, τ_z = stresses(ε_x, ε_z, A)
     q = inner(τ_x, ε_x) + inner(τ_z, ε_z)
 
-    kwargs = {'u': u, 'w': w, 'h': h, 's': s, 'q_bed': q_bed,
-              'E_inflow': E_initial, 'E_surface': Constant(E_surface)}
+    fields = {
+        'velocity': u,
+        'vertical_velocity': w,
+        'thickness': h,
+        'surface': s,
+        'heat_bed': q_bed,
+        'energy_inflow': E_initial,
+        'energy_surface': Constant(E_surface)
+    }
 
     dt = 10.0
     final_time = Lx / u0
@@ -189,7 +231,7 @@ def test_strain_heating():
     solver_strain = icepack.solvers.HeatTransportSolver(model)
     solver_no_strain = icepack.solvers.HeatTransportSolver(model)
     for step in range(num_steps):
-        E_q.assign(solver_strain.solve(dt, E=E_q, q=q, **kwargs))
-        E_0.assign(solver_no_strain.solve(dt, E=E_0, q=Constant(0), **kwargs))
+        E_q = solver_strain.solve(dt, energy=E_q, heat=q, **fields)
+        E_0 = solver_no_strain.solve(dt, energy=E_0, heat=Constant(0), **fields)
 
     assert assemble(E_q * h * dx) > assemble(E_0 * h * dx)
