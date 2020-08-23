@@ -190,3 +190,49 @@ def test_diagnostic_solver_side_friction():
     u = solver.diagnostic_solve(**fields)
 
     assert icepack.norm(u) < icepack.norm(u_initial)
+
+
+# Try using different options for the diagnostic solve
+def test_diagnostic_solver_options():
+    model = icepack.models.IceShelf()
+    nx, ny = 32, 32
+    mesh = firedrake.RectangleMesh(nx, ny, Lx, Ly)
+
+    degree = 2
+    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+
+    x, y = firedrake.SpatialCoordinate(mesh)
+    u_initial = interpolate(as_vector((exact_u(x), 0)), V)
+    h = interpolate(h0 - dh * x / Lx, Q)
+    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+
+    from icepack.constants import weertman_sliding_law as m
+    τ = 0.01
+    u_max = icepack.norm(u_initial, norm_type='Linfty')
+    Cs = firedrake.Constant(τ * u_max**(-1/m))
+
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
+
+    from icepack.utilities import default_solver_parameters
+    direct_solver = icepack.solvers.FlowSolver(
+        model, **opts, diagnostic_solver_parameters=default_solver_parameters
+    )
+
+    iterative_parameters = {'ksp_type': 'cg', 'pc_type': 'ilu'}
+    iterative_solver = icepack.solvers.FlowSolver(
+        model, **opts, diagnostic_solver_parameters=iterative_parameters
+    )
+
+    fields = {
+        'velocity': u_initial,
+        'thickness': h,
+        'fluidity': A,
+        'side_friction': Cs
+    }
+
+    u_direct = direct_solver.diagnostic_solve(**fields)
+    u_iterative = iterative_solver.diagnostic_solve(**fields)
+
+    tol = 1 / nx ** degree
+    assert icepack.norm(u_direct - u_iterative) < tol * icepack.norm(u_direct)
