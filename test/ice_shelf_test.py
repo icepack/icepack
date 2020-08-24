@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
@@ -234,7 +235,15 @@ def test_diagnostic_solver_options():
 # Test solving the mass transport equations with a constant velocity field
 # and check that the solutions converge to the exact solution obtained from
 # the method of characteristics.
-def test_mass_transport_solver_convergence():
+# Test solving the coupled diagnostic/prognostic equations for an ice shelf
+# with thickness and velocity fields that are exactly insteady state.
+@pytest.mark.parametrize(
+    'prognostic_solver_parameters', [
+        icepack.utilities.default_solver_parameters,
+        {'ksp_type': 'gmres', 'pc_type': 'ilu'}
+    ]
+)
+def test_mass_transport_solver_convergence(prognostic_solver_parameters):
     Lx, Ly = 1.0, 1.0
     u0 = 1.0
     h_in, dh = 1.0, 0.2
@@ -248,9 +257,11 @@ def test_mass_transport_solver_convergence():
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 1
-        V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
-        Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
-        solver = icepack.solvers.FlowSolver(model)
+        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
+        solver = icepack.solvers.FlowSolver(
+            model, prognostic_solver_parameters=prognostic_solver_parameters
+        )
 
         h0 = interpolate(h_in - dh * x / Lx, Q)
         a = firedrake.Function(Q)

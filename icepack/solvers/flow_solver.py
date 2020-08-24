@@ -51,6 +51,9 @@ class FlowSolver(object):
         self.diagnostic_solver_parameters = kwargs.get(
             'diagnostic_solver_parameters', default_solver_parameters
         )
+        self.prognostic_solver_parameters = kwargs.get(
+            'prognostic_solver_parameters', default_solver_parameters
+        )
 
     @property
     def model(self):
@@ -133,7 +136,7 @@ class FlowSolver(object):
         # TODO: make form compiler and solver parameters customizable
         problem = Problem(F, h)
         self._prognostic_solver = Solver(
-            problem, solver_parameters=default_solver_parameters
+            problem, solver_parameters=self.prognostic_solver_parameters
         )
         self._thickness_old = h_0
         self._timestep = dt
