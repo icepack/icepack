@@ -239,14 +239,6 @@ class HybridModel(object):
             viscosity + friction + side_friction - gravity - terminus + penalty
         )
 
-    def scale(self, **kwargs):
-        r"""Return the positive, convex part of the action functional
-
-        The positive part of the action functional is used as a dimensional
-        scale to determine when to terminate an optimization algorithm.
-        """
-        return (self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b)
-
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately

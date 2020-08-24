@@ -129,14 +129,6 @@ class ShallowIce(object):
         penalty = self.penalty(**kwargs) * dx
         return mass + gravity + penalty
 
-    def scale(self, **kwargs):
-        r"""Return the positive, convex part of the action functional
-
-        The positive part of the action functional is used as a dimensional
-        scale to determine when to terminate an optimization algorithm.
-        """
-        return (self.mass(**kwargs) + self.penalty(**kwargs)) * dx
-
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
