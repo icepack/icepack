@@ -87,6 +87,7 @@ def test_manufactured_solution():
 import firedrake
 from firedrake import interpolate, as_vector
 import icepack
+from icepack import norm
 from icepack.constants import (
     ice_density as ρ_I,
     water_density as ρ_W,
@@ -140,10 +141,6 @@ def friction(x):
 ds = (1 + β) * ρ / ρ_I * dh
 
 
-def norm(v):
-    return icepack.norm(v, norm_type='H1')
-
-
 def test_diagnostic_solver_convergence():
     model = icepack.models.IceStream()
     opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
@@ -173,10 +170,8 @@ def test_diagnostic_solver_convergence():
                 fluidity=A,
                 friction=C
             )
-            error.append(norm(u_exact - u) / norm(u_exact))
+            error.append(norm(u_exact - u, 'H1') / norm(u_exact, 'H1'))
             delta_x.append(Lx / N)
-
-            print(delta_x[-1], error[-1])
 
         log_delta_x = np.log2(np.array(delta_x))
         log_error = np.log2(np.array(error))
@@ -200,3 +195,79 @@ def test_computing_surface():
     s = icepack.compute_surface(h=h, b=b)
     x0, y0 = Lx/2, Ly/2
     assert abs(s((x0, y0)) - (1 - ρ_I / ρ_W) * h((x0, y0))) < 1e-8
+
+
+# Test solving the coupled diagnostic/prognostic equations for an ice stream
+# and check that it doesn't explode. TODO: Manufacture a solution.
+def test_ice_stream_prognostic_solve():
+    Lx, Ly = 20e3, 20e3
+    h0, dh = 500.0, 100.0
+    T = 254.15
+    u0 = 100.0
+
+    model = icepack.models.IceStream()
+    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
+
+    N = 32
+    mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
+
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=2)
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2)
+    solver = icepack.solvers.FlowSolver(model, **opts)
+
+    x, y = firedrake.SpatialCoordinate(mesh)
+    height_above_flotation = 10.0
+    d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
+    ρ = ρ_I - ρ_W * d**2 / (h0 - dh)**2
+
+    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
+    q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
+    ux = u0 + Z * q * Lx * (h0/dh) / (n + 1)
+    u0 = interpolate(firedrake.as_vector((ux, 0)), V)
+
+    thickness = h0 - dh * x / Lx
+    β = 1/2
+    α = β * ρ / ρ_I * dh / Lx
+    h = interpolate(h0 - dh * x / Lx, Q)
+    h_inflow = h.copy(deepcopy=True)
+    ds = (1 + β) * ρ / ρ_I * dh
+    s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+    b = interpolate(s - h, Q)
+
+    C = interpolate(α * (ρ_I * g * thickness) * ux**(-1/m), Q)
+    A = firedrake.Constant(icepack.rate_factor(T))
+
+    final_time = 1.0
+    timestep = 2 / N
+    num_timesteps = int(final_time / timestep)
+    dt = final_time / num_timesteps
+
+    u = solver.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, friction=C, fluidity=A
+    )
+
+    a = firedrake.Function(Q)
+    h_n = solver.prognostic_solve(
+        dt, thickness=h, velocity=u, accumulation=a, thickness_inflow=h_inflow
+    )
+    a.interpolate((h_n - h) / dt)
+
+    for step in range(num_timesteps):
+        h = solver.prognostic_solve(
+            dt,
+            thickness=h,
+            velocity=u,
+            accumulation=a,
+            thickness_inflow=h_inflow
+        )
+        s = icepack.compute_surface(thickness=h, bed=b)
+
+        u = solver.diagnostic_solve(
+            velocity=u,
+            thickness=h,
+            surface=s,
+            friction=C,
+            fluidity=A
+        )
+
+    assert norm(h, 'Linfty') < np.inf
