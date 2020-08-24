@@ -13,15 +13,20 @@
 import warnings
 import firedrake
 from firedrake import inner, grad, dx, ds
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               gravity as g)
+from icepack.constants import (
+    ice_density as ρ_I, water_density as ρ_W, gravity as g
+)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
-from icepack.models.friction import (bed_friction, side_friction,
-                                     normal_flow_penalty)
+from icepack.models.friction import (
+    bed_friction, side_friction, normal_flow_penalty
+)
 from icepack.models.mass_transport import LaxWendroff, Continuity
-from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.utilities import (add_kwarg_wrapper, get_kwargs_alt,
-                               compute_surface as _compute_surface)
+from icepack.utilities import (
+    add_kwarg_wrapper,
+    get_kwargs_alt,
+    default_solver_parameters,
+    compute_surface as _compute_surface
+)
 
 
 def gravity(**kwargs):
@@ -190,16 +195,18 @@ class IceStream(object):
         side_wall_ids = kwargs.get('side_wall_ids', [])
         kwargs['side_wall_ids'] = side_wall_ids
         kwargs['ice_front_ids'] = list(
-            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
-        bcs = firedrake.DirichletBC(
-            u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
+            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids)
+        )
+        V = u.function_space()
+        bcs = firedrake.DirichletBC(V, u, dirichlet_ids)
         params = {'quadrature_degree': self.quadrature_degree(u=u, h=h, **kwargs)}
 
-        action = self.action(u=u, h=h, s=s, **kwargs)
-        scale = self.scale(u=u, h=h, s=s, **kwargs)
-        problem = MinimizationProblem(action, scale, u, bcs, params)
-        solver = NewtonSolver(problem, tol)
-        solver.solve()
+        F = firedrake.derivative(self.action(u=u, h=h, s=s, **kwargs), u)
+        firedrake.solve(
+            F == 0, u, bcs,
+            form_compiler_parameters=params,
+            solver_parameters=default_solver_parameters
+        )
         return u
 
     def prognostic_solve(self, dt, h0, a, u, h_inflow=None):
