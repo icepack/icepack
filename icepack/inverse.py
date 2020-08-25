@@ -420,7 +420,9 @@ class GaussNewtonCG(object):
         φ, ψ = firedrake.TestFunction(Q), firedrake.TrialFunction(Q)
         M = φ * ψ * dx + derivative(dR, p)
         residual_problem = firedrake.LinearVariationalProblem(
-            M, -dJ, z, form_compiler_parameters=solver._fc_params
+            M, -dJ, z,
+            form_compiler_parameters=solver._fc_params,
+            constant_jacobian=False
         )
         residual_solver = firedrake.LinearVariationalSolver(
             residual_problem, solver_parameters=solver._solver_params
@@ -471,7 +473,9 @@ class GaussNewtonCG(object):
         δz = firedrake.Function(Q)
         Gs = self._product
         delta_residual_problem = firedrake.LinearVariationalProblem(
-            M, Gs, δz, form_compiler_parameters=solver._fc_params
+            M, Gs, δz,
+            form_compiler_parameters=solver._fc_params,
+            constant_jacobian=False
         )
         delta_residual_solver = firedrake.LinearVariationalSolver(
             delta_residual_problem, solver_parameters=solver._solver_params
