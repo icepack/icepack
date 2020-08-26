@@ -603,10 +603,16 @@ class GaussNewtonCG(object):
         r"""Run the iteration until the objective functional does not decrease
         to within tolerance"""
         objective = np.inf
-        while ((self.iteration < max_iterations) and
-               (objective - self._objective > tolerance * self._energy)):
+        for iteration in range(max_iterations):
+            if objective - self._objective <= tolerance * self._energy:
+                return
+
             objective = self._objective
             self.step()
+
+        raise firedrake.ConvergenceError(
+            f"Gauss-Newton CG failed to converge after {max_iterations} steps!"
+        )
 
 class GaussNewtonSolver(InverseSolver):
     r"""Implementation of `InverseSolver` using an approximation to the Hessian
