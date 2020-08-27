@@ -13,15 +13,13 @@
 import warnings
 import firedrake
 from firedrake import inner, grad, dx, ds
-from icepack.constants import (
-    ice_density as ρ_I, water_density as ρ_W, gravity as g
-)
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import LaxWendroff, Continuity
-from icepack.utilities import (
-    add_kwarg_wrapper, get_kwargs_alt, default_solver_parameters
-)
+from icepack.optimization import MinimizationProblem, NewtonSolver
+from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
 
 
 def gravity(**kwargs):
@@ -141,6 +139,14 @@ class IceShelf(object):
 
         return viscosity + side_friction - gravity - terminus + penalty
 
+    def scale(self, **kwargs):
+        r"""Return the positive, convex part of the action functional
+
+        The positive part of the action functional is used as a dimensional
+        scale to determine when to terminate an optimization algorithm.
+        """
+        return self.viscosity(**kwargs) * dx
+
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately
@@ -195,19 +201,17 @@ class IceShelf(object):
         side_wall_ids = kwargs.get('side_wall_ids', [])
         kwargs['side_wall_ids'] = side_wall_ids
         kwargs['ice_front_ids'] = list(
-            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids)
-        )
-        V = u.function_space()
-        bcs = firedrake.DirichletBC(V, u, dirichlet_ids)
+            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
+        bcs = firedrake.DirichletBC(
+            u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
         params = {'quadrature_degree': self.quadrature_degree(u=u, h=h, **kwargs)}
 
         # Solve the nonlinear optimization problem
-        F = firedrake.derivative(self.action(u=u, h=h, **kwargs), u)
-        firedrake.solve(
-            F == 0, u, bcs,
-            form_compiler_parameters=params,
-            solver_parameters=default_solver_parameters
-        )
+        action = self.action(u=u, h=h, **kwargs)
+        scale = self.scale(u=u, h=h, **kwargs)
+        problem = MinimizationProblem(action, scale, u, bcs, params)
+        solver = NewtonSolver(problem, tol)
+        solver.solve()
         return u
 
     def prognostic_solve(self, dt, h0, a, u, h_inflow=None):

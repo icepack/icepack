@@ -13,12 +13,8 @@
 r"""Solvers for ice physics models"""
 
 import firedrake
-from firedrake import (
-    dx,
-    Constant,
-    NonlinearVariationalProblem as Problem,
-    NonlinearVariationalSolver as Solver
-)
+from firedrake import dx, Constant
+from icepack.optimization import MinimizationProblem, NewtonSolver
 from . import utilities
 from ..utilities import default_solver_parameters
 
@@ -29,31 +25,14 @@ class FlowSolver(object):
     r"""Solves the diagnostic and prognostic models of ice physics
 
     The actual solver data is initialized lazily on the first call
-
-    Parameters
-    ----------
-    dirichlet_ids : list of int, optional
-        The integer IDs of the domain boundary segments where inflow boundary
-        conditions should be applied to the diagnostic solve
-    side_wall_ids : list of int, optional
-        The integer IDs of the domain boundary segments where side wall drag
-        boundary conditions should be applied ot the diagnostic solve
-    diagnostic_solver_parameters : dict, optional
-        Options to pass to :class:`~firedrake.variational_solver.NonlinearVariationalSolver` for
-        the diagnostic solver
     """
     def __init__(self, model, **kwargs):
         self._model = model
         self._fields = {}
 
-        self.dirichlet_ids = kwargs.get('dirichlet_ids', [])
-        self.side_wall_ids = kwargs.get('side_wall_ids', [])
-        self.diagnostic_solver_parameters = kwargs.get(
-            'diagnostic_solver_parameters', default_solver_parameters
-        )
-        self.prognostic_solver_parameters = kwargs.get(
-            'prognostic_solver_parameters', default_solver_parameters
-        )
+        self.dirichlet_ids = kwargs.pop('dirichlet_ids', [])
+        self.side_wall_ids = kwargs.pop('side_wall_ids', [])
+        self.tolerance = kwargs.pop('tolerance', 1e-12)
 
     @property
     def model(self):
@@ -78,7 +57,7 @@ class FlowSolver(object):
         # NOTE: This will have to change when we do Stokes!
         bcs = None
         if self.dirichlet_ids:
-            bcs = firedrake.DirichletBC(V, u, self.dirichlet_ids)
+            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self.dirichlet_ids)
 
         # Find the numeric IDs for the ice front
         boundary_ids = u.ufl_domain().exterior_facets.unique_markers
@@ -90,16 +69,14 @@ class FlowSolver(object):
             'side_wall_ids': self.side_wall_ids,
             'ice_front_ids': ice_front_ids
         }
-        G = self.model.action(**self.fields, **_kwargs)
-        F = firedrake.derivative(G, u)
+        action = self.model.action(**self.fields, **_kwargs)
+        scale = self.model.scale(**self.fields, **_kwargs)
 
         # Set up a minimization problem and solver
         quadrature_degree = self.model.quadrature_degree(**self.fields)
         params = {'quadrature_degree': quadrature_degree}
-        problem = Problem(F, u, bcs, form_compiler_parameters=params)
-        self._diagnostic_solver = Solver(
-            problem, solver_parameters=self.diagnostic_solver_parameters
-        )
+        problem = MinimizationProblem(action, scale, u, bcs, params)
+        self._diagnostic_solver = NewtonSolver(problem, self.tolerance)
 
     def diagnostic_solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""
@@ -134,9 +111,9 @@ class FlowSolver(object):
 
         # Create problem and solver objects for this equation
         # TODO: make form compiler and solver parameters customizable
-        problem = Problem(F, h)
-        self._prognostic_solver = Solver(
-            problem, solver_parameters=self.prognostic_solver_parameters
+        problem = firedrake.NonlinearVariationalProblem(F, h)
+        self._prognostic_solver = firedrake.NonlinearVariationalSolver(
+            problem, solver_parameters=default_solver_parameters
         )
         self._thickness_old = h_0
         self._timestep = dt

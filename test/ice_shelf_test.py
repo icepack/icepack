@@ -10,12 +10,10 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import pytest
 import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
 import icepack
-from icepack import norm
 from icepack.constants import (
     ice_density as ρ_I, water_density as ρ_W, gravity as g, glen_flow_law as n
 )
@@ -48,6 +46,10 @@ def perturb_u(x, y):
     return 60 * q * (px - 0.5)
 
 
+def norm(v):
+    return icepack.norm(v, norm_type='H1')
+
+
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined using an exact solution of the ice shelf model.
 def test_diagnostic_solver_convergence():
@@ -77,8 +79,10 @@ def test_diagnostic_solver_convergence():
                 thickness=h,
                 fluidity=A
             )
-            error.append(norm(u_exact - u, 'H1') / norm(u_exact, 'H1'))
+            error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
+
+            print(delta_x[-1], error[-1])
 
         # Fit the error curve and check that the convergence rate is what we
         # expect
@@ -138,8 +142,10 @@ def test_diagnostic_solver_parameterization():
             thickness=h,
             rheology=B
         )
-        error.append(norm(u_exact - u, 'H1') / norm(u_exact, 'H1'))
+        error.append(norm(u_exact - u) / norm(u_exact))
         delta_x.append(Lx / N)
+
+        print(delta_x[-1], error[-1])
 
     log_delta_x = np.log2(np.array(delta_x))
     log_error = np.log2(np.array(error))
@@ -171,7 +177,7 @@ def test_diagnostic_solver_side_friction():
     # stress is 10 kPa.
     from icepack.constants import weertman_sliding_law as m
     τ = 0.01
-    u_max = norm(u_initial, 'Linfty')
+    u_max = icepack.norm(u_initial, norm_type='Linfty')
     Cs = firedrake.Constant(τ * u_max**(-1/m))
 
     solver = icepack.solvers.FlowSolver(model, **opts)
@@ -184,179 +190,3 @@ def test_diagnostic_solver_side_friction():
     u = solver.diagnostic_solve(**fields)
 
     assert icepack.norm(u) < icepack.norm(u_initial)
-
-
-# Try using different options for the diagnostic solve
-def test_diagnostic_solver_options():
-    model = icepack.models.IceShelf()
-    nx, ny = 32, 32
-    mesh = firedrake.RectangleMesh(nx, ny, Lx, Ly)
-
-    degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-    Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-
-    x, y = firedrake.SpatialCoordinate(mesh)
-    u_initial = interpolate(as_vector((exact_u(x), 0)), V)
-    h = interpolate(h0 - dh * x / Lx, Q)
-    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
-
-    from icepack.constants import weertman_sliding_law as m
-    τ = 0.01
-    u_max = norm(u_initial, 'Linfty')
-    Cs = firedrake.Constant(τ * u_max**(-1/m))
-
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
-
-    from icepack.utilities import default_solver_parameters
-    direct_solver = icepack.solvers.FlowSolver(
-        model, **opts, diagnostic_solver_parameters=default_solver_parameters
-    )
-
-    iterative_parameters = {'ksp_type': 'cg', 'pc_type': 'ilu'}
-    iterative_solver = icepack.solvers.FlowSolver(
-        model, **opts, diagnostic_solver_parameters=iterative_parameters
-    )
-
-    fields = {
-        'velocity': u_initial,
-        'thickness': h,
-        'fluidity': A,
-        'side_friction': Cs
-    }
-
-    u_direct = direct_solver.diagnostic_solve(**fields)
-    u_iterative = iterative_solver.diagnostic_solve(**fields)
-
-    tol = 1 / nx ** degree
-    assert norm(u_direct - u_iterative, 'H1') < tol * norm(u_direct, 'H1')
-
-
-# Test solving the mass transport equations with a constant velocity field
-# and check that the solutions converge to the exact solution obtained from
-# the method of characteristics.
-# Test solving the coupled diagnostic/prognostic equations for an ice shelf
-# with thickness and velocity fields that are exactly insteady state.
-@pytest.mark.parametrize(
-    'prognostic_solver_parameters', [
-        icepack.utilities.default_solver_parameters,
-        {'ksp_type': 'gmres', 'pc_type': 'ilu'}
-    ]
-)
-def test_mass_transport_solver_convergence(prognostic_solver_parameters):
-    Lx, Ly = 1.0, 1.0
-    u0 = 1.0
-    h_in, dh = 1.0, 0.2
-
-    delta_x, error = [], []
-    model = icepack.models.IceShelf()
-    for N in range(24, 97, 4):
-        delta_x.append(Lx / N)
-
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        x, y = firedrake.SpatialCoordinate(mesh)
-
-        degree = 1
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-        solver = icepack.solvers.FlowSolver(
-            model, prognostic_solver_parameters=prognostic_solver_parameters
-        )
-
-        h0 = interpolate(h_in - dh * x / Lx, Q)
-        a = firedrake.Function(Q)
-        u = interpolate(firedrake.as_vector((u0, 0)), V)
-        T = 0.5
-        δx = 1.0 / N
-        δt = δx / u0
-        num_timesteps = int(T / δt)
-
-        h = h0.copy(deepcopy=True)
-        for step in range(num_timesteps):
-            h = solver.prognostic_solve(
-                δt,
-                thickness=h,
-                velocity=u,
-                accumulation=a,
-                thickness_inflow=h0
-            )
-
-        z = x - u0 * num_timesteps * δt
-        h_exact = interpolate(h_in - dh/Lx * firedrake.max_value(0, z), Q)
-        error.append(norm(h - h_exact, 'L1') / norm(h_exact, 'L1'))
-
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
-
-    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
-    assert slope > degree - 0.1
-
-
-# Test solving the coupled diagnostic/prognostic equations for an ice shelf
-# with thickness and velocity fields that are exactly insteady state.
-def test_ice_shelf_prognostic_solver():
-    ρ = ρ_I * (1 - ρ_I / ρ_W)
-
-    Lx, Ly = 20.0e3, 20.0e3
-    h0 = 500.0
-    u0 = 100.0
-    T = 254.15
-
-    model = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
-
-    delta_x, error = [], []
-    for N in range(16, 65, 4):
-        delta_x.append(Lx / N)
-
-        mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
-        x, y = firedrake.SpatialCoordinate(mesh)
-
-        degree = 2
-        V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
-        Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-
-        q = (n + 1) * (ρ * g * h0 * u0 / 4)**n * icepack.rate_factor(T)
-        ux = (u0**(n + 1) + q * x)**(1/(n + 1))
-
-        h = interpolate(h0 * u0 / ux, Q)
-        h_initial = h.copy(deepcopy=True)
-
-        A = firedrake.Constant(icepack.rate_factor(T))
-        a = firedrake.Constant(0)
-
-        solver = icepack.solvers.FlowSolver(model, **opts)
-        u_guess = interpolate(firedrake.as_vector((ux, 0)), V)
-        u = solver.diagnostic_solve(
-            velocity=u_guess, thickness=h, fluidity=A
-        )
-
-        final_time = 1.0
-        timestep = 2 / N
-        num_timesteps = int(final_time / timestep)
-        dt = final_time / num_timesteps
-
-        for step in range(num_timesteps):
-            h = solver.prognostic_solve(
-                dt,
-                thickness=h,
-                velocity=u,
-                accumulation=a,
-                thickness_inflow=h_initial
-            )
-
-            u = solver.diagnostic_solve(
-                velocity=u,
-                thickness=h,
-                fluidity=A
-            )
-
-        error.append(norm(h - h_initial, 'L1') / norm(h_initial, 'L1'))
-
-    log_delta_x = np.log2(np.array(delta_x))
-    log_error = np.log2(np.array(error))
-    slope, intercept = np.polyfit(log_delta_x, log_error, 1)
-
-    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
-    assert slope > degree - 0.05

@@ -13,13 +13,8 @@
 import numpy as np
 import firedrake
 import icepack
-from icepack.constants import (
-    ice_density as ρ_I,
-    water_density as ρ_W,
-    gravity as g,
-    glen_flow_law as n,
-    weertman_sliding_law as m
-)
+from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
+                               gravity as g, glen_flow_law as n)
 
 Lx, Ly = 20e3, 20e3
 h0, dh = 500.0, 100.0
@@ -34,7 +29,6 @@ d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
 α = β * ρ / ρ_I * dh / Lx
 ds = (1 + β) * ρ / ρ_I * dh
 
-
 def exact_u(x):
     Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
     q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
@@ -42,8 +36,6 @@ def exact_u(x):
     return u_inflow + du
 
 
-# Check that using degree-0 elements in the vertical gives the same answer as
-# the ice stream model
 def test_order_0():
     def h_expr(x):
         return h0 - dh * x / Lx
@@ -100,8 +92,6 @@ def test_order_0():
     assert np.linalg.norm(U3D - U2D) / np.linalg.norm(U2D) < 1e-2
 
 
-# Check that the hybrid model has non-trivial vertical shear and that the depth
-# averages roughly agree for different vertical degrees
 def test_diagnostic_solver():
     Nx, Ny = 32, 32
     mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
@@ -153,83 +143,3 @@ def test_diagnostic_solver():
         error = np.linalg.norm(us[vdegree, :] - us[max_degree, :]) / norm
         print(error, flush=True)
         assert error < 1e-2
-
-
-# Test solving the coupled diagnostic/prognostic equations for the hybrid flow
-# model and check that it doesn't explode.
-def test_hybrid_prognostic_solve():
-    Lx, Ly = 20e3, 20e3
-    h0, dh = 500.0, 100.0
-    T = 254.15
-    u_in = 100.0
-
-    model = icepack.models.HybridModel()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-12}
-
-    Nx, Ny = 32, 32
-    mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
-    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
-
-    V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
-                                      vfamily='GL', vdegree=1)
-    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2,
-                                vfamily='DG', vdegree=0)
-
-    x, y, ζ = firedrake.SpatialCoordinate(mesh)
-    height_above_flotation = 10.0
-    d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-    ρ = ρ_I - ρ_W * d**2 / (h0 - dh)**2
-
-    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
-    q = 1 - (1 - (dh/h0) * (x/Lx))**(n + 1)
-    ux = u_in + Z * q * Lx * (h0/dh) / (n + 1)
-    u0 = firedrake.interpolate(firedrake.as_vector((ux, 0)), V)
-
-    thickness = h0 - dh * x / Lx
-    β = 1/2
-    α = β * ρ / ρ_I * dh / Lx
-    h = firedrake.interpolate(h0 - dh * x / Lx, Q)
-    h_inflow = h.copy(deepcopy=True)
-    ds = (1 + β) * ρ / ρ_I * dh
-    s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-    b = firedrake.interpolate(s - h, Q)
-
-    C = firedrake.interpolate(α * (ρ_I * g * thickness) * ux**(-1 / m), Q)
-    A = firedrake.Constant(icepack.rate_factor(T))
-
-    final_time = 1.0
-    timestep = 2.0 / Nx
-    num_timesteps = int(final_time / timestep)
-    dt = final_time / num_timesteps
-
-    solver = icepack.solvers.FlowSolver(model, **opts)
-    u = solver.diagnostic_solve(
-        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
-    )
-
-    # Make the accumulation so that the system is exactly in steady state
-    a = firedrake.Function(Q)
-    h_n = solver.prognostic_solve(
-        dt, thickness=h, velocity=u, accumulation=a, thickness_inflow=h_inflow
-    )
-    a.interpolate((h_n - h) / dt)
-
-    for k in range(num_timesteps):
-        h = solver.prognostic_solve(
-            dt,
-            thickness=h,
-            velocity=u,
-            accumulation=a,
-            thickness_inflow=h_inflow
-        )
-        s = icepack.compute_surface(thickness=h, bed=b)
-
-        u = solver.diagnostic_solve(
-            velocity=u,
-            thickness=h,
-            surface=s,
-            fluidity=A,
-            friction=C
-        )
-
-    assert icepack.norm(h, norm_type='Linfty') < np.inf
