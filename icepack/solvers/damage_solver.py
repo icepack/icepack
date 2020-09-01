@@ -24,7 +24,7 @@ from firedrake import (
 from . import utilities
 
 
-class DamageSolver(object):
+class DamageSolver:
     def __init__(self, model):
         self._model = model
         self._fields = {}

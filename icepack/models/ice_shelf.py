@@ -66,7 +66,7 @@ def terminus(**kwargs):
     return 0.5 * ρ * g * h**2 * inner(u, ν)
 
 
-class IceShelf(object):
+class IceShelf:
     r"""Class for modelling the flow of floating ice shelves
 
     This class provides functions that solve for the velocity and

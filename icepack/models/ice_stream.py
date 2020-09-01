@@ -79,7 +79,7 @@ def terminus(**kwargs):
     return (τ_I - τ_W) * inner(u, ν)
 
 
-class IceStream(object):
+class IceStream:
     r"""Class for modelling the flow of grounded ice streams
 
     This class provides functions that solve for the velocity, thickness,
@@ -122,8 +122,9 @@ class IceStream(object):
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
         terminus = self.terminus(**kwargs) * ds_t
 
-        return (viscosity + friction + side_friction
-                - gravity - terminus + penalty)
+        return (
+            viscosity + friction + side_friction - gravity - terminus + penalty
+        )
 
     def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional

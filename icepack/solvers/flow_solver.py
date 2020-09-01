@@ -21,7 +21,8 @@ from ..utilities import default_solver_parameters
 # TODO: Remove all dictionary access of 'u' and 'h' once these names are
 # fully deprecated from the library
 
-class FlowSolver(object):
+
+class FlowSolver:
     r"""Solves the diagnostic and prognostic models of ice physics
 
     The actual solver data is initialized lazily on the first call

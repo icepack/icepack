@@ -14,18 +14,28 @@ import warnings
 import functools
 import sympy
 import firedrake
-from firedrake import (inner, outer, sym, Identity, tr as trace, sqrt,
-                       grad, dx, ds, ds_b, ds_v)
-from icepack.models.friction import (bed_friction, side_friction,
-                                     normal_flow_penalty)
+from firedrake import (
+    inner, outer, sym, Identity, tr as trace, sqrt, dx, ds_b, ds_v
+)
+from icepack.models.friction import (
+    bed_friction, side_friction, normal_flow_penalty
+)
 from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               glen_flow_law as n, weertman_sliding_law as m,
-                               gravity as g)
-from icepack.utilities import (facet_normal_2, grad_2, diameter,
-                               add_kwarg_wrapper, get_kwargs_alt,
-                               compute_surface as _compute_surface)
+from icepack.constants import (
+    ice_density as ρ_I,
+    water_density as ρ_W,
+    glen_flow_law as n,
+    gravity as g
+)
+from icepack.utilities import (
+    facet_normal_2,
+    grad_2,
+    add_kwarg_wrapper,
+    get_kwargs_alt,
+    compute_surface as _compute_surface
+)
+
 
 def gravity(**kwargs):
     r"""Return the gravitational part of the ice stream action functional
@@ -51,20 +61,20 @@ def gravity(**kwargs):
     return -ρ_I * g * inner(grad_2(s), u) * h
 
 
-def _legendre(n, ζ):
-    return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
+def _legendre(k, ζ):
+    return sympy.functions.special.polynomials.legendre(k, 2 * ζ - 1)
 
 
 @functools.lru_cache(maxsize=None)
 def _pressure_approx(N):
     ζ, ζ_sl = sympy.symbols('ζ ζ_sl', real=True, positive=True)
 
-    def coefficient(n):
-        Sn = _legendre(n, ζ)
-        norm_square = sympy.integrate(Sn**2, (ζ, 0, 1))
-        return sympy.integrate((ζ_sl - ζ) * Sn, (ζ, 0, ζ_sl)) / norm_square
+    def coefficient(k):
+        Sk = _legendre(k, ζ)
+        norm_square = sympy.integrate(Sk**2, (ζ, 0, 1))
+        return sympy.integrate((ζ_sl - ζ) * Sk, (ζ, 0, ζ_sl)) / norm_square
 
-    polynomial = sum([coefficient(n) * _legendre(n, ζ) for n in range(N)])
+    polynomial = sum([coefficient(k) * _legendre(k, ζ) for k in range(N)])
     return sympy.lambdify((ζ, ζ_sl), sympy.simplify(polynomial))
 
 
@@ -99,7 +109,7 @@ def terminus(**kwargs):
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
 
-    x, y, ζ = firedrake.SpatialCoordinate(mesh)
+    ζ = firedrake.SpatialCoordinate(mesh)[2]
     b = s - h
     ζ_sl = firedrake.max_value(-b, 0) / h
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
@@ -115,14 +125,14 @@ def stresses(ε_x, ε_z, A):
     I = Identity(2)
     tr = trace(ε_x)
     ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
-    μ = 0.5 * A**(-1/n) * ε_e**(1/n - 1)
+    μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
     return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
 
 
 def horizontal_strain(u, s, h):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
-    x, y, ζ = firedrake.SpatialCoordinate(u.ufl_domain())
+    ζ = firedrake.SpatialCoordinate(u.ufl_domain())[2]
     b = s - h
     v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
     du_dζ = u.dx(2)
@@ -175,7 +185,7 @@ def viscosity(**kwargs):
     return n / (n + 1) * (inner(M, ε_x) + inner(τ_z, ε_z)) * h
 
 
-class HybridModel(object):
+class HybridModel:
     r"""Class for modeling 3D glacier flow velocity
 
     This class provides functions that solve for the thickness, surface
@@ -224,8 +234,9 @@ class HybridModel(object):
         ds_t = ds_v(domain=mesh, subdomain_id=ice_front_ids, metadata=metadata)
         terminus = self.terminus(**kwargs) * ds_t
 
-        return (viscosity + friction + side_friction
-                - gravity - terminus + penalty)
+        return (
+            viscosity + friction + side_friction - gravity - terminus + penalty
+        )
 
     def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional
@@ -233,7 +244,7 @@ class HybridModel(object):
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return (self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b)
+        return self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b
 
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action

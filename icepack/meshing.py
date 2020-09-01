@@ -13,12 +13,12 @@
 r"""Utilities for turning glacier outlines into unstructured meshes"""
 
 import copy
-import glob
 import itertools
 import numpy as np
 import shapely.geometry
 import geojson
 import pygmsh
+
 
 def _flatten(features):
     r"""Expand all MultiLineString features in the input list to individual
@@ -245,7 +245,6 @@ def collection_to_geo(collection, lcar=10e3):
 
     collection = normalize(collection)
     features = collection['features']
-    num_features = len(features)
 
     points = [[[geometry.add_point((point[0], point[1], 0.), lcar=lcar)
                 for point in line_string[:-1]]
@@ -255,6 +254,6 @@ def collection_to_geo(collection, lcar=10e3):
     line_loops = [_add_loop_to_geometry(geometry, multi_line_string)
                   for multi_line_string in points]
     plane_surface = geometry.add_plane_surface(line_loops[0], line_loops[1:])
-    physical_surface = geometry.add_physical(plane_surface)
+    geometry.add_physical(plane_surface)
 
     return geometry

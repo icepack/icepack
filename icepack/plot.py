@@ -24,15 +24,14 @@ class `ScalarMappable` so that you can make a colorbar out of it.
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.cm
 import matplotlib.colors
-import matplotlib.streamplot
+from matplotlib import cm as mpl_cmaps
+from matplotlib import streamplot as mpl_streamplot
 from matplotlib.ticker import ScalarFormatter
 from matplotlib.collections import LineCollection
 import numpy as np
 import scipy.spatial
 import firedrake
-from firedrake import inner, sqrt
 import icepack
 
 
@@ -182,11 +181,10 @@ def _mesh_hmin(coordinates):
     return np.sqrt(hmin)
 
 
-class StreamplotSet(matplotlib.streamplot.StreamplotSet,
-                    matplotlib.cm.ScalarMappable):
+class StreamplotSet(mpl_streamplot.StreamplotSet, mpl_cmaps.ScalarMappable):
     def __init__(self, lines=None, arrows=None, norm=None, cmap=None):
-        matplotlib.streamplot.StreamplotSet.__init__(self, lines, arrows)
-        matplotlib.cm.ScalarMappable.__init__(self, norm=norm, cmap=cmap)
+        mpl_streamplot.StreamplotSet.__init__(self, lines, arrows)
+        mpl_cmaps.ScalarMappable.__init__(self, norm=norm, cmap=cmap)
         self.set_array([])
 
 
@@ -197,12 +195,12 @@ def streamplot(u, **kwargs):
 
     u = _project_to_2d(u)
     axes = kwargs.pop('axes', plt.gca())
-    cmap = kwargs.pop('cmap', matplotlib.cm.viridis)
+    cmap = kwargs.pop('cmap', mpl_cmaps.viridis)
 
     mesh = u.ufl_domain()
     coordinates = _get_coordinates(mesh)
     precision = kwargs.pop('precision', _mesh_hmin(coordinates))
-    density = kwargs.pop('density', 2*_mesh_hmin(coordinates))
+    density = kwargs.pop('density', 2 * _mesh_hmin(coordinates))
     max_num_points = kwargs.pop('max_num_points', np.inf)
     coords = coordinates.dat.data_ro
     max_speed = icepack.norm(u, norm_type='Linfty')

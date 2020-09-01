@@ -13,3 +13,5 @@
 from .flow_solver import FlowSolver
 from .heat_transport import HeatTransportSolver
 from .damage_solver import DamageSolver
+
+__all__ = ['FlowSolver', 'HeatTransportSolver', 'DamageSolver']

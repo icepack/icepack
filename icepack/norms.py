@@ -62,5 +62,4 @@ def norm(u, norm_type='L2'):
 
         return u.comm.allreduce(local_max, op=max)
 
-    return assemble(form)**(1/p)
-
+    return assemble(form)**(1 / p)

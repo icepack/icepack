@@ -12,13 +12,14 @@
 
 import warnings
 import firedrake
-from firedrake import inner, grad, div, dx, ds, ds_b, ds_t, ds_v
+from firedrake import inner, grad, dx, ds_b, ds_t, ds_v
 from icepack.constants import (ice_density as ρ_I, thermal_diffusivity as α,
                                heat_capacity as c, latent_heat as L,
                                melting_temperature as Tm)
-from icepack.utilities import facet_normal_2, grad_2, get_kwargs_alt
+from icepack.utilities import facet_normal_2, get_kwargs_alt
 
-class HeatTransport3D(object):
+
+class HeatTransport3D:
     r"""Class for modeling 3D heat transport
 
     This class solves the 3D advection-diffusion equation for the energy
@@ -108,14 +109,18 @@ class HeatTransport3D(object):
         outflow = firedrake.max_value(inner(u, ν), 0)
         inflow = firedrake.min_value(inner(u, ν), 0)
 
-        flux_outflow = φ * ψ * outflow * h * ds_v + \
-                       φ * ψ * firedrake.max_value(-w, 0) * h * ds_b + \
-                       φ * ψ * firedrake.max_value(+w, 0) * h * ds_t
+        flux_outflow = (
+            φ * ψ * outflow * h * ds_v +
+            φ * ψ * firedrake.max_value(-w, 0) * h * ds_b +
+            φ * ψ * firedrake.max_value(+w, 0) * h * ds_t
+        )
         F = φ * ψ * h * dx + dt * (flux_cells + flux_outflow)
 
-        flux_inflow = -E_inflow * ψ * inflow * h * ds_v \
-                      -E_surface * ψ * firedrake.min_value(-w, 0) * h * ds_b \
-                      -E_surface * ψ * firedrake.min_value(+w, 0) * h * ds_t
+        flux_inflow = -(
+            E_inflow * ψ * inflow * h * ds_v +
+            E_surface * ψ * firedrake.min_value(-w, 0) * h * ds_b +
+            E_surface * ψ * firedrake.min_value(+w, 0) * h * ds_t
+        )
         A = E * ψ * h * dx + dt * flux_inflow
 
         solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}

@@ -18,7 +18,6 @@ describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
 import warnings
-import numpy as np
 import firedrake
 from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym,
                        det, min_value, max_value, conditional)
@@ -27,7 +26,7 @@ from icepack.constants import year
 from icepack.utilities import eigenvalues, get_kwargs_alt
 
 
-class DamageTransport(object):
+class DamageTransport:
     def __init__(self, damage_stress=.07, damage_rate=.3,
                  healing_strain_rate=2e-10 * year, healing_rate=.1):
         self.damage_stress = damage_stress
@@ -123,20 +122,24 @@ class DamageTransport(object):
 
         # Three-stage strong structure-preserving Runge Kutta (SSPRK3) method
         params = {
-            'ksp_type': 'preonly', 'pc_type': 'bjacobi', 'sub_pc_type': 'ilu'
+            'solver_parameters': {
+                'ksp_type': 'preonly',
+                'pc_type': 'bjacobi',
+                'sub_pc_type': 'ilu'
+            }
         }
-        prob1 = firedrake.LinearVariationalProblem(d, L1, dq)
-        solv1 = firedrake.LinearVariationalSolver(prob1, solver_parameters=params)
-        prob2 = firedrake.LinearVariationalProblem(d, L2, dq)
-        solv2 = firedrake.LinearVariationalSolver(prob2, solver_parameters=params)
-        prob3 = firedrake.LinearVariationalProblem(d, L3, dq)
-        solv3 = firedrake.LinearVariationalSolver(prob3, solver_parameters=params)
+        problem1 = firedrake.LinearVariationalProblem(d, L1, dq)
+        solver1 = firedrake.LinearVariationalSolver(problem1, **params)
+        problem2 = firedrake.LinearVariationalProblem(d, L2, dq)
+        solver2 = firedrake.LinearVariationalSolver(problem2, **params)
+        problem3 = firedrake.LinearVariationalProblem(d, L3, dq)
+        solver3 = firedrake.LinearVariationalSolver(problem3, **params)
 
-        solv1.solve()
+        solver1.solve()
         D1.assign(D + dq)
-        solv2.solve()
+        solver2.solve()
         D2.assign(0.75 * D + 0.25 * (D1 + dq))
-        solv3.solve()
+        solver3.solve()
         D.assign((1.0 / 3.0) * D + (2.0 / 3.0) * (D2 + dq))
 
         # Add sources and clamp damage field to [0, 1]

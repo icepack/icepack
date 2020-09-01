@@ -13,8 +13,9 @@
 import warnings
 import firedrake
 from firedrake import inner, grad, dx
-from icepack.constants import (ice_density as ρ_I, gravity as g,
-                               glen_flow_law as n)
+from icepack.constants import (
+    ice_density as ρ_I, gravity as g, glen_flow_law as n
+)
 from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
 
@@ -87,7 +88,7 @@ def penalty(**kwargs):
     return .5 * l**2 * inner(grad(u), grad(u))
 
 
-class ShallowIce(object):
+class ShallowIce:
     r"""Class for modelling the flow of grounded ice
     This class provides functions that solve for the velocity, thickness,
     and surface elevation of a grounded area of slow flowing ice.
@@ -184,7 +185,7 @@ class ShallowIce(object):
         u = u0.copy(deepcopy=True)
         action = self.action(u=u, h=h, s=s, A=A, **kwargs)
 
-        F = firedrake.derivative(action,u)
+        F = firedrake.derivative(action, u)
         firedrake.solve(F == 0, u, form_compiler_parameters={'quadrature_degree': 4})
 
         return u

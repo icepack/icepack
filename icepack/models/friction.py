@@ -19,7 +19,7 @@ from icepack.utilities import facet_normal_2, diameter, get_kwargs_alt
 
 def friction_stress(u, C):
     r"""Compute the shear stress for a given sliding velocity"""
-    return -C * sqrt(inner(u, u))**(1/m - 1) * u
+    return -C * sqrt(inner(u, u))**(1 / m - 1) * u
 
 
 def bed_friction(u=None, C=None, **kwargs):
@@ -48,7 +48,7 @@ def bed_friction(u=None, C=None, **kwargs):
         C = kwargs['friction']
 
     τ = friction_stress(u, C)
-    return -m/(m + 1) * inner(τ, u)
+    return -m / (m + 1) * inner(τ, u)
 
 
 def side_friction(**kwargs):
@@ -76,7 +76,7 @@ def side_friction(**kwargs):
 
     u_t = u - inner(u, ν) * ν
     τ = friction_stress(u_t, Cs)
-    return -m/(m + 1) * h * inner(τ, u_t)
+    return -m / (m + 1) * h * inner(τ, u_t)
 
 
 def normal_flow_penalty(**kwargs):

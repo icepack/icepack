@@ -13,8 +13,9 @@
 import firedrake
 from .utilities import default_solver_parameters
 
-class MinimizationProblem(object):
-    def __init__(self, E, S, u, bcs, form_compiler_parameters, **kwargs):
+
+class MinimizationProblem:
+    def __init__(self, E, S, u, bcs, form_compiler_parameters):
         r"""Nonlinear optimization problem argmin E(u).
 
         Parameters
@@ -39,7 +40,7 @@ class MinimizationProblem(object):
         return firedrake.assemble(*args, **kwargs)
 
 
-class NewtonSolver(object):
+class NewtonSolver:
     def __init__(self, problem, tolerance, solver_parameters=None, **kwargs):
         r"""Solve a MinimizationProblem using Newton's method with backtracking
         line search

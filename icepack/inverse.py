@@ -26,6 +26,7 @@ from firedrake import action, adjoint, derivative, replace, dx, Constant
 from .solvers import FlowSolver
 from .utilities import default_solver_parameters
 
+
 def _bracket(f, max_iterations):
     r"""Given a decreasing real function of a single variable, return a value
     `t` such that `f(t) < f(0)`, which can then be used for a more thorough
@@ -45,7 +46,7 @@ def _bracket(f, max_iterations):
     return t
 
 
-class InverseProblem(object):
+class InverseProblem:
     r"""Specifies an inverse problem
 
     This object is used to specify an inverse problem, i.e. estimating a
@@ -119,7 +120,7 @@ class InverseProblem(object):
         self.regularization = regularization
 
 
-class InverseSolver(object):
+class InverseSolver:
     r"""Base class for approximating the solution of an inverse problem
 
     This object stores most of the data needed to iteratively optimize the
@@ -392,7 +393,7 @@ class GradientDescentSolver(InverseSolver):
         self._search_direction_solver.solve()
 
 
-class GaussNewtonCG(object):
+class GaussNewtonCG:
     def __init__(self, solver):
         r"""State machine for solving the Gauss-Newton subproblem via the
         preconditioned conjugate gradient method"""
@@ -614,6 +615,7 @@ class GaussNewtonCG(object):
             f"Gauss-Newton CG failed to converge after {max_iterations} steps!"
         )
 
+
 class GaussNewtonSolver(InverseSolver):
     r"""Implementation of `InverseSolver` using an approximation to the Hessian
     of the objective functional to approach Newton-like efficiency
@@ -717,7 +719,7 @@ class BFGSSolver(InverseSolver):
         low-rank approximation of the Hessian inverse to the derivative of the
         objective functional. See Nocedal and Wright, Numerical Optimization,
         2nd ed., algorithm 7.4."""
-        p, q, dJ = self.parameter, self.search_direction, self.gradient
+        p, q = self.parameter, self.search_direction
         self._search_direction_solver.solve()
         f = self._f
 

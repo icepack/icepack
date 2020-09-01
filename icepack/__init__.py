@@ -19,3 +19,8 @@ import icepack.datasets
 import icepack.models
 import icepack.solvers
 import icepack.inverse
+
+__all__ = [
+    'norm', 'interpolate', 'depth_average', 'lift3d', 'compute_surface',
+    'rate_factor', 'meshing', 'datasets', 'models', 'solvers', 'inverse'
+]

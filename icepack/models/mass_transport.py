@@ -25,7 +25,7 @@ from firedrake import dx, inner
 from icepack import utilities
 
 
-class Continuity(object):
+class Continuity:
     r"""Describes the form of the mass continuity equation"""
     def __init__(self, dimension):
         if dimension == 2:
@@ -58,7 +58,7 @@ class Continuity(object):
         return accumulation - (flux_in + flux_out + flux_cells)
 
 
-class MassTransport(object):
+class MassTransport:
     def __init__(self, dimension):
         if dimension == 2:
             self.facet_normal = firedrake.FacetNormal

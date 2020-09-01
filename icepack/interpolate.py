@@ -21,7 +21,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 
 def _sample(dataset, X, method):
-    xres, yres = dataset.res
+    xres = dataset.res[0]
     bounds = dataset.bounds
     xmin = max(X[:, 0].min() - 2 * xres, bounds.left)
     xmax = min(X[:, 0].max() + 2 * xres, bounds.right)

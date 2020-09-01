@@ -18,7 +18,8 @@ from ..utilities import default_solver_parameters
 # TODO: Remove fetching 'E' from fields dictionary once this naming scheme is
 # fully deprecated
 
-class HeatTransportSolver(object):
+
+class HeatTransportSolver:
     def __init__(self, model):
         self._model = model
         self._fields = {}
