@@ -72,12 +72,14 @@ nsidc_data.load_registry(registry_file)
 
 
 def fetch_measures_antarctica():
+    r"""Fetch the MEaSUREs Antarctic velocity map"""
     return nsidc_data.fetch(
         'antarctic_ice_vel_phase_map_v01.nc', downloader=_earthdata_downloader
     )
 
 
 def fetch_measures_greenland():
+    r"""Fetch the MEaSUREs Greenland velocity map"""
     return [
         nsidc_data.fetch(
             'greenland_vel_mosaic200_2015_2016_{}_v02.1.tif'.format(field_name),
@@ -88,6 +90,8 @@ def fetch_measures_greenland():
 
 
 def fetch_bedmachine_antarctica():
+    r"""Fetch the BedMachine map of Antarctic ice thickness, surface elevation,
+    and bed elevation"""
     return nsidc_data.fetch(
         'BedMachineAntarctica_2019-11-05_v01.nc',
         downloader=_earthdata_downloader
@@ -107,11 +111,13 @@ larsen_outline = pooch.create(
 
 
 def fetch_larsen_outline():
+    r"""Fetch an outline of the Larsen C Ice Shelf"""
     downloader = pooch.HTTPDownloader(progressbar=True)
     return larsen_outline.fetch('larsen.geojson', downloader=downloader)
 
 
 def fetch_mosaic_of_antarctica():
+    r"""Fetch the MODIS optical image mosaic of Antarctica"""
     return nsidc_data.fetch(
         'moa750_2009_hp1_v01.1.tif.gz',
         downloader=_earthdata_downloader,
