@@ -13,31 +13,52 @@
 r"""Routines for fetching the glaciological data sets used in the demos"""
 
 import os
-import pkg_resources
 from getpass import getpass
+import pkg_resources
 import requests
 import pooch
 
+
 pooch.get_logger().setLevel('WARNING')
 
-def _earthdata_downloader(url, output_file, dataset):
-    username = os.environ.get('EARTHDATA_USERNAME')
-    if username is None:
-        username = input('EarthData username: ')
 
-    password = os.environ.get('EARTHDATA_PASSWORD')
-    if password is None:
-        password = getpass('EarthData password: ')
-    auth = (username, password)
+class EarthDataDownloader:
+    def __init__(self):
+        self._username = None
+        self._password = None
 
-    login = requests.get(url)
-    downloader = pooch.HTTPDownloader(auth=auth, progressbar=True)
-    try:
-        downloader(login.url, output_file, dataset)
-    except requests.exceptions.HTTPError as error:
-        if 'Unauthorized' in str(error):
-            pooch.get_logger().error('Wrong username/password!')
-        raise error
+    def _get_credentials(self):
+        if self._username is None:
+            username_env = os.environ.get('EARTHDATA_USERNAME')
+            if username_env is None:
+                self._username = input('EarthData username: ')
+            else:
+                self._username = username_env
+
+        if self._password is None:
+            password_env = os.environ.get('EARTHDATA_PASSWORD')
+            if password_env is None:
+                self._password = getpass('EarthData password: ')
+            else:
+                self._password = password_env
+
+        return self._username, self._password
+
+    def __call__(self, url, output_file, dataset):
+        auth = self._get_credentials()
+        downloader = pooch.HTTPDownloader(auth=auth, progressbar=True)
+        try:
+            login = requests.get(url)
+            downloader(login.url, output_file, dataset)
+        except requests.exceptions.HTTPError as error:
+            if 'Unauthorized' in str(error):
+                pooch.get_logger().error('Wrong username/password!')
+                self._username = None
+                self._password = None
+            raise error
+
+
+_earthdata_downloader = EarthDataDownloader()
 
 
 nsidc_data = pooch.create(
