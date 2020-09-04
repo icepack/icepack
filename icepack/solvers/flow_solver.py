@@ -35,6 +35,13 @@ class FlowSolver:
         self.side_wall_ids = kwargs.pop('side_wall_ids', [])
         self.tolerance = kwargs.pop('tolerance', 1e-12)
 
+        prognostic_parameters = kwargs.get(
+            'prognostic_solver_parameters', default_solver_parameters
+        )
+        self._prognostic_solver = ImplicitEuler(
+            self.model.continuity, self._fields, prognostic_parameters
+        )
+
     @property
     def model(self):
         r"""The physics model that this object solves"""
@@ -95,42 +102,52 @@ class FlowSolver:
         u = self.fields.get('velocity', self.fields.get('u'))
         return u.copy(deepcopy=True)
 
-    def _prognostic_setup(self, **kwargs):
-        for name, field in kwargs.items():
-            if name in self.fields.keys():
-                self.fields[name].assign(field)
-            else:
-                self.fields[name] = utilities.copy(field)
+    def prognostic_solve(self, dt, **kwargs):
+        r"""Solve the prognostic model physics for the new value of the ice
+        thickness"""
+        return self._prognostic_solver.solve(dt, **kwargs)
 
-        # Create the residual equation represending the PDE
-        dt = Constant(1.)
-        dh_dt = self.model.continuity(dt, **self.fields)
-        h = self.fields.get('thickness', self.fields.get('h'))
+
+class ImplicitEuler:
+    def __init__(self, continuity, fields, solver_parameters):
+        self._continuity = continuity
+        self._fields = fields
+        self._solver_parameters = solver_parameters
+
+    def setup(self, **kwargs):
+        for name, field in kwargs.items():
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
+            else:
+                self._fields[name] = utilities.copy(field)
+
+        dt = firedrake.Constant(1.)
+        dh_dt = self._continuity(dt, **self._fields)
+        h = self._fields.get('thickness', self._fields.get('h'))
         h_0 = h.copy(deepcopy=True)
         q = firedrake.TestFunction(h.function_space())
         F = (h - h_0) * q * dx - dt * dh_dt
 
-        # Create problem and solver objects for this equation
-        # TODO: make form compiler and solver parameters customizable
         problem = firedrake.NonlinearVariationalProblem(F, h)
-        self._prognostic_solver = firedrake.NonlinearVariationalSolver(
-            problem, solver_parameters=default_solver_parameters
+        self._solver = firedrake.NonlinearVariationalSolver(
+            problem, solver_parameters=self._solver_parameters
         )
+
         self._thickness_old = h_0
         self._timestep = dt
 
-    def prognostic_solve(self, dt, **kwargs):
-        r"""Solve the prognostic model physics for the new value of the ice
-        thickness"""
-        if not hasattr(self, '_prognostic_solver'):
-            self._prognostic_setup(**kwargs)
+    def solve(self, dt, **kwargs):
+        if not hasattr(self, '_solver'):
+            self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
                 if isinstance(field, firedrake.Function):
-                    self.fields[name].assign(field)
+                    self._fields[name].assign(field)
 
-        h = self.fields.get('thickness', self.fields.get('h'))
+        h = self._fields.get('thickness', self._fields.get('h'))
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
-        self._prognostic_solver.solve()
+        self._solver.solve()
         return h.copy(deepcopy=True)
+
+
