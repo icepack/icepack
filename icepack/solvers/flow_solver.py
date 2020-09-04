@@ -13,7 +13,7 @@
 r"""Solvers for ice physics models"""
 
 import firedrake
-from firedrake import dx, Constant
+from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from . import utilities
 from ..utilities import default_solver_parameters
@@ -38,7 +38,19 @@ class FlowSolver:
         prognostic_parameters = kwargs.get(
             'prognostic_solver_parameters', default_solver_parameters
         )
-        self._prognostic_solver = ImplicitEuler(
+
+        if 'prognostic_solver_type' in kwargs.keys():
+            solver_type = kwargs['prognostic_solver_type']
+            if isinstance(solver_type, str):
+                solvers_dict = {
+                    'implicit-euler': ImplicitEuler,
+                    'lax-wendroff': LaxWendroff
+                }
+                solver_type = solvers_dict[solver_type]
+        else:
+            solver_type = LaxWendroff
+
+        self._prognostic_solver = solver_type(
             self.model.continuity, self._fields, prognostic_parameters
         )
 
@@ -151,3 +163,58 @@ class ImplicitEuler:
         return h.copy(deepcopy=True)
 
 
+class LaxWendroff:
+    def __init__(self, continuity, fields, solver_parameters):
+        self._continuity = continuity
+        self._fields = fields
+        self._solver_parameters = solver_parameters
+
+    def setup(self, **kwargs):
+        for name, field in kwargs.items():
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
+            else:
+                self._fields[name] = utilities.copy(field)
+
+        dt = firedrake.Constant(1.)
+        h = self._fields.get('thickness', self._fields.get('h'))
+        u = self._fields.get('velocity', self._fields.get('u'))
+        h_0 = h.copy(deepcopy=True)
+
+        Q = h.function_space()
+        model = self._continuity
+        n = model.facet_normal(Q.mesh())
+        outflow = firedrake.max_value(0, inner(u, n))
+        inflow = firedrake.min_value(0, inner(u, n))
+
+        q = firedrake.TestFunction(Q)
+        div, grad, ds = model.div, model.grad, model.ds
+        flux_cells = -div(h * u) * inner(u, grad(q)) * dx
+        flux_out = div(h * u) * q * outflow * ds
+        flux_in = div(h_0 * u) * q * inflow * ds
+        d2h_dt2 = flux_cells + flux_out + flux_in
+
+        dh_dt = model(dt, **self._fields)
+        F = (h - h_0) * q * dx - dt * (dh_dt + 0.5 * dt * d2h_dt2)
+
+        problem = firedrake.NonlinearVariationalProblem(F, h)
+        self._solver = firedrake.NonlinearVariationalSolver(
+            problem, solver_parameters=self._solver_parameters
+        )
+
+        self._thickness_old = h_0
+        self._timestep = dt
+
+    def solve(self, dt, **kwargs):
+        if not hasattr(self, '_solver'):
+            self.setup(**kwargs)
+        else:
+            for name, field in kwargs.items():
+                if isinstance(field, firedrake.Function):
+                    self._fields[name].assign(field)
+
+        h = self._fields.get('thickness', self._fields.get('h'))
+        self._thickness_old.assign(h)
+        self._timestep.assign(dt)
+        self._solver.solve()
+        return h.copy(deepcopy=True)

@@ -23,7 +23,8 @@ def norm(v):
 # Test solving the mass transport equations with a constant velocity field
 # and check that the solutions converge to the exact solution obtained from
 # the method of characteristics.
-def test_mass_transport_solver_convergence():
+@pytest.mark.parametrize('solver_type', ['implicit-euler', 'lax-wendroff'])
+def test_mass_transport_solver_convergence(solver_type):
     Lx, Ly = 1.0, 1.0
     u0 = 1.0
     h_in, dh = 1.0, 0.2
@@ -39,7 +40,9 @@ def test_mass_transport_solver_convergence():
         degree = 1
         V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=degree)
         Q = firedrake.FunctionSpace(mesh, family='CG', degree=degree)
-        solver = icepack.solvers.FlowSolver(model)
+        solver = icepack.solvers.FlowSolver(
+            model, prognostic_solver_type=solver_type
+        )
 
         h0 = interpolate(h_in - dh * x / Lx, Q)
         a = firedrake.Function(Q)
@@ -83,7 +86,8 @@ from icepack.constants import (
 
 # Test solving the coupled diagnostic/prognostic equations for an ice shelf
 # with thickness and velocity fields that are exactly insteady state.
-def test_ice_shelf_prognostic_solver():
+@pytest.mark.parametrize('solver_type', ['implicit-euler', 'lax-wendroff'])
+def test_ice_shelf_prognostic_solver(solver_type):
     ρ = ρ_I * (1 - ρ_I / ρ_W)
 
     Lx, Ly = 20.0e3, 20.0e3
@@ -92,7 +96,11 @@ def test_ice_shelf_prognostic_solver():
     T = 254.15
 
     model = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
+    opts = {
+        'dirichlet_ids': [1],
+        'side_wall_ids': [3, 4],
+        'prognostic_solver_type': solver_type
+    }
 
     delta_x, error = [], []
     for N in range(16, 65, 4):
@@ -225,23 +233,28 @@ def test_ice_stream_prognostic_solve():
 
 # Test solving the coupled diagnostic/prognostic equations for the hybrid flow
 # model and check that it doesn't explode.
-def test_hybrid_prognostic_solve():
+@pytest.mark.parametrize('solver_type', ['implicit-euler', 'lax-wendroff'])
+def test_hybrid_prognostic_solve(solver_type):
     Lx, Ly = 20e3, 20e3
     h0, dh = 500.0, 100.0
     T = 254.15
     u_in = 100.0
 
     model = icepack.models.HybridModel()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-12}
+    opts = {
+        'dirichlet_ids': [1],
+        'side_wall_ids': [3, 4],
+        'prognostic_solver_type': solver_type
+    }
 
     Nx, Ny = 32, 32
     mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
-    V = firedrake.VectorFunctionSpace(mesh, dim=2, family='CG', degree=2,
-                                      vfamily='GL', vdegree=1)
-    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2,
-                                vfamily='DG', vdegree=0)
+    V = firedrake.VectorFunctionSpace(
+        mesh, 'CG', 2, vfamily='GL', vdegree=1, dim=2
+    )
+    Q = firedrake.FunctionSpace(mesh, 'CG', 2, vfamily='DG', vdegree=0)
 
     x, y, ζ = firedrake.SpatialCoordinate(mesh)
     height_above_flotation = 10.0
