@@ -122,11 +122,19 @@ class FlowSolver:
 
 class ImplicitEuler:
     def __init__(self, continuity, fields, solver_parameters):
+        r"""Prognostic solver implementation using the 1st-order, backward
+        Euler timestepping scheme
+
+        This solver is included for backward compatibility only. We do not
+        recommend it and the Lax-Wendroff scheme is preferable by far.
+        """
         self._continuity = continuity
         self._fields = fields
         self._solver_parameters = solver_parameters
 
     def setup(self, **kwargs):
+        r"""Create the internal data structures that help reuse information
+        from past prognostic solves"""
         for name, field in kwargs.items():
             if name in self._fields.keys():
                 self._fields[name].assign(field)
@@ -149,6 +157,7 @@ class ImplicitEuler:
         self._timestep = dt
 
     def solve(self, dt, **kwargs):
+        r"""Compute the thickness evolution after time `dt`"""
         if not hasattr(self, '_solver'):
             self.setup(**kwargs)
         else:
@@ -165,11 +174,20 @@ class ImplicitEuler:
 
 class LaxWendroff:
     def __init__(self, continuity, fields, solver_parameters):
+        r"""Prognostic solver implementation using the 2st-order implicit
+        Lax-Wendroff timestepping scheme
+
+        This method introduces additional diffusion along flowlines compared
+        to the implicit Euler scheme. This tends to reduce the magnitude of
+        possible spurious oscillations.
+        """
         self._continuity = continuity
         self._fields = fields
         self._solver_parameters = solver_parameters
 
     def setup(self, **kwargs):
+        r"""Create the internal data structures that help reuse information
+        from past prognostic solves"""
         for name, field in kwargs.items():
             if name in self._fields.keys():
                 self._fields[name].assign(field)
@@ -187,6 +205,7 @@ class LaxWendroff:
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
+        # Additional streamlining terms that give 2nd-order accuracy
         q = firedrake.TestFunction(Q)
         div, grad, ds = model.div, model.grad, model.ds
         flux_cells = -div(h * u) * inner(u, grad(q)) * dx
@@ -206,6 +225,7 @@ class LaxWendroff:
         self._timestep = dt
 
     def solve(self, dt, **kwargs):
+        r"""Compute the thickness evolution after time `dt`"""
         if not hasattr(self, '_solver'):
             self.setup(**kwargs)
         else:
