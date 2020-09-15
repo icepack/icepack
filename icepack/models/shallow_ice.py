@@ -78,13 +78,14 @@ def penalty(**kwargs):
     Parameters
     ----------
     velocity : firedrake.Function
+    thickness : firedrake.Function
 
     Returns
     -------
     firedrake.Form
     """
-    u, = get_kwargs_alt(kwargs, ('velocity',), ('u',))
-    l = 2 * firedrake.CellDiameter(u.ufl_domain())
+    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    l = 2 * firedrake.max_value(firedrake.CellDiameter(u.ufl_domain()), 5 * h)
     return .5 * l**2 * inner(grad(u), grad(u))
 
 
