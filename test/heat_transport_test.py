@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import firedrake
 from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
@@ -54,7 +55,8 @@ E_surface = 480
 q_bed = 50e-3 * year * 1e-6
 
 
-def test_diffusion():
+@pytest.mark.parametrize('params', [{'ksp_type': 'cg', 'pc_type': 'ilu'}, None])
+def test_diffusion(params):
     E_true = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
     E = firedrake.interpolate(Constant(480), Q)
 
@@ -72,7 +74,9 @@ def test_diffusion():
             return firedrake.Constant(0) * ψ * h * dx
 
     model = DiffusionTransportModel()
-    solver = icepack.solvers.HeatTransportSolver(model)
+    solver = icepack.solvers.HeatTransportSolver(
+        model, solver_parameters=params
+    )
 
     dt = 250.0
     final_time = 6000

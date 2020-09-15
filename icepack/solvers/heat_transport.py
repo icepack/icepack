@@ -20,9 +20,13 @@ from ..utilities import default_solver_parameters
 
 
 class HeatTransportSolver:
-    def __init__(self, model):
+    def __init__(self, model, **kwargs):
         self._model = model
         self._fields = {}
+
+        self._solver_parameters = kwargs.get(
+            'solver_parameters', default_solver_parameters
+        )
 
     @property
     def model(self):
@@ -60,7 +64,7 @@ class HeatTransportSolver:
         )
 
         self._solver = firedrake.NonlinearVariationalSolver(
-            problem, solver_parameters=default_solver_parameters
+            problem, solver_parameters=self._solver_parameters
         )
 
         self._energy_old = E_0
