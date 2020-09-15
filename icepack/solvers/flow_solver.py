@@ -23,18 +23,36 @@ from ..utilities import default_solver_parameters
 
 
 class FlowSolver:
-    r"""Solves the diagnostic and prognostic models of ice physics
-
-    The actual solver data is initialized lazily on the first call
-    """
+    r"""Solves the diagnostic and prognostic models of ice physics"""
     def __init__(self, model, **kwargs):
         self._model = model
         self._fields = {}
 
-        self.dirichlet_ids = kwargs.pop('dirichlet_ids', [])
-        self.side_wall_ids = kwargs.pop('side_wall_ids', [])
-        self.tolerance = kwargs.pop('tolerance', 1e-12)
+        # Prepare the diagnostic solver
+        diagnostic_parameters = kwargs.get(
+            'diagnostic_solver_parameters', default_solver_parameters
+        )
 
+        if 'diagnostic_solver_type' in kwargs.keys():
+            solver_type = kwargs['diagnostic_solver_type']
+            if isinstance(solver_type, str):
+                solvers_dict = {
+                    'icepack': IcepackSolver,
+                    'petsc': PETScSolver
+                }
+                solver_type = solvers_dict[solver_type]
+        else:
+            solver_type = IcepackSolver
+
+        self._diagnostic_solver = solver_type(
+            self.model,
+            self._fields,
+            diagnostic_parameters,
+            dirichlet_ids=kwargs.pop('dirichlet_ids', []),
+            side_wall_ids=kwargs.pop('side_wall_ids', [])
+        )
+
+        # Prepare the prognostic solver
         prognostic_parameters = kwargs.get(
             'prognostic_solver_parameters', default_solver_parameters
         )
@@ -64,60 +82,148 @@ class FlowSolver:
         r"""Dictionary of all fields that are part of the simulation"""
         return self._fields
 
-    def _diagnostic_setup(self, **kwargs):
-        for name, field in kwargs.items():
-            if name in self.fields.keys():
-                self.fields[name].assign(field)
-            else:
-                self.fields[name] = utilities.copy(field)
-
-        # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self.fields.get('velocity', self.fields.get('u'))
-        V = u.function_space()
-        # NOTE: This will have to change when we do Stokes!
-        bcs = None
-        if self.dirichlet_ids:
-            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self.dirichlet_ids)
-
-        # Find the numeric IDs for the ice front
-        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
-        ice_front_ids_comp = set(self.dirichlet_ids + self.side_wall_ids)
-        ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
-
-        # Create the action and scale functionals
-        _kwargs = {
-            'side_wall_ids': self.side_wall_ids,
-            'ice_front_ids': ice_front_ids
-        }
-        action = self.model.action(**self.fields, **_kwargs)
-        scale = self.model.scale(**self.fields, **_kwargs)
-
-        # Set up a minimization problem and solver
-        quadrature_degree = self.model.quadrature_degree(**self.fields)
-        params = {'quadrature_degree': quadrature_degree}
-        problem = MinimizationProblem(action, scale, u, bcs, params)
-        self._diagnostic_solver = NewtonSolver(problem, self.tolerance)
-
     def diagnostic_solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""
-        # Set up the diagnostic solver if it hasn't been already, otherwise
-        # copy all the input field values
-        if not hasattr(self, '_diagnostic_solver'):
-            self._diagnostic_setup(**kwargs)
-        else:
-            for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self.fields[name].assign(field)
-
-        # Solve the minimization problem and return the velocity field
-        self._diagnostic_solver.solve()
-        u = self.fields.get('velocity', self.fields.get('u'))
-        return u.copy(deepcopy=True)
+        return self._diagnostic_solver.solve(**kwargs)
 
     def prognostic_solve(self, dt, **kwargs):
         r"""Solve the prognostic model physics for the new value of the ice
         thickness"""
         return self._prognostic_solver.solve(dt, **kwargs)
+
+
+class IcepackSolver:
+    def __init__(
+        self,
+        model,
+        fields,
+        solver_parameters,
+        dirichlet_ids=[],
+        side_wall_ids=[]
+    ):
+        r"""Diagnostic solver implementation using hand-written Newton line
+        search optimization algorithm"""
+        self._model = model
+        self._fields = fields
+        self._tolerance = solver_parameters.pop('tolerance', 1e-12)
+        self._solver_parameters = solver_parameters
+        self._dirichlet_ids = dirichlet_ids
+        self._side_wall_ids = side_wall_ids
+
+    def setup(self, **kwargs):
+        for name, field in kwargs.items():
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
+            else:
+                self._fields[name] = utilities.copy(field)
+
+        # Create homogeneous BCs for the Dirichlet part of the boundary
+        u = self._fields.get('velocity', self._fields.get('u'))
+        V = u.function_space()
+        # NOTE: This will have to change when we do Stokes!
+        bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
+        if not self._dirichlet_ids:
+            bcs = None
+
+        # Find the numeric IDs for the ice front
+        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        ice_front_ids_comp = set(self._dirichlet_ids + self._side_wall_ids)
+        ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
+
+        # Create the action and scale functionals
+        _kwargs = {
+            'side_wall_ids': self._side_wall_ids,
+            'ice_front_ids': ice_front_ids
+        }
+        action = self._model.action(**self._fields, **_kwargs)
+        scale = self._model.scale(**self._fields, **_kwargs)
+
+        # Set up a minimization problem and solver
+        quadrature_degree = self._model.quadrature_degree(**self._fields)
+        params = {'quadrature_degree': quadrature_degree}
+        problem = MinimizationProblem(action, scale, u, bcs, params)
+        self._solver = NewtonSolver(
+            problem, self._tolerance, solver_parameters=self._solver_parameters
+        )
+
+    def solve(self, **kwargs):
+        r"""Solve the diagnostic model physics for the ice velocity"""
+        if not hasattr(self, '_solver'):
+            self.setup(**kwargs)
+        else:
+            for name, field in kwargs.items():
+                if isinstance(field, firedrake.Function):
+                    self._fields[name].assign(field)
+
+        # Solve the minimization problem and return the velocity field
+        self._solver.solve()
+        u = self._fields.get('velocity', self._fields.get('u'))
+        return u.copy(deepcopy=True)
+
+
+class PETScSolver:
+    def __init__(
+        self,
+        model,
+        fields,
+        solver_parameters,
+        dirichlet_ids=[],
+        side_wall_ids=[]
+    ):
+        r"""Diagnostic solver implementation using PETSc SNES"""
+        self._model = model
+        self._fields = fields
+        self._solver_parameters = solver_parameters
+        self._dirichlet_ids = dirichlet_ids
+        self._side_wall_ids = side_wall_ids
+
+    def setup(self, **kwargs):
+        for name, field in kwargs.items():
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
+            else:
+                self._fields[name] = utilities.copy(field)
+
+        # Create homogeneous BCs for the Dirichlet part of the boundary
+        u = self._fields.get('velocity', self._fields.get('u'))
+        V = u.function_space()
+        bcs = firedrake.DirichletBC(V, u, self._dirichlet_ids)
+        if not self._dirichlet_ids:
+            bcs = None
+
+        # Find the numeric IDs for the ice front
+        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        ice_front_ids_comp = set(self._dirichlet_ids + self._side_wall_ids)
+        ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
+
+        # Create the action and scale functionals
+        _kwargs = {
+            'side_wall_ids': self._side_wall_ids,
+            'ice_front_ids': ice_front_ids
+        }
+        action = self._model.action(**self._fields, **_kwargs)
+        F = firedrake.derivative(action, u)
+
+        degree = self._model.quadrature_degree(**self._fields)
+        params = {'form_compiler_parameters': {'quadrature_degree': degree}}
+        problem = firedrake.NonlinearVariationalProblem(F, u, bcs, **params)
+        self._solver = firedrake.NonlinearVariationalSolver(
+            problem, solver_parameters=self._solver_parameters
+        )
+
+    def solve(self, **kwargs):
+        r"""Solve the diagnostic model physics for the ice velocity"""
+        if not hasattr(self, '_solver'):
+            self.setup(**kwargs)
+        else:
+            for name, field in kwargs.items():
+                if isinstance(field, firedrake.Function):
+                    self._fields[name].assign(field)
+
+        # Solve the minimization problem and return the velocity field
+        self._solver.solve()
+        u = self._fields.get('velocity', self._fields.get('u'))
+        return u.copy(deepcopy=True)
 
 
 class ImplicitEuler:

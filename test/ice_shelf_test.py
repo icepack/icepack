@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import firedrake
 from firedrake import interpolate, as_vector
@@ -52,10 +53,15 @@ def norm(v):
 
 # Check that the diagnostic solver converges with the expected rate as the
 # mesh is refined using an exact solution of the ice shelf model.
-def test_diagnostic_solver_convergence():
+@pytest.mark.parametrize('solver_type', ['icepack', 'petsc'])
+def test_diagnostic_solver_convergence(solver_type):
     # Create an ice shelf model
     model = icepack.models.IceShelf()
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4]}
+    opts = {
+        'dirichlet_ids': [1],
+        'side_wall_ids': [3, 4],
+        'diagnostic_solver_type': solver_type
+    }
 
     # Solve the ice shelf model for successively higher mesh resolution
     for degree in range(1, 4):
