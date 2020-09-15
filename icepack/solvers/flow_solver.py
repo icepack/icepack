@@ -23,8 +23,65 @@ from ..utilities import default_solver_parameters
 
 
 class FlowSolver:
-    r"""Solves the diagnostic and prognostic models of ice physics"""
     def __init__(self, model, **kwargs):
+        r"""Solves the diagnostic and prognostic models of ice physics
+
+        This class is responsible for efficiently solving the physics
+        problem you have chosen. (This is contrast to classes like
+        IceStream, which is where you choose what that physics problem
+        is.) If you want to make your simulation run faster, you can select
+        different solvers and options.
+
+        Parameters
+        ----------
+        model
+            The flow model object -- IceShelf, IceStream, etc.
+        dirichlet_ids : list of int, optional
+            Numerical IDs of the boundary segments where the ice velocity
+            should be fixed
+        side_wall_ids : list of int, optional
+            Numerical IDs of the boundary segments where the ice velocity
+            should have no normal flow
+        diagnostic_solver_type : {'icepack', 'petsc'}, optional
+            Use hand-written optimization solver ('icepack') or PETSc SNES
+            ('petsc'), defaults to 'icepack'
+        diagnostic_solver_parameters : dict, optional
+            Options for the diagnostic solver; defaults to a Newton line
+            search method with direct factorization of the Hessian using
+            MUMPS
+        prognostic_solver_type : {'lax-wendroff', 'implicit-euler'}, optional
+            Timestepping scheme to use for prognostic equations, defaults
+            to Lax-Wendroff
+        prognostic_solver_parameters : dict, optional
+            Options for prognostic solve routine; defaults to direct
+            factorization of the flux matrix using MUMPS
+
+        Examples
+        --------
+
+        Create a flow solver with inflow on boundary segments 1 and 2
+        using the default solver configuration.
+
+        >>> model = icepack.models.IceStream()
+        >>> solver = icepack.solvers.FlowSolver(model, dirichlet_ids=[1, 2])
+
+        Use an iterative linear solver to hopefully accelerate the code.
+
+        >>> opts = {
+        ...     'dirichlet_ids': [1, 2],
+        ...     'diagnostic_solver_type': 'petsc',
+        ...     'diagnostic_solver_parameters': {
+        ...         'ksp_type': 'cg',
+        ...         'pc_type': 'ilu',
+        ...         'pc_factor_fill': 2
+        ...     },
+        ...     'prognostic_solver_parameters': {
+        ...         'ksp_type': 'gmres',
+        ...         'pc_type': 'sor'
+        ...     }
+        ... }
+        >>> solver = icepack.solvers.FlowSolver(model, **opts)
+        """
         self._model = model
         self._fields = {}
 
