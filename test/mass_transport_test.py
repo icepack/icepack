@@ -13,7 +13,7 @@
 import pytest
 import numpy as np
 import firedrake
-from firedrake import interpolate
+from firedrake import interpolate, assemble, dx
 import icepack
 
 def norm(v):
@@ -155,6 +155,56 @@ def test_ice_shelf_prognostic_solver(solver_type):
 
     print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
     assert slope > degree - 0.05
+
+
+# Test solving the shallow ice approximation forward in time with no
+# accumulation and outflow and check that the total ice volume is conserved
+def test_shallow_ice_prognostic_solve():
+    R = firedrake.Constant(500e3)
+    num_refinements = 4
+    mesh = firedrake.UnitDiskMesh(num_refinements)
+    mesh.coordinates.dat.data[:] *= float(R)
+    T = firedrake.Constant(254.15)
+    A = icepack.rate_factor(T)
+
+    Q = firedrake.FunctionSpace(mesh, family='CG', degree=2)
+    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=2)
+
+    x, y = firedrake.SpatialCoordinate(mesh)
+    r = firedrake.sqrt(x**2 + y**2)
+
+    β = firedrake.Constant(0.5)
+    h_divide = firedrake.Constant(4e3)
+    h_expr = h_divide * firedrake.max_value(0, 1 - (r / (β * R))**2)
+    h_0 = interpolate(h_expr, Q)
+    h = h_0.copy(deepcopy=True)
+    u = firedrake.Function(V)
+
+    b = firedrake.Constant(0.)
+    s = interpolate(b + h, Q)
+    a = firedrake.Constant(0.)
+
+    model = icepack.models.ShallowIce()
+    solver = icepack.solvers.FlowSolver(model)
+
+    final_time = 100.
+    dt = 1.
+    num_steps = int(final_time / dt)
+
+    for step in range(num_steps):
+        u = solver.diagnostic_solve(
+            velocity=u, thickness=h, surface=s, fluidity=A
+        )
+
+        h = solver.prognostic_solve(
+            dt, thickness=h, velocity=u, accumulation=a
+        )
+
+        h.interpolate(firedrake.max_value(0, h))
+        s.assign(b + h)
+
+    error = abs(assemble(h * dx) / assemble(h_0 * dx) - 1)
+    assert error < 1 / 2 ** (num_refinements + 1)
 
 
 # Test solving the coupled diagnostic/prognostic equations for an ice stream

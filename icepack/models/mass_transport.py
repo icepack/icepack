@@ -42,9 +42,10 @@ class Continuity:
             raise ValueError('Dimension must be 2 or 3!')
 
     def __call__(self, dt, **kwargs):
-        keys = ('thickness', 'velocity', 'accumulation', 'thickness_inflow')
-        keys_alt = ('h', 'u', 'a', 'h_inflow')
-        h, u, a, h_inflow = utilities.get_kwargs_alt(kwargs, keys, keys_alt)
+        keys = ('thickness', 'velocity', 'accumulation')
+        keys_alt = ('h', 'u', 'a')
+        h, u, a = utilities.get_kwargs_alt(kwargs, keys, keys_alt)
+        h_inflow = kwargs.get('thickness_inflow', kwargs.get('h_inflow', h))
 
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
