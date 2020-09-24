@@ -162,8 +162,9 @@ class IcepackSolver:
         search optimization algorithm"""
         self._model = model
         self._fields = fields
-        self._tolerance = solver_parameters.pop('tolerance', 1e-12)
-        self._solver_parameters = solver_parameters
+        self._solver_parameters = solver_parameters.copy()
+        self._tolerance = self._solver_parameters.pop('tolerance', 1e-12)
+        self._max_iterations = self._solver_parameters.pop('max_iterations', 50)
         self._dirichlet_ids = dirichlet_ids
         self._side_wall_ids = side_wall_ids
 
@@ -200,7 +201,10 @@ class IcepackSolver:
         params = {'quadrature_degree': quadrature_degree}
         problem = MinimizationProblem(action, scale, u, bcs, params)
         self._solver = NewtonSolver(
-            problem, self._tolerance, solver_parameters=self._solver_parameters
+            problem,
+            self._tolerance,
+            solver_parameters=self._solver_parameters,
+            max_iterations=self._max_iterations
         )
 
     def solve(self, **kwargs):
