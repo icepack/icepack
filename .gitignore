@@ -1,3 +1,6 @@
+# Checkpoint files
+*.h5
+
 # Input and output files for gmsh
 *.geo
 *.msh
