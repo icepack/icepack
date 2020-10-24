@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2018 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -25,7 +25,6 @@ setup(
                       'netCDF4', 'geojson', 'shapely', 'pooch>=1.0.0',
                       'pygmsh<=6.1.1', 'meshio>=3.3.1', 'tqdm'],
     extras_require = {
-        'doc': ['sphinx', 'sphinxcontrib-bibtex', 'sphinx_rtd_theme',
-                'ipykernel', 'nbconvert']
+        'doc': ['sphinx', 'ipykernel', 'nbconvert', 'nikola']
     }
 )
