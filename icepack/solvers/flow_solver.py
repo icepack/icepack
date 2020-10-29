@@ -179,7 +179,10 @@ class IcepackSolver:
         u = self._fields.get('velocity', self._fields.get('u'))
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
-        bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
+        if hasattr(V._ufl_element,'_sub_element'):
+            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
+        else:
+            bcs = firedrake.DirichletBC(V, Constant(0), self._dirichlet_ids)
         if not self._dirichlet_ids:
             bcs = None
 
@@ -366,9 +369,13 @@ class LaxWendroff:
         u = self._fields.get('velocity', self._fields.get('u'))
         h_0 = h.copy(deepcopy=True)
 
+        mesh = u.ufl_domain()
         Q = h.function_space()
         model = self._continuity
-        n = model.facet_normal(Q.mesh())
+        if mesh._geometric_dimension == 3:
+            n = model.facet_normal(Q.mesh())
+        elif mesh._geometric_dimension == 2:
+            n = model.facet_normal(Q.mesh())[0]
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 

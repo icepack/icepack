@@ -54,11 +54,14 @@ def gravity(**kwargs):
     s : firedrake.Function
         ice surface elevation
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+    keys = ('velocity', 'thickness', 'surface', 'dimension')
+    keys_alt = ('u', 'h', 's', 'dim')
+    u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    return -ρ_I * g * inner(grad_2(s), u) * h
+    if dim == 3:
+        return -ρ_I * g * inner(grad_2(s), u) * h
+    elif dim == 1.5:
+        return -ρ_I * g * inner(s.dx(0), u) * h
 
 
 def _legendre(k, ζ):
@@ -102,47 +105,63 @@ def terminus(**kwargs):
         numeric IDs of the parts of the boundary corresponding to the
         calving front
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+    keys = ('velocity', 'thickness', 'surface', 'dimension')
+    keys_alt = ('u', 'h', 's', 'dim')
+    u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
 
-    ζ = firedrake.SpatialCoordinate(mesh)[2]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
+
     b = s - h
     ζ_sl = firedrake.max_value(-b, 0) / h
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
 
-    ν = facet_normal_2(mesh)
+    if dim == 3:
+        ν = facet_normal_2(mesh)
+    elif dim == 1.5:
+        ν = firedrake.FacetNormal(mesh)[0]
     return (p_I - p_W) * inner(u, ν) * h
 
 
-def stresses(ε_x, ε_z, A):
+def stresses(ε_x, ε_z, A, dim, **kwargs):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
-    I = Identity(2)
-    tr = trace(ε_x)
-    ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
-    μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-    return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
+    if dim == 3:
+        I = Identity(2)
+        tr = trace(ε_x)
+        ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
+    elif dim == 1.5:
+        ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 2 * μ * ε_x, 2 * μ * ε_z
 
 
-def horizontal_strain(u, s, h):
+def horizontal_strain(u, s, h, dim, **kwargs):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
-    ζ = firedrake.SpatialCoordinate(u.ufl_domain())[2]
+    mesh = u.ufl_domain()
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
     b = s - h
-    v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
-    du_dζ = u.dx(2)
-    return sym(grad_2(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+    if dim == 3:
+        v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
+        du_dζ = u.dx(mesh._geometric_dimension-1)
+        return sym(grad_2(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+    elif dim == 1.5:
+        v = -((1 - ζ) * b.dx(0) + ζ * s.dx(0)) / h
+        du_dζ = u.dx(mesh._geometric_dimension-1)
+        return u.dx(0) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
 
 
 def vertical_strain(u, h):
     r"""Calculate the vertical strain rate with corrections for terrain-
     following coordinates"""
-    du_dζ = u.dx(2)
+    mesh = u.ufl_domain()
+    du_dζ = u.dx(mesh._geometric_dimension-1)
     return 0.5 * du_dζ / h
 
 
@@ -176,12 +195,12 @@ def viscosity(**kwargs):
     -------
     firedrake.Form
     """
-    keys = ('velocity', 'thickness', 'surface', 'fluidity')
-    keys_alt = ('u', 'h', 's', 'A')
-    u, h, s, A = get_kwargs_alt(kwargs, keys, keys_alt)
+    keys = ('velocity', 'thickness', 'surface', 'fluidity', 'dimension')
+    keys_alt = ('u', 'h', 's', 'A', 'dim')
+    u, h, s, A, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
-    M, τ_z = stresses(ε_x, ε_z, A)
+    ε_x, ε_z = horizontal_strain(u, s, h, dim), vertical_strain(u, h)
+    M, τ_z = stresses(ε_x, ε_z, A, dim)
     return n / (n + 1) * (inner(M, ε_x) + inner(τ_z, ε_z)) * h
 
 
@@ -197,16 +216,17 @@ class HybridModel:
     """
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  gravity=gravity, terminus=terminus,
-                 mass_transport=LaxWendroff(dimension=3),
-                 continuity=Continuity(dimension=3)):
-        self.mass_transport = mass_transport
+                 mass_transport=LaxWendroff,
+                 continuity=Continuity,dimension=3):
+        self.mass_transport = mass_transport(dimension=round(dimension))
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
         self.penalty = add_kwarg_wrapper(normal_flow_penalty)
-        self.continuity = continuity
+        self.continuity = continuity(dimension=round(dimension))
+        self.dimension = dimension
 
     def action(self, **kwargs):
         r"""Return the action functional that gives the hybrid model as its
@@ -218,21 +238,25 @@ class HybridModel:
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
 
-        viscosity = self.viscosity(**kwargs) * dx
-        gravity = self.gravity(**kwargs) * dx
+        viscosity = self.viscosity(dimension=self.dimension,**kwargs) * dx
+        gravity = self.gravity(dimension=self.dimension,**kwargs) * dx
 
-        friction = self.friction(**kwargs) * ds_b
+        friction = self.friction(dimension=self.dimension,**kwargs) * ds_b
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(**kwargs) * ds_w
-        penalty = self.penalty(**kwargs) * ds_w
+        if self.dimension == 3:
+            side_friction = self.side_friction(**kwargs) * ds_w
+            penalty = self.penalty(**kwargs) * ds_w
+        elif self.dimension == 1.5:
+            side_friction = 0.
+            penalty = 0.
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
         degree = (xdegree_u + degree_h, 2 * zdegree_u + 1)
         metadata = {'quadrature_degree': degree}
         ds_t = ds_v(domain=mesh, subdomain_id=ice_front_ids, metadata=metadata)
-        terminus = self.terminus(**kwargs) * ds_t
+        terminus = self.terminus(dimension=self.dimension,**kwargs) * ds_t
 
         return (
             viscosity + friction + side_friction - gravity - terminus + penalty
@@ -244,7 +268,7 @@ class HybridModel:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b
+        return self.viscosity(dimension=self.dimension,**kwargs) * dx + self.friction(dimension=self.dimension,**kwargs) * ds_b
 
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action

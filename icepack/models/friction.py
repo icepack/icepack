@@ -65,14 +65,16 @@ def side_friction(**kwargs):
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
-    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    u, h, dim = get_kwargs_alt(kwargs, ('velocity', 'thickness', 'dimension'), ('u', 'h', 'dim'))
     Cs = kwargs.get('side_friction', kwargs.get('Cs', firedrake.Constant(0.)))
 
     mesh = u.ufl_domain()
-    if mesh.geometric_dimension() == 2:
-        ν = firedrake.FacetNormal(mesh)
-    else:
+    if dim == 3:
         ν = facet_normal_2(mesh)
+    elif dim == 2:
+        ν = firedrake.FacetNormal(mesh)
+    elif dim == 1.5:
+        ν = firedrake.FacetNormal(mesh)[0]
 
     u_t = u - inner(u, ν) * ν
     τ = friction_stress(u_t, Cs)
