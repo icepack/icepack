@@ -32,8 +32,8 @@ class Continuity:
         if dimension == 1.5:
             self.facet_normal = utilities.facet_normal_1_5
             self.grad = utilities.grad_1_5
-            self.div = firedrake.div
-            self.ds = firedrake.ds
+            self.div = utilities.grad_1_5
+            self.ds = firedrake.ds_v
         elif dimension == 2:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
@@ -70,8 +70,8 @@ class MassTransport:
         if dimension == 1.5:
             self.facet_normal = utilities.facet_normal_1_5
             self.grad = utilities.grad_1_5
-            self.div = firedrake.div
-            self.ds = firedrake.ds
+            self.div = utilities.grad_1_5
+            self.ds = firedrake.ds_v
         elif dimension == 2:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
@@ -192,8 +192,8 @@ class LaxWendroff(MassTransport):
         outflow = firedrake.max_value(inner(u, n), 0)
         inflow = firedrake.min_value(inner(u, n), 0)
 
-        flux_cells = -h * inner(u, grad(φ)[0]) * dx
-        flux_cells_lax = 0.5 * dt * div(h * u) * inner(u, grad(φ)[0]) * dx
+        flux_cells = -h * inner(u, grad(φ)) * dx
+        flux_cells_lax = 0.5 * dt * div(h * u) * inner(u, grad(φ)) * dx
         flux_out = (h - 0.5 * dt * div(h * u)) * φ * outflow * ds
         F = h * φ * dx + dt * (flux_cells + flux_cells_lax + flux_out)
 
