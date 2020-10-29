@@ -372,10 +372,7 @@ class LaxWendroff:
         mesh = u.ufl_domain()
         Q = h.function_space()
         model = self._continuity
-        if mesh._geometric_dimension == 3:
-            n = model.facet_normal(Q.mesh())
-        elif mesh._geometric_dimension == 2:
-            n = model.facet_normal(Q.mesh())[0]
+        n = model.facet_normal(Q.mesh())
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
@@ -412,3 +409,65 @@ class LaxWendroff:
         self._timestep.assign(dt)
         self._solver.solve()
         return h.copy(deepcopy=True)
+
+# ------------
+'''
+class LaxWendroff(MassTransport):
+    def __init__(self, dimension=2):
+        super(LaxWendroff, self).__init__(dimension)
+
+    def solve(self, dt, h0, a, u, h_inflow=None):
+        r"""Propagate the thickness forward by one timestep
+
+        This function uses an implicit second-order Taylor-Galerkin (also
+        known as Lax-Wendroff) scheme to solve the conservative advection
+        equation for ice thickness.
+
+        Parameters
+        ----------
+        dt : float
+            Timestep
+        h0 : firedrake.Function
+            Initial ice thickness
+        a : firedrake.Function
+            Sum of accumulation and melt rates
+        u : firedrake.Function
+            Ice velocity
+        h_inflow : firedrake.Function
+            Thickness of the upstream ice that advects into the domain
+
+        Returns
+        -------
+        h : firedrake.Function
+            Ice thickness at `t + dt`
+        """
+        warnings.warn('Solving methods have moved to the FlowSolver class, '
+                      'this method will be removed in future versions.',
+                      FutureWarning)
+
+        grad, div, ds = self.grad, self.div, self.ds
+
+        h_inflow = h_inflow if h_inflow is not None else h0
+
+        Q = h0.function_space()
+        h, φ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
+
+        n = self.facet_normal(Q.mesh())
+        outflow = firedrake.max_value(inner(u, n), 0)
+        inflow = firedrake.min_value(inner(u, n), 0)
+
+        flux_cells = -h * inner(u, grad(φ)[0]) * dx
+        flux_cells_lax = 0.5 * dt * div(h * u) * inner(u, grad(φ)[0]) * dx
+        flux_out = (h - 0.5 * dt * div(h * u)) * φ * outflow * ds
+        F = h * φ * dx + dt * (flux_cells + flux_cells_lax + flux_out)
+
+        accumulation = a * φ * dx
+        flux_in = -(h_inflow - 0.5 * dt * div(h0 * u)) * φ * inflow * ds
+        A = h0 * φ * dx + dt * (accumulation + flux_in)
+
+        h = h0.copy(deepcopy=True)
+        solver_parameters = {'ksp_type': 'preonly', 'pc_type': 'lu'}
+        firedrake.solve(F == A, h, solver_parameters=solver_parameters)
+
+        return h
+'''

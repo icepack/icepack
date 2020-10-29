@@ -27,8 +27,14 @@ from icepack import utilities
 
 class Continuity:
     r"""Describes the form of the mass continuity equation"""
-    def __init__(self, dimension):
-        if dimension == 2:
+    def __init__(self, dimension=1.5):
+        self.dimension = dimension
+        if dimension == 1.5:
+            self.facet_normal = utilities.facet_normal_1_5
+            self.grad = utilities.grad_1_5
+            self.div = firedrake.div
+            self.ds = firedrake.ds
+        elif dimension == 2:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
             self.div = firedrake.div
@@ -39,7 +45,7 @@ class Continuity:
             self.div = utilities.div_2
             self.ds = firedrake.ds_v
         else:
-            raise ValueError('Dimension must be 2 or 3!')
+            raise ValueError('Dimension must be 1.5, 2, or 3!')
 
     def __call__(self, dt, **kwargs):
         keys = ('thickness', 'velocity', 'accumulation')
@@ -61,7 +67,12 @@ class Continuity:
 
 class MassTransport:
     def __init__(self, dimension):
-        if dimension == 2:
+        if dimension == 1.5:
+            self.facet_normal = utilities.facet_normal_1_5
+            self.grad = utilities.grad_1_5
+            self.div = firedrake.div
+            self.ds = firedrake.ds
+        elif dimension == 2:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
             self.div = firedrake.div
@@ -72,7 +83,7 @@ class MassTransport:
             self.div = utilities.div_2
             self.ds = firedrake.ds_v
         else:
-            raise ValueError('Dimension must be 2 or 3!')
+            raise ValueError('Dimension must be 1.5, 2, or 3!')
 
 
 class ImplicitEuler(MassTransport):
@@ -181,8 +192,8 @@ class LaxWendroff(MassTransport):
         outflow = firedrake.max_value(inner(u, n), 0)
         inflow = firedrake.min_value(inner(u, n), 0)
 
-        flux_cells = -h * inner(u, grad(φ)) * dx
-        flux_cells_lax = 0.5 * dt * div(h * u) * inner(u, grad(φ)) * dx
+        flux_cells = -h * inner(u, grad(φ)[0]) * dx
+        flux_cells_lax = 0.5 * dt * div(h * u) * inner(u, grad(φ)[0]) * dx
         flux_out = (h - 0.5 * dt * div(h * u)) * φ * outflow * ds
         F = h * φ * dx + dt * (flux_cells + flux_cells_lax + flux_out)
 

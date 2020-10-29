@@ -89,14 +89,16 @@ def normal_flow_penalty(**kwargs):
     enforce this boundary condition directly, we add a penalty for normal
     flow to the action functional.
     """
-    u, = get_kwargs_alt(kwargs, ('velocity',), ('u',))
+    u,dim = get_kwargs_alt(kwargs, ('velocity', 'dimension'), ('u', 'dim'))
     scale = kwargs.get('scale', firedrake.Constant(1.))
 
     mesh = u.ufl_domain()
-    if mesh.geometric_dimension() == 2:
-        ν = firedrake.FacetNormal(mesh)
-    elif mesh.geometric_dimension() == 3:
+    if dim == 3:
         ν = facet_normal_2(mesh)
+    elif dim == 2:
+        ν = firedrake.FacetNormal(mesh)
+    elif dim == 1.5:
+        ν = firedrake.FacetNormal(mesh)[0]
 
     L = diameter(mesh)
     δx = firedrake.FacetArea(mesh)

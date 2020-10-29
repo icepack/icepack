@@ -218,14 +218,14 @@ class HybridModel:
                  gravity=gravity, terminus=terminus,
                  mass_transport=LaxWendroff,
                  continuity=Continuity,dimension=3):
-        self.mass_transport = mass_transport(dimension=round(dimension))
+        self.mass_transport = mass_transport(dimension=dimension)
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
         self.penalty = add_kwarg_wrapper(normal_flow_penalty)
-        self.continuity = continuity(dimension=round(dimension))
+        self.continuity = continuity(dimension=dimension)
         self.dimension = dimension
 
     def action(self, **kwargs):
@@ -244,9 +244,9 @@ class HybridModel:
         friction = self.friction(dimension=self.dimension,**kwargs) * ds_b
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
-        if self.dimension == 3:
-            side_friction = self.side_friction(**kwargs) * ds_w
-            penalty = self.penalty(**kwargs) * ds_w
+        if self.dimension == 3 or self.dimension == 2:
+            side_friction = self.side_friction(dimension=self.dimension,**kwargs) * ds_w
+            penalty = self.penalty(dimension=self.dimension,**kwargs) * ds_w
         elif self.dimension == 1.5:
             side_friction = 0.
             penalty = 0.
