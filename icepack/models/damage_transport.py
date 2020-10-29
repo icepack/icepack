@@ -17,7 +17,6 @@ This module contains a solver for the conservative advection equation that
 describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
-import warnings
 import firedrake
 from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym,
                        det, min_value, max_value, conditional)
@@ -75,74 +74,3 @@ class DamageTransport:
         fracture = γ_d * conditional(σ_e - σ_d > 0, ε_1, 0.) * (1 - D)
 
         return healing + fracture
-
-    def solve(self, dt, D0, u, A, D_inflow=None, **kwargs):
-        r"""Propogate the damage forward by one timestep
-
-        This function uses a Runge-Kutta scheme to upwind damage
-        (limiting damage diffusion) while sourcing and sinking
-        damage assocaited with crevasse opening/crevasse healing
-
-        Parameters
-        ----------
-        dt : float
-            Timestep
-        D0 : firedrake.Function
-            initial damage feild should be discontinuous
-        u : firedrake.Function
-            Ice velocity
-        A : firedrake.Function
-            fluidity parameter
-        D_inflow : firedrake.Function
-            Damage of the upstream ice that advects into the domain
-
-        Returns
-        -------
-        D : firedrake.Function
-            Ice damage at `t + dt`
-        """
-        warnings.warn('Solving methods have moved to the DamageSolver class, '
-                      'this method will be removed in future versions.',
-                      FutureWarning)
-
-        D_inflow = D_inflow if D_inflow is not None else D0
-        Q = D0.function_space()
-        dD, φ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
-        d = φ * dD * dx
-        D = D0.copy(deepcopy=True)
-
-        flux = self.flux(D=D, u=u, D_inflow=D_inflow)
-        L1 = -dt * flux
-        D1 = firedrake.Function(Q)
-        D2 = firedrake.Function(Q)
-        L2 = firedrake.replace(L1, {D: D1})
-        L3 = firedrake.replace(L1, {D: D2})
-
-        dq = firedrake.Function(Q)
-
-        # Three-stage strong structure-preserving Runge Kutta (SSPRK3) method
-        params = {
-            'solver_parameters': {
-                'ksp_type': 'preonly',
-                'pc_type': 'bjacobi',
-                'sub_pc_type': 'ilu'
-            }
-        }
-        problem1 = firedrake.LinearVariationalProblem(d, L1, dq)
-        solver1 = firedrake.LinearVariationalSolver(problem1, **params)
-        problem2 = firedrake.LinearVariationalProblem(d, L2, dq)
-        solver2 = firedrake.LinearVariationalSolver(problem2, **params)
-        problem3 = firedrake.LinearVariationalProblem(d, L3, dq)
-        solver3 = firedrake.LinearVariationalSolver(problem3, **params)
-
-        solver1.solve()
-        D1.assign(D + dq)
-        solver2.solve()
-        D2.assign(0.75 * D + 0.25 * (D1 + dq))
-        solver3.solve()
-        D.assign((1.0 / 3.0) * D + (2.0 / 3.0) * (D2 + dq))
-
-        # Add sources and clamp damage field to [0, 1]
-        S = self.sources(D=D, u=u, A=A)
-        D.project(min_value(max_value(D + dt * S, 0), 1))
-        return D

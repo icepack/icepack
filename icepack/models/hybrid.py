@@ -10,7 +10,6 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import warnings
 import functools
 import sympy
 import firedrake
@@ -20,7 +19,7 @@ from firedrake import (
 from icepack.models.friction import (
     bed_friction, side_friction, normal_flow_penalty
 )
-from icepack.models.mass_transport import LaxWendroff, Continuity
+from icepack.models.mass_transport import Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.constants import (
     ice_density as ρ_I,
@@ -32,8 +31,7 @@ from icepack.utilities import (
     facet_normal_2,
     grad_2,
     add_kwarg_wrapper,
-    get_kwargs_alt,
-    compute_surface as _compute_surface
+    get_kwargs_alt
 )
 
 
@@ -197,9 +195,7 @@ class HybridModel:
     """
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  gravity=gravity, terminus=terminus,
-                 mass_transport=LaxWendroff(dimension=3),
                  continuity=Continuity(dimension=3)):
-        self.mass_transport = mass_transport
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -262,66 +258,3 @@ class HybridModel:
         degree_h = h.ufl_element().degree()[0]
         return (3 * (xdegree_u - 1) + 2 * degree_h,
                 3 * max(zdegree_u - 1, 0) + zdegree_u + 1)
-
-    def diagnostic_solve(self, u0, h, s, dirichlet_ids, tol=1e-6, **kwargs):
-        r"""Solve for the ice velocity from the thickness and surface
-        elevation
-
-        Parameters
-        ----------
-        u0 : firedrake.Function
-            Initial guess for the ice velocity; the Dirichlet boundaries
-            are taken from `u0`
-        h : firedrake.Function
-            Ice thickness
-        s : firedrake.Function
-            Ice surface elevation
-        dirichlet_ids : list of int
-            list of integer IDs denoting the parts of the boundary where
-            Dirichlet boundary conditions should be applied
-        tol : float
-            dimensionless tolerance for when to terminate Newton's method
-
-        Returns
-        -------
-        u : firedrake.Function
-            Ice velocity
-
-        Other parameters
-        ----------------
-        **kwargs
-            All other keyword arguments will be passed on to the
-            `viscosity`, `friction`, `gravity`, and `terminus` functions
-            that were set when this model object was initialized
-        """
-        warnings.warn('Solving methods have moved to the FlowSolver class, '
-                      'this method will be removed in future versions.',
-                      FutureWarning)
-
-        u = u0.copy(deepcopy=True)
-
-        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
-        side_wall_ids = kwargs.get('side_wall_ids', [])
-        kwargs['side_wall_ids'] = side_wall_ids
-        kwargs['ice_front_ids'] = list(
-            set(boundary_ids) - set(dirichlet_ids) - set(side_wall_ids))
-        bcs = firedrake.DirichletBC(
-            u.function_space(), firedrake.as_vector((0, 0)), dirichlet_ids)
-        params = {'quadrature_degree': self.quadrature_degree(u=u, h=h, **kwargs)}
-
-        action = self.action(u=u, h=h, s=s, **kwargs)
-        scale = self.scale(u=u, h=h, s=s, **kwargs)
-        problem = MinimizationProblem(action, scale, u, bcs, params)
-        solver = NewtonSolver(problem, tol)
-        solver.solve()
-        return u
-
-    def prognostic_solve(self, dt, h0, a, u, **kwargs):
-        return self.mass_transport.solve(dt, h0=h0, a=a, u=u, **kwargs)
-
-    def compute_surface(self, h, b):
-        warnings.warn('Compute surface moved from member function of models to'
-                      ' icepack module; call `icepack.compute_surface` instead'
-                      ' of e.g. `ice_stream.compute_surface`',
-                      FutureWarning)
-        return _compute_surface(h, b)
