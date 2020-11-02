@@ -27,25 +27,25 @@ from icepack import utilities
 
 class Continuity:
     r"""Describes the form of the mass continuity equation"""
-    def __init__(self, dimension=1.5):
+    def __init__(self, dimension):
         self.dimension = dimension
-        if dimension == 1.5:
-            self.facet_normal = utilities.facet_normal_1_5
-            self.grad = utilities.grad_1_5
-            self.div = utilities.grad_1_5
-            self.ds = firedrake.ds_v
-        elif dimension == 2:
+        if dimension in [1,2]:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
             self.div = firedrake.div
             self.ds = firedrake.ds
-        elif dimension == 3:
+        elif dimension == 1.5:
+            self.facet_normal = utilities.facet_normal_1
+            self.grad = utilities.grad_1
+            self.div = utilities.grad_1
+            self.ds = firedrake.ds_v
+        elif dimension == 2.5:
             self.facet_normal = utilities.facet_normal_2
             self.grad = utilities.grad_2
             self.div = utilities.div_2
             self.ds = firedrake.ds_v
         else:
-            raise ValueError('Dimension must be 1.5, 2, or 3!')
+            raise ValueError('Dimension must be 1, 1.5, 2, or 2.5!')
 
     def __call__(self, dt, **kwargs):
         keys = ('thickness', 'velocity', 'accumulation')
@@ -67,23 +67,23 @@ class Continuity:
 
 class MassTransport:
     def __init__(self, dimension):
-        if dimension == 1.5:
-            self.facet_normal = utilities.facet_normal_1_5
-            self.grad = utilities.grad_1_5
-            self.div = utilities.grad_1_5
-            self.ds = firedrake.ds_v
-        elif dimension == 2:
+        if dimension in [1,2]:
             self.facet_normal = firedrake.FacetNormal
             self.grad = firedrake.grad
             self.div = firedrake.div
             self.ds = firedrake.ds
-        elif dimension == 3:
+        elif dimension == 1.5:
+            self.facet_normal = utilities.facet_normal_1
+            self.grad = utilities.grad_1
+            self.div = utilities.grad_1
+            self.ds = firedrake.ds_v
+        elif dimension == 2.5:
             self.facet_normal = utilities.facet_normal_2
             self.grad = utilities.grad_2
             self.div = utilities.div_2
             self.ds = firedrake.ds_v
         else:
-            raise ValueError('Dimension must be 1.5, 2, or 3!')
+            raise ValueError('Dimension must be 1, 1.5, 2, or 2.5!')
 
 
 class ImplicitEuler(MassTransport):

@@ -73,19 +73,27 @@ def rate_factor(T):
     return A0 * np.exp(-Q / (R * T))
 
 
-def M(ε, A):
+def M(ε, A, dim=2):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
-    I = Identity(2)
-    tr_ε = trace(ε)
-    ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
-    μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-    return 2 * μ * (ε + tr_ε * I)
+    if dim == 2:
+        I = Identity(2)
+        tr_ε = trace(ε)
+        ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 2 * μ * (ε + tr_ε * I)
+    elif dim == 1:
+        ε_e = sqrt(2.*(inner(ε, ε)) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 2 * μ * (ε + ε)
 
 
-def ε(u):
+def ε(u, dim=2):
     r"""Calculate the strain rate for a given flow velocity"""
-    return sym(grad(u))
+    if dim == 2:
+        return sym(grad(u))
+    elif dim == 1:
+        return grad(u)
 
 
 def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
@@ -133,5 +141,6 @@ def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
         h = kwargs['thickness']
     if A is None:
         A = kwargs['fluidity']
+    dim = kwargs['dimension']
 
-    return n / (n + 1) * h * inner(M(ε(u), A), ε(u))
+    return n / (n + 1) * h * inner(M(ε(u, dim), A, dim), ε(u, dim))

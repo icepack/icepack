@@ -30,7 +30,9 @@ from icepack.constants import (
 )
 from icepack.utilities import (
     facet_normal_2,
+    facet_normal_1,
     grad_2,
+    grad_1,
     add_kwarg_wrapper,
     get_kwargs_alt,
     compute_surface as _compute_surface
@@ -58,10 +60,10 @@ def gravity(**kwargs):
     keys_alt = ('u', 'h', 's', 'dim')
     u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    if dim == 3:
+    if dim == 2.5:
         return -ρ_I * g * inner(grad_2(s), u) * h
     elif dim == 1.5:
-        return -ρ_I * g * inner(s.dx(0), u) * h
+        return -ρ_I * g * inner(grad_1(s), u) * h
 
 
 def _legendre(k, ζ):
@@ -119,26 +121,28 @@ def terminus(**kwargs):
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
 
-    if dim == 3:
+    if dim in [1,2]:
+        ν = firedrake.FacetNormal(mesh)
+    elif dim == 2.5:
         ν = facet_normal_2(mesh)
     elif dim == 1.5:
-        ν = firedrake.FacetNormal(mesh)[0]
+        ν = facet_normal_1(mesh)
     return (p_I - p_W) * inner(u, ν) * h
 
 
 def stresses(ε_x, ε_z, A, dim, **kwargs):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
-    if dim == 3:
+    if dim in [2, 2.5]:
         I = Identity(2)
         tr = trace(ε_x)
         ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
-    elif dim == 1.5:
-        ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
+    elif dim in [1, 1.5]:
+        ε_e = sqrt((2*inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-        return 2 * μ * ε_x, 2 * μ * ε_z
+        return 2 * μ * (ε_x + ε_x), 2 * μ * ε_z
 
 
 def horizontal_strain(u, s, h, dim, **kwargs):
@@ -147,14 +151,14 @@ def horizontal_strain(u, s, h, dim, **kwargs):
     mesh = u.ufl_domain()
     ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
     b = s - h
-    if dim == 3:
+    if dim in [2, 2.5]:
         v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
         du_dζ = u.dx(mesh._geometric_dimension-1)
         return sym(grad_2(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
-    elif dim == 1.5:
-        v = -((1 - ζ) * b.dx(0) + ζ * s.dx(0)) / h
+    elif dim in [1, 1.5]:
+        v = -((1 - ζ) * grad_1(b) + ζ * grad_1(s)) / h
         du_dζ = u.dx(mesh._geometric_dimension-1)
-        return u.dx(0) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+        return grad_1(u) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
 
 
 def vertical_strain(u, h):
@@ -217,7 +221,7 @@ class HybridModel:
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  gravity=gravity, terminus=terminus,
                  mass_transport=LaxWendroff,
-                 continuity=Continuity,dimension=3):
+                 continuity=Continuity,dimension=2.5):
         self.mass_transport = mass_transport(dimension=dimension)
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
@@ -240,15 +244,14 @@ class HybridModel:
 
         viscosity = self.viscosity(dimension=self.dimension,**kwargs) * dx
         gravity = self.gravity(dimension=self.dimension,**kwargs) * dx
-
         friction = self.friction(dimension=self.dimension,**kwargs) * ds_b
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
-        if self.dimension == 3 or self.dimension == 2:
-            side_friction = self.side_friction(dimension=self.dimension,**kwargs) * ds_w
+        side_friction = self.side_friction(dimension=self.dimension,**kwargs) * ds_w
+        if self.dimension in [2, 2.5]:
             penalty = self.penalty(dimension=self.dimension,**kwargs) * ds_w
-        elif self.dimension == 1.5:
-            side_friction = 0.
+        elif self.dimension in [1, 1.5]:
+            #side_friction = 0.
             penalty = 0.
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
