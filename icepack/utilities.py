@@ -46,32 +46,36 @@ def get_kwargs_alt(dictionary, keys, keys_alt):
                   for key, alt_key in zip(keys, keys_alt)))
 
 
-def facet_normal_2(mesh):
+def facet_normal_nd(mesh,dim):
     r"""Compute the horizontal component of the unit outward normal vector
     to a mesh"""
-    ν = firedrake.FacetNormal(mesh)
-    return firedrake.as_vector((ν[0], ν[1]))
+    if dim == 2:
+        return firedrake.FacetNormal(mesh)
+    elif dim == 2.5:
+        ν = firedrake.FacetNormal(mesh)
+        return firedrake.as_vector((ν[0], ν[1]))
+    elif dim in [1, 1.5]:
+        return firedrake.FacetNormal(mesh)[0]
 
 
-def facet_normal_1(mesh):
-    r"""Compute the horizontal component of the unit outward normal vector
-    to a mesh"""
-    return firedrake.FacetNormal(mesh)[0]
-
-
-def grad_2(q):
+def grad_nd(q,dim):
     r"""Compute the horizontal gradient of a 3D field"""
-    return firedrake.as_tensor((q.dx(0), q.dx(1)))
+    if dim == 2:
+        return firedrake.grad(q)
+    elif dim == 2.5:
+        return firedrake.as_tensor((q.dx(0), q.dx(1)))
+    elif dim in [1, 1.5]:
+        return q.dx(0)
 
 
-def grad_1(q):
-    r"""Compute the horizontal gradient of a 3D field"""
-    return q.dx(0)
-
-
-def div_2(q):
+def div_nd(q,dim):
     r"""Compute the horizontal divergence of a 3D field"""
-    return q[0].dx(0) + q[1].dx(1)
+    if dim == 2:
+        return firedrake.div(q)
+    elif dim == 2.5:
+        return q[0].dx(0) + q[1].dx(1)
+    elif dim in [1, 1.5]:
+        return q.dx(0)
 
 
 def eigenvalues(a):

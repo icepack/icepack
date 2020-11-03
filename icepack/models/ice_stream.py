@@ -12,7 +12,7 @@
 
 import warnings
 import firedrake
-from firedrake import inner, grad, dx, ds
+from firedrake import inner, dx, ds
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
@@ -20,7 +20,7 @@ from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
 from icepack.models.mass_transport import LaxWendroff, Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.utilities import (facet_normal_1, add_kwarg_wrapper, get_kwargs_alt,
+from icepack.utilities import (facet_normal_nd, grad_nd, add_kwarg_wrapper, get_kwargs_alt,
                                compute_surface as _compute_surface)
 
 
@@ -45,10 +45,7 @@ def gravity(**kwargs):
     keys_alt = ('u', 'h', 's', 'dim')
     u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    if dim == 2:
-        return -ρ_I * g * h * inner(grad(s), u)
-    elif dim == 1:
-        return -ρ_I * g * h * inner(s.dx(0), u)
+    return -ρ_I * g * h * inner(grad_nd(s,dim), u)
 
 
 def terminus(**kwargs):
@@ -78,10 +75,8 @@ def terminus(**kwargs):
     τ_I = ρ_I * g * h**2 / 2
     τ_W = ρ_W * g * d**2 / 2
 
-    if dim == 2:
-        ν = firedrake.FacetNormal(u.ufl_domain())
-    elif dim == 1:
-        ν = facet_normal_1(u.ufl_domain())
+    ν = facet_normal_nd(u.ufl_domain(),dim)
+
     return (τ_I - τ_W) * inner(u, ν)
 
 

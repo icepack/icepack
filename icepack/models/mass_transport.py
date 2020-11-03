@@ -29,20 +29,12 @@ class Continuity:
     r"""Describes the form of the mass continuity equation"""
     def __init__(self, dimension):
         self.dimension = dimension
+        self.facet_normal = utilities.facet_normal_nd
+        self.grad = utilities.grad_nd
+        self.div = utilities.div_nd
         if dimension in [1,2]:
-            self.facet_normal = firedrake.FacetNormal
-            self.grad = firedrake.grad
-            self.div = firedrake.div
             self.ds = firedrake.ds
-        elif dimension == 1.5:
-            self.facet_normal = utilities.facet_normal_1
-            self.grad = utilities.grad_1
-            self.div = utilities.grad_1
-            self.ds = firedrake.ds_v
-        elif dimension == 2.5:
-            self.facet_normal = utilities.facet_normal_2
-            self.grad = utilities.grad_2
-            self.div = utilities.div_2
+        elif dimension in [1.5, 2.5]:
             self.ds = firedrake.ds_v
         else:
             raise ValueError('Dimension must be 1, 1.5, 2, or 2.5!')
@@ -56,9 +48,9 @@ class Continuity:
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
 
-        grad, ds, n = self.grad, self.ds, self.facet_normal(Q.mesh())
+        grad, ds, n = self.grad, self.ds, self.facet_normal(Q.mesh(),self.dimension)
         u_n = inner(u, n)
-        flux_cells = -inner(h * u, grad(q)) * dx
+        flux_cells = -inner(h * u, grad(q,self.dimension)) * dx
         flux_out = h * firedrake.max_value(u_n, 0) * q * ds
         flux_in = h_inflow * firedrake.min_value(u_n, 0) * q * ds
         accumulation = a * q * dx
@@ -67,20 +59,13 @@ class Continuity:
 
 class MassTransport:
     def __init__(self, dimension):
+        self.dimension = dimension
+        self.facet_normal = utilities.facet_normal_nd
+        self.grad = utilities.grad_nd
+        self.div = utilities.div_nd
         if dimension in [1,2]:
-            self.facet_normal = firedrake.FacetNormal
-            self.grad = firedrake.grad
-            self.div = firedrake.div
             self.ds = firedrake.ds
-        elif dimension == 1.5:
-            self.facet_normal = utilities.facet_normal_1
-            self.grad = utilities.grad_1
-            self.div = utilities.grad_1
-            self.ds = firedrake.ds_v
-        elif dimension == 2.5:
-            self.facet_normal = utilities.facet_normal_2
-            self.grad = utilities.grad_2
-            self.div = utilities.div_2
+        elif dimension in [1.5, 2.5]:
             self.ds = firedrake.ds_v
         else:
             raise ValueError('Dimension must be 1, 1.5, 2, or 2.5!')
@@ -129,11 +114,11 @@ class ImplicitEuler(MassTransport):
         Q = h0.function_space()
         h, φ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
 
-        n = self.facet_normal(Q.mesh())
+        n = self.facet_normal(Q.mesh(),self.dimension)
         outflow = firedrake.max_value(inner(u, n), 0)
         inflow = firedrake.min_value(inner(u, n), 0)
 
-        flux_cells = -h * inner(u, grad(φ)) * dx
+        flux_cells = -h * inner(u, grad(φ,self.dimension)) * dx
         flux_out = h * φ * outflow * ds
         F = h * φ * dx + dt * (flux_cells + flux_out)
 

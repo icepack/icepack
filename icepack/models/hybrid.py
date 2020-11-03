@@ -29,10 +29,8 @@ from icepack.constants import (
     gravity as g
 )
 from icepack.utilities import (
-    facet_normal_2,
-    facet_normal_1,
-    grad_2,
-    grad_1,
+    facet_normal_nd,
+    grad_nd,
     add_kwarg_wrapper,
     get_kwargs_alt,
     compute_surface as _compute_surface
@@ -60,10 +58,7 @@ def gravity(**kwargs):
     keys_alt = ('u', 'h', 's', 'dim')
     u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    if dim == 2.5:
-        return -ρ_I * g * inner(grad_2(s), u) * h
-    elif dim == 1.5:
-        return -ρ_I * g * inner(grad_1(s), u) * h
+    return -ρ_I * g * inner(grad_nd(s,dim), u) * h
 
 
 def _legendre(k, ζ):
@@ -121,12 +116,8 @@ def terminus(**kwargs):
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
 
-    if dim in [1,2]:
-        ν = firedrake.FacetNormal(mesh)
-    elif dim == 2.5:
-        ν = facet_normal_2(mesh)
-    elif dim == 1.5:
-        ν = facet_normal_1(mesh)
+    ν = facet_normal_nd(mesh,dim)
+
     return (p_I - p_W) * inner(u, ν) * h
 
 
@@ -151,14 +142,12 @@ def horizontal_strain(u, s, h, dim, **kwargs):
     mesh = u.ufl_domain()
     ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
     b = s - h
+    v = -((1 - ζ) * grad_nd(b,dim) + ζ * grad_nd(s,dim)) / h
+    du_dζ = u.dx(mesh._geometric_dimension-1)
     if dim in [2, 2.5]:
-        v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
-        du_dζ = u.dx(mesh._geometric_dimension-1)
-        return sym(grad_2(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+        return sym(grad_nd(u,dim)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
     elif dim in [1, 1.5]:
-        v = -((1 - ζ) * grad_1(b) + ζ * grad_1(s)) / h
-        du_dζ = u.dx(mesh._geometric_dimension-1)
-        return grad_1(u) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+        return grad_nd(u,dim) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
 
 
 def vertical_strain(u, h):
@@ -251,7 +240,6 @@ class HybridModel:
         if self.dimension in [2, 2.5]:
             penalty = self.penalty(dimension=self.dimension,**kwargs) * ds_w
         elif self.dimension in [1, 1.5]:
-            #side_friction = 0.
             penalty = 0.
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
