@@ -18,16 +18,21 @@ describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
 import firedrake
-from firedrake import (inner, grad, div, dx, ds, dS, sqrt, sym,
-                       det, min_value, max_value, conditional)
-from icepack.models.viscosity import M
+from firedrake import (
+    inner, grad, div, dx, ds, dS, sqrt, det, min_value, max_value, conditional
+)
 from icepack.constants import year
 from icepack.utilities import eigenvalues, get_kwargs_alt
 
 
 class DamageTransport:
-    def __init__(self, damage_stress=.07, damage_rate=.3,
-                 healing_strain_rate=2e-10 * year, healing_rate=.1):
+    def __init__(
+        self,
+        damage_stress=.07,
+        damage_rate=.3,
+        healing_strain_rate=2e-10 * year,
+        healing_rate=.1
+    ):
         self.damage_stress = damage_stress
         self.damage_rate = damage_rate
         self.healing_strain_rate = healing_strain_rate
@@ -54,16 +59,13 @@ class DamageTransport:
         return flux_faces + flux_cells + flux_out + flux_in
 
     def sources(self, **kwargs):
-        keys = ('damage', 'velocity', 'fluidity')
-        keys_alt = ('D', 'u', 'A')
-        D, u, A = get_kwargs_alt(kwargs, keys, keys_alt)
+        keys = ('damage', 'velocity', 'strain_rate', 'membrane_stress')
+        keys_alt = ('D', 'u', 'ε', 'M')
+        D, u, ε, M = get_kwargs_alt(kwargs, keys, keys_alt)
 
         # Increase/decrease damage depending on stress and strain rates
-        ε = sym(grad(u))
         ε_1 = eigenvalues(ε)[0]
-
-        σ = M(ε, A)
-        σ_e = sqrt(inner(σ, σ) - det(σ))
+        σ_e = sqrt(inner(M, M) - det(M))
 
         ε_h = firedrake.Constant(self.healing_strain_rate)
         σ_d = firedrake.Constant(self.damage_stress)
