@@ -93,7 +93,7 @@ def fetch_bedmachine_antarctica():
     r"""Fetch the BedMachine map of Antarctic ice thickness, surface elevation,
     and bed elevation"""
     return nsidc_data.fetch(
-        'BedMachineAntarctica_2019-11-05_v01.nc',
+        'BedMachineAntarctica_2020-07-15_v02.nc',
         downloader=_earthdata_downloader
     )
 
