@@ -51,8 +51,7 @@ class HeatTransport3D:
         flux_cells = -E * inner(U, grad(ψ)) * h * dx
 
         mesh = Q.mesh()
-        # TODO: dimension is 2.5 now but will be updating this in a future PR
-        ν = facet_normal_nd(mesh,2.5)
+        ν = facet_normal_nd(mesh)
         outflow = firedrake.max_value(inner(u, ν), 0)
         inflow = firedrake.min_value(inner(u, ν), 0)
 

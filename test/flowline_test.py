@@ -55,7 +55,7 @@ def test_order_0():
     s = firedrake.interpolate(s_expr(x), Q1d)
     u0 = firedrake.interpolate(exact_u(x), Q1d)
 
-    model1d = icepack.models.IceStream(dimension=1)
+    model1d = icepack.models.IceStream()
     solver1d = icepack.solvers.FlowSolver(model1d, **opts)
     u1d = solver1d.diagnostic_solve(
          velocity=u0,
@@ -70,13 +70,13 @@ def test_order_0():
     Q2d = firedrake.FunctionSpace(
         mesh, family='CG', degree=2, vfamily='DG', vdegree=0)
     V2d = firedrake.FunctionSpace(
-        mesh, family='CG', degree=2, vfamily='DG', vdegree=2)
+        mesh, family='CG', degree=2, vfamily='DG', vdegree=0)
 
     h = firedrake.interpolate(h_expr(x), Q2d)
     s = firedrake.interpolate(s_expr(x), Q2d)
     u0 = firedrake.interpolate(exact_u(x), V2d)
 
-    model2d = icepack.models.HybridModel(dimension=1.5)
+    model2d = icepack.models.HybridModel()
     solver2d = icepack.solvers.FlowSolver(model2d, **opts)
     u2d = solver2d.diagnostic_solve(
         velocity=u0,
@@ -105,7 +105,7 @@ def test_diagnostic_solver():
     A = firedrake.Constant(icepack.rate_factor(254.15))
     C = firedrake.Constant(0.001)
 
-    model = icepack.models.HybridModel(dimension=1.5)
+    model = icepack.models.HybridModel()
     opts = {'dirichlet_ids': [1], 'tol': 1e-12}
 
     max_degree = 5

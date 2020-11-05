@@ -46,9 +46,18 @@ def get_kwargs_alt(dictionary, keys, keys_alt):
                   for key, alt_key in zip(keys, keys_alt)))
 
 
-def facet_normal_nd(mesh,dim):
+def get_mesh_dimensions(mesh):
+    r"""Get the number of dimensions in the mesh. Half dimensions for extruded into the vertical.
+    """
+    dim = mesh.geometric_dimension()
+    if mesh.layers is not None:
+        dim -= 0.5
+    return dim
+
+def facet_normal_nd(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
     to a mesh"""
+    dim = get_mesh_dimensions(mesh)
     if dim == 2:
         return firedrake.FacetNormal(mesh)
     elif dim == 2.5:
@@ -58,8 +67,9 @@ def facet_normal_nd(mesh,dim):
         return firedrake.FacetNormal(mesh)[0]
 
 
-def grad_nd(q,dim):
+def grad_nd(q):
     r"""Compute the horizontal gradient of a 3D field"""
+    dim = get_mesh_dimensions(q.ufl_domain())
     if dim == 2:
         return firedrake.grad(q)
     elif dim == 2.5:
@@ -68,8 +78,18 @@ def grad_nd(q,dim):
         return q.dx(0)
 
 
-def div_nd(q,dim):
+def ds_nd(q):
+    r"""Measure exterior facet. Will be different for extruded meshes."""
+    dim = get_mesh_dimensions(q.ufl_domain())
+    if dim in [1,2]:
+        return firedrake.ds
+    elif dim in [1.5,2.5]:
+        return firedrake.ds_v
+
+
+def div_nd(q):
     r"""Compute the horizontal divergence of a 3D field"""
+    dim = get_mesh_dimensions(q.ufl_domain())
     if dim == 2:
         return firedrake.div(q)
     elif dim == 2.5:

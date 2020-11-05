@@ -18,7 +18,7 @@ from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
 from icepack.models.mass_transport import Continuity
-from icepack.utilities import facet_normal_nd, grad_nd, add_kwarg_wrapper, get_kwargs_alt
+from icepack.utilities import get_mesh_dimensions, facet_normal_nd, grad_nd, add_kwarg_wrapper, get_kwargs_alt
 
 
 def gravity(**kwargs):
@@ -38,11 +38,11 @@ def gravity(**kwargs):
     s : firedrake.Function
         ice surface elevation
     """
-    keys = ('velocity', 'thickness', 'surface', 'dimension')
-    keys_alt = ('u', 'h', 's', 'dim')
-    u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
+    keys = ('velocity', 'thickness', 'surface')
+    keys_alt = ('u', 'h', 's')
+    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    return -ρ_I * g * h * inner(grad_nd(s,dim), u)
+    return -ρ_I * g * h * inner(grad_nd(s), u)
 
 
 def terminus(**kwargs):
@@ -64,15 +64,15 @@ def terminus(**kwargs):
     thickness : firedrake.Function
     surface : firedrake.Function
     """
-    keys = ('velocity', 'thickness', 'surface', 'dimension')
-    keys_alt = ('u', 'h', 's', 'dim')
-    u, h, s, dim = get_kwargs_alt(kwargs, keys, keys_alt)
+    keys = ('velocity', 'thickness', 'surface')
+    keys_alt = ('u', 'h', 's')
+    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
 
     d = firedrake.min_value(s - h, 0)
     τ_I = ρ_I * g * h**2 / 2
     τ_W = ρ_W * g * d**2 / 2
 
-    ν = facet_normal_nd(u.ufl_domain(),dim)
+    ν = facet_normal_nd(u.ufl_domain())
 
     return (τ_I - τ_W) * inner(u, ν)
 
@@ -90,15 +90,14 @@ class IceStream:
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  side_friction=side_friction, penalty=normal_flow_penalty,
                  gravity=gravity, terminus=terminus,
-                 continuity=Continuity,dimension=2):
+                 continuity=Continuity()):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.penalty = add_kwarg_wrapper(penalty)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
-        self.continuity = continuity(dimension=dimension)
-        self.dimension = dimension
+        self.continuity = continuity
 
     def action(self, **kwargs):
         r"""Return the action functional that gives the ice stream
@@ -108,19 +107,19 @@ class IceStream:
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
 
-        viscosity = self.viscosity(dimension=self.dimension,**kwargs) * dx
-        friction = self.friction(dimension=self.dimension,**kwargs) * dx
-        gravity = self.gravity(dimension=self.dimension,**kwargs) * dx
+        viscosity = self.viscosity(**kwargs) * dx
+        friction = self.friction(**kwargs) * dx
+        gravity = self.gravity(**kwargs) * dx
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(dimension=self.dimension,**kwargs) * ds_w
-        if self.dimension == 2:
-            penalty = self.penalty(dimension=self.dimension,**kwargs) * ds_w
-        elif self.dimension == 1:
+        side_friction = self.side_friction(**kwargs) * ds_w
+        if get_mesh_dimensions(mesh) == 2:
+            penalty = self.penalty(**kwargs) * ds_w
+        elif get_mesh_dimensions(mesh) == 1:
             penalty = 0.
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
-        terminus = self.terminus(dimension=self.dimension,**kwargs) * ds_t
+        terminus = self.terminus(**kwargs) * ds_t
 
         return (
             viscosity + friction + side_friction - gravity - terminus + penalty
@@ -132,7 +131,7 @@ class IceStream:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
-        return (self.viscosity(dimension=self.dimension,**kwargs) + self.friction(dimension=self.dimension,**kwargs)) * dx
+        return (self.viscosity(**kwargs) + self.friction(**kwargs)) * dx
 
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action

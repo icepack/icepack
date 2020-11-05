@@ -371,16 +371,16 @@ class LaxWendroff:
 
         Q = h.function_space()
         model = self._continuity
-        n = model.facet_normal(Q.mesh(),model.dimension)
+        n = model.facet_normal(Q.mesh())
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
         # Additional streamlining terms that give 2nd-order accuracy
         q = firedrake.TestFunction(Q)
-        div, grad, ds = model.div, model.grad, model.ds
-        flux_cells = -div(h * u, model.dimension) * inner(u, grad(q,model.dimension)) * dx
-        flux_out = div(h * u, model.dimension) * q * outflow * ds
-        flux_in = div(h_0 * u, model.dimension) * q * inflow * ds
+        div, grad, ds = model.div, model.grad, model.ds(q)
+        flux_cells = -div(h * u) * inner(u, grad(q)) * dx
+        flux_out = div(h * u) * q * outflow * ds
+        flux_in = div(h_0 * u) * q * inflow * ds
         d2h_dt2 = flux_cells + flux_out + flux_in
 
         dh_dt = model(dt, **self._fields)
@@ -408,4 +408,3 @@ class LaxWendroff:
         self._timestep.assign(dt)
         self._solver.solve()
         return h.copy(deepcopy=True)
-

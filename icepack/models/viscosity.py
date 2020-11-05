@@ -22,6 +22,7 @@ import numpy as np
 import firedrake
 from firedrake import grad, sqrt, Identity, inner, sym, tr as trace
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n
+from icepack.utilities import get_mesh_dimensions
 
 transition_temperature = 263.15      # K
 A0_cold = 3.985e-13 * year * 1.0e18  # mPa**-3 yr**-1
@@ -73,9 +74,10 @@ def rate_factor(T):
     return A0 * np.exp(-Q / (R * T))
 
 
-def M(ε, A, dim=2):
+def M(ε, A):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
+    dim = get_mesh_dimensions(ε.ufl_domain())
     if dim == 2:
         I = Identity(2)
         tr_ε = trace(ε)
@@ -88,8 +90,9 @@ def M(ε, A, dim=2):
         return 2 * μ * (ε + ε)
 
 
-def ε(u, dim=2):
+def ε(u):
     r"""Calculate the strain rate for a given flow velocity"""
+    dim = get_mesh_dimensions(u.ufl_domain())
     if dim == 2:
         return sym(grad(u))
     elif dim == 1:
@@ -141,6 +144,5 @@ def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
         h = kwargs['thickness']
     if A is None:
         A = kwargs['fluidity']
-    dim = kwargs['dimension']
 
-    return n / (n + 1) * h * inner(M(ε(u, dim), A, dim), ε(u, dim))
+    return n / (n + 1) * h * inner(M(ε(u), A), ε(u))
