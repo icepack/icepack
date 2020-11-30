@@ -63,7 +63,11 @@ def rate_factor(T):
         cold = firedrake.lt(T, transition_temperature)
         A0 = firedrake.conditional(cold, A0_cold, A0_warm)
         Q = firedrake.conditional(cold, Q_cold, Q_warm)
-        return A0 * firedrake.exp(-Q / (R * T))
+        A = A0 * firedrake.exp(-Q / (R * T))
+        if isinstance(T, firedrake.Constant):
+            return firedrake.Constant(A)
+
+        return A
 
     cold = T < transition_temperature
     warm = ~cold if isinstance(T, np.ndarray) else (not cold)
