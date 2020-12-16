@@ -23,7 +23,7 @@ setup(
     package_data={'icepack': ['registry.txt']},
     install_requires=['numpy', 'scipy', 'matplotlib', 'rasterio>=1.0.26',
                       'netCDF4', 'geojson', 'shapely', 'pooch>=1.0.0',
-                      'pygmsh<=6.1.1', 'meshio>=3.3.1', 'tqdm'],
+                      'pygmsh<=6.1.1', 'meshio>=3.3.1', 'MeshPy', 'tqdm'],
     extras_require = {
         'doc': ['sphinx', 'ipykernel', 'nbconvert', 'nikola']
     }
