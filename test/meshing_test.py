@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -10,11 +10,13 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import pytest
-import numpy as np
-from numpy import pi as π
+import firedrake
 import geojson
 import icepack
+import numpy as np
+from numpy import pi as π
+import pytest
+import subprocess
 
 
 def needs_snapping():
@@ -80,3 +82,22 @@ def test_converting_to_triangle(input_data):
     mesh = icepack.meshing.triangle_to_firedrake(geometry)
     assert mesh.num_vertices() > 0
     assert mesh.num_cells() > 0
+
+
+def test_meshing_real_outlines(tmp_path):
+    for glacier_name in icepack.datasets.get_glacier_names():
+        outline_filename = icepack.datasets.fetch_outline(glacier_name)
+        with open(outline_filename, 'r') as outline_file:
+            outline = geojson.load(outline_file)
+
+        geometry = icepack.meshing.collection_to_geo(outline)
+        geo_filename = f'{tmp_path}/{glacier_name}.geo'
+        with open(geo_filename, 'w') as geo_file:
+            geo_file.write(geometry.get_code())
+
+        msh_filename = f'{tmp_path}/{glacier_name}.msh'
+        args = ['gmsh', '-2', '-v', '3', '-o', msh_filename, geo_filename]
+        result = subprocess.run(args)
+        assert result.returncode == 0
+        mesh = firedrake.Mesh(msh_filename)
+        assert mesh.num_cells() > 0
