@@ -371,7 +371,7 @@ class LaxWendroff:
 
         Q = h.function_space()
         model = self._continuity
-        n = model.facet_normal(Q.mesh())
+        n = utilities.facet_normal_nd(Q.mesh())
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
