@@ -96,6 +96,12 @@ def div_nd(q):
     else:
         return q.dx(0)
 
+def ds_nd(q):
+    dim = get_mesh_dimensions(q.ufl_domain())
+    if dim in ['x', 'xy']:
+        return firedrake.ds
+    else:
+        return firedrake.ds_v
 
 def eigenvalues(a):
     r"""Return a pair of symbolic expressions for the largest and smallest

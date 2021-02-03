@@ -36,12 +36,7 @@ class Continuity:
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
 
-        grad, n = utilities.grad_nd, utilities.facet_normal_nd(Q.mesh())
-
-        if utilities.get_mesh_dimensions(q.ufl_domain()) in [1,2]:
-            ds = firedrake.ds
-        else:
-            ds = firedrake.ds_v
+        grad, ds, n = utilities.grad_nd, utilities.ds_nd(q), utilities.facet_normal_nd(Q.mesh())
 
         u_n = inner(u, n)
         flux_cells = -inner(h * u, grad(q)) * dx
