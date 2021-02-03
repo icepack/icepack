@@ -26,11 +26,6 @@ from icepack import utilities
 
 class Continuity:
     r"""Describes the form of the mass continuity equation"""
-    def __init__(self):
-        self.facet_normal = utilities.facet_normal_nd
-        self.grad = utilities.grad_nd
-        self.div = utilities.div_nd
-        self.ds = utilities.ds_nd
 
     def __call__(self, dt, **kwargs):
         keys = ('thickness', 'velocity', 'accumulation')
@@ -41,7 +36,13 @@ class Continuity:
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
 
-        grad, ds, n = self.grad, self.ds(q), self.facet_normal(Q.mesh())
+        grad, n = utilities.grad_nd, utilities.facet_normal_nd(Q.mesh())
+
+        if utilities.get_mesh_dimensions(q.ufl_domain()) in [1,2]:
+            ds = firedrake.ds
+        else:
+            ds = firedrake.ds_v
+
         u_n = inner(u, n)
         flux_cells = -inner(h * u, grad(q)) * dx
         flux_out = h * firedrake.max_value(u_n, 0) * q * ds

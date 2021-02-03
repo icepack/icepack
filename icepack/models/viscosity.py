@@ -78,16 +78,16 @@ def membrane_stress(ε, A):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
     dim = get_mesh_dimensions(ε.ufl_domain())
-    if dim == 2:
+    if dim == 'xy':
         I = Identity(2)
         tr_ε = trace(ε)
         ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 2 * μ * (ε + tr_ε * I)
-    elif dim == 1:
+    elif dim == 'x':
         ε_e = sqrt(2.*(inner(ε, ε)) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-        return 2 * μ * (ε + ε)
+        return 4 * μ * ε
 
 
 def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
@@ -137,9 +137,9 @@ def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
         A = kwargs['fluidity']
 
     dim = get_mesh_dimensions(u.ufl_domain())
-    if dim == 2:
+    if dim == 'xy':
         ε = sym(grad(u))
-    elif dim == 1:
+    elif dim == 'x':
         ε = grad(u)
 
     M = membrane_stress(ε, A)

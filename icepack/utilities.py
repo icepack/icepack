@@ -49,52 +49,51 @@ def get_kwargs_alt(dictionary, keys, keys_alt):
 def get_mesh_dimensions(mesh):
     r"""Get the number of dimensions in the mesh. Half dimensions for extruded into the vertical.
     """
-    dim = mesh.geometric_dimension()
-    if mesh.layers is not None:
-        dim -= 0.5
-    return dim
+    mesh_dim = mesh.geometric_dimension()
+    if mesh_dim == 1 and mesh.layers is None:
+        return 'x'
+    elif mesh_dim == 2 and mesh.layers is not None:
+        return 'xz'
+    elif mesh_dim == 2 and mesh.layers is None:
+        return 'xy'
+    elif mesh_dim == 3 and mesh.layers is not None:
+        return 'xyz'
+    else:
+        raise ValueError('icepack is not compatible with mesh dimension: %s'%mesh_dim)
+
 
 def facet_normal_nd(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
     to a mesh"""
     dim = get_mesh_dimensions(mesh)
-    if dim == 2:
+    if dim == 'xy':
         return firedrake.FacetNormal(mesh)
-    elif dim == 2.5:
+    elif dim == 'xyz':
         ν = firedrake.FacetNormal(mesh)
         return firedrake.as_vector((ν[0], ν[1]))
-    elif dim in [1, 1.5]:
+    else:
         return firedrake.FacetNormal(mesh)[0]
 
 
 def grad_nd(q):
     r"""Compute the horizontal gradient of a 3D field"""
     dim = get_mesh_dimensions(q.ufl_domain())
-    if dim == 2:
+    if dim == 'xy':
         return firedrake.grad(q)
-    elif dim == 2.5:
+    elif dim == 'xyz':
         return firedrake.as_tensor((q.dx(0), q.dx(1)))
-    elif dim in [1, 1.5]:
+    else:
         return q.dx(0)
-
-
-def ds_nd(q):
-    r"""Measure exterior facet. Will be different for extruded meshes."""
-    dim = get_mesh_dimensions(q.ufl_domain())
-    if dim in [1,2]:
-        return firedrake.ds
-    elif dim in [1.5,2.5]:
-        return firedrake.ds_v
 
 
 def div_nd(q):
     r"""Compute the horizontal divergence of a 3D field"""
     dim = get_mesh_dimensions(q.ufl_domain())
-    if dim == 2:
+    if dim == 'xy':
         return firedrake.div(q)
-    elif dim == 2.5:
+    elif dim == 'xyz':
         return q[0].dx(0) + q[1].dx(1)
-    elif dim in [1, 1.5]:
+    else:
         return q.dx(0)
 
 

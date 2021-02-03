@@ -107,7 +107,7 @@ def terminus(**kwargs):
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
 
-    ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension()-1]
 
     b = s - h
     ζ_sl = firedrake.max_value(-b, 0) / h
@@ -123,13 +123,13 @@ def stresses(ε_x, ε_z, A):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
     dim = get_mesh_dimensions(ε_x.ufl_domain())
-    if dim in [2, 2.5]:
+    if dim in ['xy', 'xyz']:
         I = Identity(2)
         tr = trace(ε_x)
         ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
-    elif dim in [1, 1.5]:
+    elif dim in ['x', 'xz']:
         ε_e = sqrt((2*inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 2 * μ * (ε_x + ε_x), 2 * μ * ε_z
@@ -140,21 +140,21 @@ def horizontal_strain(u, s, h):
     following coordinates"""
     mesh = u.ufl_domain()
     dim = get_mesh_dimensions(mesh)
-    ζ = firedrake.SpatialCoordinate(mesh)[mesh._geometric_dimension-1]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension()-1]
     b = s - h
     v = -((1 - ζ) * grad_nd(b) + ζ * grad_nd(s)) / h
-    du_dζ = u.dx(mesh._geometric_dimension-1)
-    if dim in [2, 2.5]:
+    du_dζ = u.dx(mesh.geometric_dimension()-1)
+    if dim in ['xy', 'xyz']:
         return sym(grad_nd(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
-    elif dim in [1, 1.5]:
-        return grad_nd(u) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+    elif dim in ['x', 'xz']:
+        return grad_nd(u) + du_dζ*v
 
 
 def vertical_strain(u, h):
     r"""Calculate the vertical strain rate with corrections for terrain-
     following coordinates"""
     mesh = u.ufl_domain()
-    du_dζ = u.dx(mesh._geometric_dimension-1)
+    du_dζ = u.dx(mesh.geometric_dimension()-1)
     return 0.5 * du_dζ / h
 
 
@@ -234,9 +234,9 @@ class HybridModel:
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        if get_mesh_dimensions(mesh) in [2, 2.5]:
+        if get_mesh_dimensions(mesh) in ['xy', 'xyz']:
             penalty = self.penalty(**kwargs) * ds_w
-        elif get_mesh_dimensions(mesh) in [1, 1.5]:
+        elif get_mesh_dimensions(mesh) in ['x', 'xz']:
             penalty = 0.
 
         xdegree_u, zdegree_u = u.ufl_element().degree()

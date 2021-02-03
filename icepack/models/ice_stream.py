@@ -113,9 +113,9 @@ class IceStream:
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        if get_mesh_dimensions(mesh) == 2:
+        if get_mesh_dimensions(mesh) == 'xy':
             penalty = self.penalty(**kwargs) * ds_w
-        elif get_mesh_dimensions(mesh) == 1:
+        elif get_mesh_dimensions(mesh) == 'x':
             penalty = 0.
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
