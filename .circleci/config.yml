@@ -4,11 +4,15 @@ commands:
   build:
     steps:
       - checkout
-      - run: pip3 install --editable .
+      - run: pip3 install --editable ."[doc]"
       - run: pip3 install pytest-cov codecov
-  test:
+  unittest:
     steps:
       - run: pytest --capture=no --verbose --cov=icepack
+  realtest:
+    steps:
+      - run: cp ~/registry-nsidc.txt ~/icepack/icepack/
+      - run: jupyter nbconvert --to notebook --execute notebooks/tutorials/03-larsen-ice-shelf.ipynb
   codecov:
     steps:
       - run: codecov
@@ -16,19 +20,21 @@ commands:
 jobs:
   python36:
     docker:
-      - image: icepack/firedrake-python3.6:0.4.1
+      - image: icepack/firedrake-python3.6:0.5.0
     working_directory: ~/icepack
     steps:
       - build
-      - test
+      - unittest
+      - realtest
   python38:
     docker:
-      - image: icepack/firedrake-python3.8:0.4.1
+      - image: icepack/firedrake-python3.8:0.5.0
     working_directory: ~/icepack
     steps:
       - build
-      - test
+      - unittest
       - codecov
+      - realtest
 
 workflows:
   version: 2
