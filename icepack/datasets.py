@@ -17,6 +17,7 @@ from getpass import getpass
 import pkg_resources
 import requests
 import pooch
+import warnings
 
 
 pooch.get_logger().setLevel('WARNING')
