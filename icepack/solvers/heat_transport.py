@@ -12,7 +12,6 @@
 
 import firedrake
 from firedrake import dx, Constant
-from . import utilities
 from ..utilities import default_solver_parameters
 
 # TODO: Remove fetching 'E' from fields dictionary once this naming scheme is
@@ -40,10 +39,15 @@ class HeatTransportSolver:
 
     def _setup(self, **kwargs):
         for name, field in kwargs.items():
-            if name in self.fields.keys():
-                self.fields[name].assign(field)
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
             else:
-                self.fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         dt = Constant(1.)
 
@@ -75,8 +79,7 @@ class HeatTransportSolver:
             self._setup(**kwargs)
         else:
             for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self.fields[name].assign(field)
+                self.fields[name].assign(field)
 
         E = self.fields.get('energy', self.fields.get('E'))
         self._energy_old.assign(E)

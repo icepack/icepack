@@ -62,9 +62,14 @@ def subplots(*args, **kwargs):
         ax.yaxis.get_major_formatter().set_powerlimits((0, 0))
 
     try:
-        for ax in axes:
-            fmt(ax)
-    except TypeError:
+        if len(axes.shape) == 1:
+            for ax in axes:
+                fmt(ax)
+        else:
+            for row in axes:
+                for ax in row:
+                    fmt(ax)
+    except AttributeError:
         fmt(axes)
 
     return fig, axes
