@@ -95,7 +95,7 @@ class ShallowIce:
 
     """
     def __init__(self, mass=mass, gravity=gravity, penalty=penalty,
-                 continuity=Continuity(dimension=2)):
+                 continuity=Continuity()):
         self.mass = add_kwarg_wrapper(mass)
         self.gravity = add_kwarg_wrapper(gravity)
         self.penalty = add_kwarg_wrapper(penalty)

@@ -10,11 +10,12 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import numpy as np
+import pytest
 import firedrake
 import icepack
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g, glen_flow_law as n)
+import numpy as np
 
 Lx, Ly = 20e3, 20e3
 h0, dh = 500.0, 100.0
@@ -35,8 +36,8 @@ def exact_u(x):
     du = Z * q * Lx * (h0/dh) / (n + 1)
     return u_inflow + du
 
-
-def test_order_0():
+@pytest.mark.parametrize('dim', ['xz', 'xyz'])
+def test_order_0(dim):
     def h_expr(x):
         return h0 - dh * x / Lx
 
@@ -45,21 +46,29 @@ def test_order_0():
 
     A = firedrake.Constant(icepack.rate_factor(254.15))
     C = firedrake.Constant(0.001)
-    opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-14}
 
     Nx, Ny = 64, 64
-    mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
-    x, y = firedrake.SpatialCoordinate(mesh2d)
-    Q2d = firedrake.FunctionSpace(mesh2d, family='CG', degree=2)
-    V2d = firedrake.VectorFunctionSpace(mesh2d, family='CG', degree=2)
-    h = firedrake.interpolate(h_expr(x), Q2d)
-    s = firedrake.interpolate(s_expr(x), Q2d)
-    u_expr = firedrake.as_vector((exact_u(x), 0))
-    u0 = firedrake.interpolate(u_expr, V2d)
+    if dim == 'xz':
+        opts = {'dirichlet_ids': [1], 'tolerance': 1e-14}
+        mesh_lowd = firedrake.IntervalMesh(Nx, Lx)
+        x = firedrake.SpatialCoordinate(mesh_lowd)[0]
+    elif dim == 'xyz':
+        opts = {'dirichlet_ids': [1], 'side_wall_ids': [3, 4], 'tolerance': 1e-14}
+        mesh_lowd = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
+        x, y = firedrake.SpatialCoordinate(mesh_lowd)
+    Q_lowd = firedrake.FunctionSpace(mesh_lowd, family='CG', degree=2)
+    h = firedrake.interpolate(h_expr(x), Q_lowd)
+    s = firedrake.interpolate(s_expr(x), Q_lowd)
+    if dim == 'xz':
+        u0 = firedrake.interpolate(exact_u(x), Q_lowd)
+    elif dim == 'xyz':
+        V_lowd = firedrake.VectorFunctionSpace(mesh_lowd, family='CG', degree=2)
+        u_expr = firedrake.as_vector((exact_u(x), 0))
+        u0 = firedrake.interpolate(u_expr, V_lowd)
 
-    model2d = icepack.models.IceStream()
-    solver2d = icepack.solvers.FlowSolver(model2d, **opts)
-    u2d = solver2d.diagnostic_solve(
+    model_lowd = icepack.models.IceStream()
+    solver_lowd = icepack.solvers.FlowSolver(model_lowd, **opts)
+    u_lowd = solver_lowd.diagnostic_solve(
         velocity=u0,
         thickness=h,
         surface=s,
@@ -67,20 +76,26 @@ def test_order_0():
         friction=C
     )
 
-    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
-    x, y, ζ = firedrake.SpatialCoordinate(mesh)
-    Q3d = firedrake.FunctionSpace(
+    mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+    if dim == 'xz':
+        x, ζ = firedrake.SpatialCoordinate(mesh)
+        V_highd = firedrake.FunctionSpace(
+            mesh, family='CG', degree=2, vfamily='GL', vdegree=0)
+        u0 = firedrake.interpolate(exact_u(x), V_highd)
+    elif dim == 'xyz':
+        x, y, ζ = firedrake.SpatialCoordinate(mesh)
+        V_highd = firedrake.VectorFunctionSpace(
+            mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=0)
+        u_expr = firedrake.as_vector((exact_u(x), 0))
+        u0 = firedrake.interpolate(u_expr, V_highd)
+    Q_highd = firedrake.FunctionSpace(
         mesh, family='CG', degree=2, vfamily='DG', vdegree=0)
-    V3d = firedrake.VectorFunctionSpace(
-        mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=0)
-    h = firedrake.interpolate(h_expr(x), Q3d)
-    s = firedrake.interpolate(s_expr(x), Q3d)
-    u_expr = firedrake.as_vector((exact_u(x), 0))
-    u0 = firedrake.interpolate(u_expr, V3d)
+    h = firedrake.interpolate(h_expr(x), Q_highd)
+    s = firedrake.interpolate(s_expr(x), Q_highd)
 
-    model3d = icepack.models.HybridModel()
-    solver3d = icepack.solvers.FlowSolver(model3d, **opts)
-    u3d = solver3d.diagnostic_solve(
+    model_highd = icepack.models.HybridModel()
+    solver_highd = icepack.solvers.FlowSolver(model_highd, **opts)
+    u_highd = solver_highd.diagnostic_solve(
         velocity=u0,
         thickness=h,
         surface=s,
@@ -88,56 +103,71 @@ def test_order_0():
         friction=C
     )
 
-    U2D, U3D = u2d.dat.data_ro, u3d.dat.data_ro
-    assert np.linalg.norm(U3D - U2D) / np.linalg.norm(U2D) < 1e-2
+    U_lowD, U_highD = u_lowd.dat.data_ro, u_highd.dat.data_ro
+    assert np.linalg.norm(U_highD - U_lowD) / np.linalg.norm(U_lowD) < 1e-2
 
 
-def test_diagnostic_solver():
-    Nx, Ny = 32, 32
-    mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
-    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
+@pytest.mark.parametrize('dim', ['xz', 'xyz'])
+def test_diagnostic_solver(dim):
+    Nx, Ny, Nz = 32, 32, 32
+    if dim == 'xz':
+        opts = {'dirichlet_ids': [1], 'tol': 1e-12}
+        mesh_lowd = firedrake.IntervalMesh(Nx, Lx)
+        mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+        x, ζ = firedrake.SpatialCoordinate(mesh)
+        u_expr = (0.95 + 0.05 * ζ) * exact_u(x)
+        xs = np.array([(Lx/2, k / Nz) for k in range(Nz + 1)])
+    elif dim == 'xyz':
+        opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
+        mesh_lowd = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
+        mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+        x, y, ζ = firedrake.SpatialCoordinate(mesh)
+        u_expr = firedrake.as_vector(((0.95 + 0.05 * ζ) * exact_u(x), 0))
+        xs = np.array([(Lx/2, Ly/2, k / Nz) for k in range(Nz + 1)])
+
     Q = firedrake.FunctionSpace(
         mesh, family='CG', degree=2, vfamily='DG', vdegree=0)
 
-    x, y, ζ = firedrake.SpatialCoordinate(mesh)
     h = firedrake.interpolate(h0 - dh * x / Lx, Q)
     s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-    u_expr = firedrake.as_vector(((0.95 + 0.05 * ζ) * exact_u(x), 0))
 
     A = firedrake.Constant(icepack.rate_factor(254.15))
     C = firedrake.Constant(0.001)
 
     model = icepack.models.HybridModel()
-    opts = {'dirichlet_ids': [1, 3, 4], 'tol': 1e-12}
 
     max_degree = 5
-    Nz = 32
-    xs = np.array([(Lx/2, Ly/2, k / Nz) for k in range(Nz + 1)])
     us = np.zeros((max_degree + 1, Nz + 1))
     for vdegree in range(max_degree, 0, -1):
         solver = icepack.solvers.FlowSolver(model, **opts)
-        V = firedrake.VectorFunctionSpace(
-            mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=vdegree
-        )
+        if dim == 'xz':
+            V = firedrake.FunctionSpace(
+                mesh, family='CG', degree=2, vfamily='DG', vdegree=vdegree)
+            V0 = firedrake.FunctionSpace(
+                mesh, family='CG', degree=2, vfamily='DG', vdegree=0)
+        elif dim == 'xyz':
+            V = firedrake.VectorFunctionSpace(
+                mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=vdegree)
+            V0 = firedrake.VectorFunctionSpace(
+                mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=0)
+
         u0 = firedrake.interpolate(u_expr, V)
         u = solver.diagnostic_solve(
             velocity=u0,
             thickness=h,
             surface=s,
             fluidity=A,
-            friction=C
-        )
-
-        V0 = firedrake.VectorFunctionSpace(
-            mesh, dim=2, family='CG', degree=2, vfamily='DG', vdegree=0
-        )
+            friction=C)
 
         depth_avg_u = firedrake.project(u, V0)
         shear_u = firedrake.project(u - depth_avg_u, V)
         assert icepack.norm(shear_u, norm_type='Linfty') > 1e-2
 
         us_center = np.array(u.at(xs, tolerance=1e-6))
-        us[vdegree,:] = np.sqrt(np.sum(us_center**2, 1))
+        if dim == 'xz':
+            us[vdegree,:] = us_center
+        elif dim == 'xyz':
+            us[vdegree,:] = np.sqrt(np.sum(us_center**2, 1))
 
         norm = np.linalg.norm(us[max_degree, :])
         error = np.linalg.norm(us[vdegree, :] - us[max_degree, :]) / norm

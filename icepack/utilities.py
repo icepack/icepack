@@ -46,22 +46,62 @@ def get_kwargs_alt(dictionary, keys, keys_alt):
                   for key, alt_key in zip(keys, keys_alt)))
 
 
-def facet_normal_2(mesh):
+def get_mesh_dimensions(mesh):
+    r"""Get the number of dimensions in the mesh. Half dimensions for extruded into the vertical.
+    """
+    mesh_dim = mesh.geometric_dimension()
+    if mesh_dim == 1 and mesh.layers is None:
+        return 'x'
+    elif mesh_dim == 2 and mesh.layers is not None:
+        return 'xz'
+    elif mesh_dim == 2 and mesh.layers is None:
+        return 'xy'
+    elif mesh_dim == 3 and mesh.layers is not None:
+        return 'xyz'
+    else:
+        raise ValueError('icepack is not compatible with mesh dimension: %s'%mesh_dim)
+
+
+def facet_normal_nd(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
     to a mesh"""
-    ν = firedrake.FacetNormal(mesh)
-    return firedrake.as_vector((ν[0], ν[1]))
+    dim = get_mesh_dimensions(mesh)
+    if dim == 'xy':
+        return firedrake.FacetNormal(mesh)
+    elif dim == 'xyz':
+        ν = firedrake.FacetNormal(mesh)
+        return firedrake.as_vector((ν[0], ν[1]))
+    else:
+        return firedrake.FacetNormal(mesh)[0]
 
 
-def grad_2(q):
+def grad_nd(q):
     r"""Compute the horizontal gradient of a 3D field"""
-    return firedrake.as_tensor((q.dx(0), q.dx(1)))
+    dim = get_mesh_dimensions(q.ufl_domain())
+    if dim == 'xy':
+        return firedrake.grad(q)
+    elif dim == 'xyz':
+        return firedrake.as_tensor((q.dx(0), q.dx(1)))
+    else:
+        return q.dx(0)
 
 
-def div_2(q):
+def div_nd(q):
     r"""Compute the horizontal divergence of a 3D field"""
-    return q[0].dx(0) + q[1].dx(1)
+    dim = get_mesh_dimensions(q.ufl_domain())
+    if dim == 'xy':
+        return firedrake.div(q)
+    elif dim == 'xyz':
+        return q[0].dx(0) + q[1].dx(1)
+    else:
+        return q.dx(0)
 
+def ds_nd(q):
+    dim = get_mesh_dimensions(q.ufl_domain())
+    if dim in ['x', 'xy']:
+        return firedrake.ds
+    else:
+        return firedrake.ds_v
 
 def eigenvalues(a):
     r"""Return a pair of symbolic expressions for the largest and smallest
@@ -102,42 +142,42 @@ def compute_surface(**kwargs):
     return firedrake.interpolate(s_expr, Q)
 
 
-def depth_average(q3d, weight=firedrake.Constant(1)):
+def depth_average(q_highd, weight=firedrake.Constant(1)):
     r"""Return the weighted depth average of a function on an extruded mesh"""
-    element3d = q3d.ufl_element()
+    element_highd = q_highd.ufl_element()
 
     # Create the element `E x DG0` where `E` is the horizontal element for the
     # input field
     element_z = firedrake.FiniteElement(family='DG', cell='interval', degree=0)
-    shape = q3d.ufl_shape
+    shape = q_highd.ufl_shape
     if len(shape) == 0:
-        element_xy = element3d.sub_elements()[0]
+        element_xy = element_highd.sub_elements()[0]
         element_avg = firedrake.TensorProductElement(element_xy, element_z)
-        element2d = element_xy
+        element_lowd = element_xy
     elif len(shape) == 1:
-        element_xy = element3d.sub_elements()[0].sub_elements()[0]
+        element_xy = element_highd.sub_elements()[0].sub_elements()[0]
         element_u = firedrake.TensorProductElement(element_xy, element_z)
         element_avg = firedrake.VectorElement(element_u, dim=shape[0])
-        element2d = firedrake.VectorElement(element_xy, dim=shape[0])
+        element_lowd = firedrake.VectorElement(element_xy, dim=shape[0])
     else:
         raise NotImplementedError('Depth average of tensor fields not yet '
                                   'implemented!')
 
     # Project the weighted 3D field onto vertical DG0
-    mesh3d = q3d.ufl_domain()
-    Q_avg = firedrake.FunctionSpace(mesh3d, element_avg)
-    q_avg = firedrake.project(weight * q3d, Q_avg)
+    mesh_highd = q_highd.ufl_domain()
+    Q_avg = firedrake.FunctionSpace(mesh_highd, element_avg)
+    q_avg = firedrake.project(weight * q_highd, Q_avg)
 
     # Create a function space on the 2D mesh and a 2D function defined on this
     # space, then copy the raw vector of expansion coefficients from the 3D DG0
     # field into the coefficients of the 2D field. TODO: Get some assurance
     # from the firedrake folks that this will always work.
-    mesh2d = mesh3d._base_mesh
-    Q2D = firedrake.FunctionSpace(mesh2d, element2d)
-    q2d = firedrake.Function(Q2D)
-    q2d.dat.data[:] = q_avg.dat.data_ro[:]
+    mesh_lowd = mesh_highd._base_mesh
+    Q_lowD = firedrake.FunctionSpace(mesh_lowd, element_lowd)
+    q_lowd = firedrake.Function(Q_lowD)
+    q_lowd.dat.data[:] = q_avg.dat.data_ro[:]
 
-    return q2d
+    return q_lowd
 
 
 def lift3d(q2d, Q3D):

@@ -78,7 +78,7 @@ class IceShelf:
     """
     def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
                  side_friction=side_friction, penalty=normal_flow_penalty,
-                 continuity=Continuity(dimension=2)):
+                 continuity=Continuity()):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.penalty = add_kwarg_wrapper(penalty)

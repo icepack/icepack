@@ -15,11 +15,12 @@ r"""Solvers for ice physics models"""
 import firedrake
 from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from ..utilities import default_solver_parameters
+from ..utilities import (default_solver_parameters,
+                        facet_normal_nd, div_nd, grad_nd, ds_nd)
+
 
 # TODO: Remove all dictionary access of 'u' and 'h' once these names are
 # fully deprecated from the library
-
 
 class FlowSolver:
     def __init__(self, model, **kwargs):
@@ -183,7 +184,10 @@ class IcepackSolver:
         u = self._fields.get('velocity', self._fields.get('u'))
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
-        bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
+        if hasattr(V._ufl_element,'_sub_element'):
+            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
+        else:
+            bcs = firedrake.DirichletBC(V, Constant(0), self._dirichlet_ids)
         if not self._dirichlet_ids:
             bcs = None
 
@@ -385,13 +389,13 @@ class LaxWendroff:
 
         Q = h.function_space()
         model = self._continuity
-        n = model.facet_normal(Q.mesh())
+        n = facet_normal_nd(Q.mesh())
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
         # Additional streamlining terms that give 2nd-order accuracy
         q = firedrake.TestFunction(Q)
-        div, grad, ds = model.div, model.grad, model.ds
+        div, grad, ds = div_nd, grad_nd, ds_nd(q)
         flux_cells = -div(h * u) * inner(u, grad(q)) * dx
         flux_out = div(h * u) * q * outflow * ds
         flux_in = div(h_0 * u) * q * inflow * ds

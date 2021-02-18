@@ -11,15 +11,14 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import inner, grad, dx, ds
+from firedrake import inner, dx, ds
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
                                gravity as g)
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
 from icepack.models.mass_transport import Continuity
-from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
+from icepack.utilities import get_mesh_dimensions, facet_normal_nd, grad_nd, add_kwarg_wrapper, get_kwargs_alt
 
 
 def gravity(**kwargs):
@@ -43,7 +42,7 @@ def gravity(**kwargs):
     keys_alt = ('u', 'h', 's')
     u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    return -ρ_I * g * h * inner(grad(s), u)
+    return -ρ_I * g * h * inner(grad_nd(s), u)
 
 
 def terminus(**kwargs):
@@ -73,7 +72,8 @@ def terminus(**kwargs):
     τ_I = ρ_I * g * h**2 / 2
     τ_W = ρ_W * g * d**2 / 2
 
-    ν = firedrake.FacetNormal(u.ufl_domain())
+    ν = facet_normal_nd(u.ufl_domain())
+
     return (τ_I - τ_W) * inner(u, ν)
 
 
@@ -90,7 +90,7 @@ class IceStream:
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  side_friction=side_friction, penalty=normal_flow_penalty,
                  gravity=gravity, terminus=terminus,
-                 continuity=Continuity(dimension=2)):
+                 continuity=Continuity()):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -113,7 +113,10 @@ class IceStream:
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        penalty = self.penalty(**kwargs) * ds_w
+        if get_mesh_dimensions(mesh) == 'xy':
+            penalty = self.penalty(**kwargs) * ds_w
+        elif get_mesh_dimensions(mesh) == 'x':
+            penalty = 0.
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
         terminus = self.terminus(**kwargs) * ds_t

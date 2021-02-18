@@ -15,7 +15,7 @@ from firedrake import inner, grad, dx, ds_b, ds_t, ds_v
 from icepack.constants import (ice_density as ρ_I, thermal_diffusivity as α,
                                heat_capacity as c, latent_heat as L,
                                melting_temperature as Tm)
-from icepack.utilities import facet_normal_2, get_kwargs_alt
+from icepack.utilities import facet_normal_nd, get_kwargs_alt
 
 
 class HeatTransport3D:
@@ -51,7 +51,7 @@ class HeatTransport3D:
         flux_cells = -E * inner(U, grad(ψ)) * h * dx
 
         mesh = Q.mesh()
-        ν = facet_normal_2(mesh)
+        ν = facet_normal_nd(mesh)
         outflow = firedrake.max_value(inner(u, ν), 0)
         inflow = firedrake.min_value(inner(u, ν), 0)
 

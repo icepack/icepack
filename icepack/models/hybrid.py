@@ -20,7 +20,6 @@ from icepack.models.friction import (
     bed_friction, side_friction, normal_flow_penalty
 )
 from icepack.models.mass_transport import Continuity
-from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.constants import (
     ice_density as ρ_I,
     water_density as ρ_W,
@@ -28,8 +27,9 @@ from icepack.constants import (
     gravity as g
 )
 from icepack.utilities import (
-    facet_normal_2,
-    grad_2,
+    get_mesh_dimensions,
+    facet_normal_nd,
+    grad_nd,
     add_kwarg_wrapper,
     get_kwargs_alt
 )
@@ -56,7 +56,7 @@ def gravity(**kwargs):
     keys_alt = ('u', 'h', 's')
     u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
 
-    return -ρ_I * g * inner(grad_2(s), u) * h
+    return -ρ_I * g * inner(grad_nd(s), u) * h
 
 
 def _legendre(k, ζ):
@@ -107,40 +107,54 @@ def terminus(**kwargs):
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
 
-    ζ = firedrake.SpatialCoordinate(mesh)[2]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension()-1]
+
     b = s - h
     ζ_sl = firedrake.max_value(-b, 0) / h
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
 
-    ν = facet_normal_2(mesh)
+    ν = facet_normal_nd(mesh)
+
     return (p_I - p_W) * inner(u, ν) * h
 
 
 def stresses(ε_x, ε_z, A):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
-    I = Identity(2)
-    tr = trace(ε_x)
-    ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
-    μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-    return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
+    dim = get_mesh_dimensions(ε_x.ufl_domain())
+    if dim in ['xy', 'xyz']:
+        I = Identity(2)
+        tr = trace(ε_x)
+        ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr**2) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
+    elif dim in ['x', 'xz']:
+        ε_e = sqrt((2*inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
+        μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
+        return 4 * μ * ε_x, 2 * μ * ε_z
 
 
 def horizontal_strain(u, s, h):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
-    ζ = firedrake.SpatialCoordinate(u.ufl_domain())[2]
+    mesh = u.ufl_domain()
+    dim = get_mesh_dimensions(mesh)
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension()-1]
     b = s - h
-    v = -((1 - ζ) * grad_2(b) + ζ * grad_2(s)) / h
-    du_dζ = u.dx(2)
-    return sym(grad_2(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+    v = -((1 - ζ) * grad_nd(b) + ζ * grad_nd(s)) / h
+    du_dζ = u.dx(mesh.geometric_dimension()-1)
+    if dim in ['xy', 'xyz']:
+        return sym(grad_nd(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
+    elif dim in ['x', 'xz']:
+        return grad_nd(u) + du_dζ*v
 
 
 def vertical_strain(u, h):
     r"""Calculate the vertical strain rate with corrections for terrain-
     following coordinates"""
-    du_dζ = u.dx(2)
+    mesh = u.ufl_domain()
+    du_dζ = u.dx(mesh.geometric_dimension()-1)
     return 0.5 * du_dζ / h
 
 
@@ -195,7 +209,7 @@ class HybridModel:
     """
     def __init__(self, viscosity=viscosity, friction=bed_friction,
                  gravity=gravity, terminus=terminus,
-                 continuity=Continuity(dimension=3)):
+                 continuity=Continuity()):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -216,12 +230,14 @@ class HybridModel:
 
         viscosity = self.viscosity(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
-
         friction = self.friction(**kwargs) * ds_b
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        penalty = self.penalty(**kwargs) * ds_w
+        if get_mesh_dimensions(mesh) in ['xy', 'xyz']:
+            penalty = self.penalty(**kwargs) * ds_w
+        elif get_mesh_dimensions(mesh) in ['x', 'xz']:
+            penalty = 0.
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
