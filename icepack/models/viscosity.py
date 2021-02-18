@@ -85,7 +85,7 @@ def membrane_stress(ε, A):
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 2 * μ * (ε + tr_ε * I)
     elif dim == 'x':
-        ε_e = sqrt(2.*(inner(ε, ε)) / 2)
+        ε_e = sqrt(inner(ε, ε))
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
         return 4 * μ * ε
 

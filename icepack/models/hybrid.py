@@ -132,7 +132,7 @@ def stresses(ε_x, ε_z, A):
     elif dim in ['x', 'xz']:
         ε_e = sqrt((2*inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
         μ = 0.5 * A**(-1 / n) * ε_e**(1 / n - 1)
-        return 2 * μ * (ε_x + ε_x), 2 * μ * ε_z
+        return 4 * μ * ε_x, 2 * μ * ε_z
 
 
 def horizontal_strain(u, s, h):

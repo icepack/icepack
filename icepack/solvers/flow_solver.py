@@ -16,7 +16,7 @@ import firedrake
 from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from . import utilities
-from ..utilities import (default_solver_parameters, get_mesh_dimensions,
+from ..utilities import (default_solver_parameters,
                         facet_normal_nd, div_nd, grad_nd, ds_nd)
 
 # TODO: Remove all dictionary access of 'u' and 'h' once these names are
