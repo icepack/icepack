@@ -19,6 +19,7 @@ from . import utilities
 from ..utilities import (default_solver_parameters, get_mesh_dimensions,
                         facet_normal_nd, div_nd, grad_nd, ds_nd)
 
+
 # TODO: Remove all dictionary access of 'u' and 'h' once these names are
 # fully deprecated from the library
 
@@ -173,7 +174,12 @@ class IcepackSolver:
             if name in self._fields.keys():
                 self._fields[name].assign(field)
             else:
-                self._fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self._fields.get('velocity', self._fields.get('u'))
@@ -216,8 +222,7 @@ class IcepackSolver:
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self._fields[name].assign(field)
+                self._fields[name].assign(field)
 
         # Solve the minimization problem and return the velocity field
         self._solver.solve()
@@ -246,7 +251,12 @@ class PETScSolver:
             if name in self._fields.keys():
                 self._fields[name].assign(field)
             else:
-                self._fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self._fields.get('velocity', self._fields.get('u'))
@@ -309,7 +319,12 @@ class ImplicitEuler:
             if name in self._fields.keys():
                 self._fields[name].assign(field)
             else:
-                self._fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         dt = firedrake.Constant(1.)
         dh_dt = self._continuity(dt, **self._fields)
@@ -332,8 +347,7 @@ class ImplicitEuler:
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self._fields[name].assign(field)
+                self._fields[name].assign(field)
 
         h = self._fields.get('thickness', self._fields.get('h'))
         self._thickness_old.assign(h)
@@ -362,7 +376,12 @@ class LaxWendroff:
             if name in self._fields.keys():
                 self._fields[name].assign(field)
             else:
-                self._fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         dt = firedrake.Constant(1.)
         h = self._fields.get('thickness', self._fields.get('h'))
@@ -400,8 +419,7 @@ class LaxWendroff:
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self._fields[name].assign(field)
+                self._fields[name].assign(field)
 
         h = self._fields.get('thickness', self._fields.get('h'))
         self._thickness_old.assign(h)

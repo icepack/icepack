@@ -1,4 +1,4 @@
-# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -15,9 +15,17 @@ r"""Utilities for turning glacier outlines into unstructured meshes"""
 import copy
 import itertools
 import numpy as np
+from numpy import linalg
 import shapely.geometry
 import geojson
+import meshpy.triangle as triangle
 import pygmsh
+import firedrake
+
+try:
+    from firedrake.cython import dmcommon
+except ImportError:
+    from firedrake.cython import dmplex as dmcommon
 
 
 def _flatten(features):
@@ -241,11 +249,10 @@ def _add_loop_to_geometry(geometry, multi_line_string):
 def collection_to_geo(collection, lcar=10e3):
     r"""Convert a GeoJSON FeatureCollection into pygmsh geometry that can then
     be transformed into an unstructured triangular mesh"""
-    geometry = pygmsh.built_in.Geometry()
-
     collection = normalize(collection)
     features = collection['features']
 
+    geometry = pygmsh.built_in.Geometry()
     points = [[[geometry.add_point((point[0], point[1], 0.), lcar=lcar)
                 for point in line_string[:-1]]
                for line_string in feature['geometry']['coordinates']]
@@ -257,3 +264,107 @@ def collection_to_geo(collection, lcar=10e3):
     geometry.add_physical(plane_surface)
 
     return geometry
+
+
+def _find_interior_point(points):
+    r"""Find a point inside the polygon described by the input points
+
+    The input points don't need to be convex, but they do need to be ordered
+    counter-clockwise"""
+    # Find a point `X_0` outside the polygon with an x-coordinate distinct
+    # from all of the polygon points
+    xs = np.sort(points[:, 0])
+    delta = np.diff(xs)
+    index = np.argmax(delta)
+    x = (xs[index] + xs[index + 1]) / 2
+    ymin = points[:, 1].min()
+    ymax = points[:, 1].max()
+    y = ymax + (ymax - ymin) / 20
+    X_0 = np.array([x, y])
+
+    # Find all the points where the ray `X_0 + t * (0, -1)` intersects with
+    # the input polygon
+    intersections = []
+    for index in range(len(points) - 1):
+        X_1 = points[index, :]
+        X_2 = points[index + 1, :]
+
+        A = np.vstack((X_2 - X_1, (0, 1))).T
+        b = X_1 - X_0
+        try:
+            s = linalg.solve(A, b)[0]
+            if 0 <= s <= 1:
+                intersections.append((1 - s) * X_1 + s * X_2)
+        except linalg.LinAlgError:
+            pass
+
+    # Sort the points by distance from `X_0`; the average of the first two
+    # points is inside the polygon.
+    intersections = sorted(intersections, key=lambda X: np.sum((X - X_0)**2))
+    return (intersections[0] + intersections[1]) / 2
+
+
+def collection_to_triangle(collection, max_volume=None):
+    r"""Convert a GeoJSON FeatureCollection into a Triangle geometry that can
+    then be transformed into an unstructured triangular mesh"""
+    collection = normalize(collection)
+
+    coords = []
+    edges = []
+    markers = []
+    num_edges = 0
+    num_segments = 1
+    for feature in collection['features']:
+        feature_coords = sum(
+            [l[:-1] for l in feature['geometry']['coordinates']], []
+        )
+
+        n = len(feature_coords)
+        feature_edges = [
+            (num_edges + i, num_edges + (i + 1) % n) for i in range(n)
+        ]
+        num_edges += n
+
+        feature_markers = []
+        for l in feature['geometry']['coordinates']:
+            feature_markers.extend([num_segments for i in range(len(l) - 1)])
+            num_segments += 1
+
+        coords.extend(feature_coords)
+        edges.extend(feature_edges)
+        markers.extend(feature_markers)
+
+    holes = []
+    for feature in collection['features'][1:]:
+        feature_coords = sum(
+            [l[:-1] for l in feature['geometry']['coordinates']], []
+        )
+        point = _find_interior_point(np.array(feature_coords))
+        holes.append(point)
+
+    info = triangle.MeshInfo()
+    info.set_points(coords)
+    info.set_holes(holes)
+    info.set_facets(edges, facet_markers=markers)
+    return triangle.build(info, max_volume=max_volume)
+
+
+def triangle_to_firedrake(mesh, comm=firedrake.COMM_WORLD):
+    r"""Convert a generated Triangle geometry into a Firedrake mesh"""
+    elements, points = mesh.elements, mesh.points
+    plex = firedrake.mesh._from_cell_list(2, elements, points, comm)
+
+    markers = {
+        tuple(sorted((v1, v2))): mesh.facet_markers[index]
+        for index, (v1, v2) in enumerate(mesh.facets)
+    }
+    plex.createLabel(dmcommon.FACE_SETS_LABEL)
+    plex.markBoundaryFaces('boundary_faces')
+    boundary_faces = plex.getStratumIS('boundary_faces', 1).getIndices()
+    offset = plex.getDepthStratum(0)[0]
+    for face in boundary_faces:
+        vertices = tuple(sorted([v - offset for v in plex.getCone(face)]))
+        marker = markers[vertices]
+        plex.setLabelValue(dmcommon.FACE_SETS_LABEL, face, marker)
+
+    return firedrake.Mesh(plex)

@@ -21,7 +21,6 @@ from firedrake import (
     max_value,
     min_value
 )
-from . import utilities
 
 
 class DamageSolver:
@@ -41,10 +40,15 @@ class DamageSolver:
 
     def _setup(self, **kwargs):
         for name, field in kwargs.items():
-            if name in self.fields.keys():
-                self.fields[name].assign(field)
+            if name in self._fields.keys():
+                self._fields[name].assign(field)
             else:
-                self.fields[name] = utilities.copy(field)
+                if isinstance(field, firedrake.Constant):
+                    self._fields[name] = firedrake.Constant(field)
+                elif isinstance(field, firedrake.Function):
+                    self._fields[name] = field.copy(deepcopy=True)
+                else:
+                    raise TypeError('Input fields must be Constant or Function!')
 
         # Create symbolic representations of the flux and sources of damage
         dt = firedrake.Constant(1.)
@@ -89,8 +93,7 @@ class DamageSolver:
             self._setup(**kwargs)
         else:
             for name, field in kwargs.items():
-                if isinstance(field, firedrake.Function):
-                    self.fields[name].assign(field)
+                self.fields[name].assign(field)
 
         δt = self._timestep
         δt.assign(dt)

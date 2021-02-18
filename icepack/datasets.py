@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -67,8 +67,8 @@ nsidc_data = pooch.create(
     registry=None
 )
 
-registry_file = pkg_resources.resource_stream('icepack', 'registry.txt')
-nsidc_data.load_registry(registry_file)
+registry_nsidc = pkg_resources.resource_stream('icepack', 'registry-nsidc.txt')
+nsidc_data.load_registry(registry_nsidc)
 
 
 def fetch_measures_antarctica():
@@ -99,21 +99,44 @@ def fetch_bedmachine_antarctica():
 
 
 outlines_url = 'https://raw.githubusercontent.com/icepack/glacier-meshes/'
-outlines_commit = 'a522188dadb9ba49d4848ba66cab8c90f9fda5d9'
-larsen_outline = pooch.create(
+outlines_commit = 'c98a8b7536b1891611566257d944e5ea024f2cdf'
+outlines = pooch.create(
     path=pooch.os_cache('icepack'),
     base_url=outlines_url + outlines_commit + '/glaciers/',
-    registry={
-        'larsen.geojson':
-        'da77c1920191d415961347b43e18d5bc2ffd72ddb803c01fc24c68c5db0f3033'
-    }
+    registry=None
 )
+
+registry_outlines = pkg_resources.resource_stream(
+    'icepack', 'registry-outlines.txt'
+)
+outlines.load_registry(registry_outlines)
+
+
+def get_glacier_names():
+    r"""Return the names of the glaciers for which we have outlines that you
+    can fetch"""
+    return [
+        os.path.splitext(os.path.basename(filename))[0]
+        for filename in outlines.registry.keys()
+    ]
+
+
+def fetch_outline(name):
+    r"""Fetch the outline of a glacier as a GeoJSON file"""
+    names = get_glacier_names()
+    if name not in names:
+        raise ValueError("Glacier name '%s' not in %s" % (name, names))
+    downloader = pooch.HTTPDownloader(progressbar=True)
+    return outlines.fetch(name + '.geojson', downloader=downloader)
 
 
 def fetch_larsen_outline():
     r"""Fetch an outline of the Larsen C Ice Shelf"""
-    downloader = pooch.HTTPDownloader(progressbar=True)
-    return larsen_outline.fetch('larsen.geojson', downloader=downloader)
+    warnings.warn(
+        "This function is deprecated, use `fetch_outline('larsen')`",
+        FutureWarning
+    )
+    return fetch_outline('larsen')
 
 
 def fetch_mosaic_of_antarctica():

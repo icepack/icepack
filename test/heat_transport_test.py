@@ -31,6 +31,10 @@ Q = firedrake.FunctionSpace(
     mesh, family='CG', degree=2, vfamily='GL', vdegree=4
 )
 
+Q_c = firedrake.FunctionSpace(
+    mesh, family='CG', degree=2, vfamily='R', vdegree=0
+)
+
 V = firedrake.VectorFunctionSpace(
     mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=4
 )
@@ -43,10 +47,10 @@ x, y, ζ = firedrake.SpatialCoordinate(mesh)
 
 # The test glacier slopes down and thins out toward the terminus
 h0, dh = 500.0, 100.0
-h = h0 - dh * x / Lx
+h = firedrake.interpolate(h0 - dh * x / Lx, Q_c)
 
 s0, ds = 500.0, 50.0
-s = s0 - ds * x / Lx
+s = firedrake.interpolate(s0 - ds * x / Lx, Q_c)
 
 
 # The energy density at the surface (MPa / m^3) and heat flux (MPa / m^2 / yr)
@@ -71,7 +75,7 @@ def test_diffusion(params):
             h = kwargs['thickness']
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
-            return firedrake.Constant(0) * ψ * h * dx
+            return Constant(0) * ψ * h * dx
 
     model = DiffusionTransportModel()
     solver = icepack.solvers.HeatTransportSolver(
@@ -110,7 +114,7 @@ def test_advection():
             h = kwargs['thickness']
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
-            return firedrake.Constant(0) * ψ * h * dx
+            return Constant(0) * ψ * h * dx
 
     model = AdvectionTransportModel()
     solver = icepack.solvers.HeatTransportSolver(model)
@@ -168,7 +172,7 @@ def test_advection_diffusion():
             thickness=h,
             surface=s,
             heat=Constant(0),
-            heat_bed=q_bed,
+            heat_bed=Constant(q_bed),
             energy_inflow=E_initial,
             energy_surface=Constant(E_surface)
         )
@@ -217,14 +221,14 @@ def test_strain_heating():
     A = icepack.rate_factor(T)
     ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
     τ_x, τ_z = stresses(ε_x, ε_z, A)
-    q = inner(τ_x, ε_x) + inner(τ_z, ε_z)
+    q = firedrake.project(inner(τ_x, ε_x) + inner(τ_z, ε_z), Q)
 
     fields = {
         'velocity': u,
         'vertical_velocity': w,
         'thickness': h,
         'surface': s,
-        'heat_bed': q_bed,
+        'heat_bed': Constant(q_bed),
         'energy_inflow': E_initial,
         'energy_surface': Constant(E_surface)
     }
