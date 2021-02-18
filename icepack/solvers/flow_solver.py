@@ -15,7 +15,6 @@ r"""Solvers for ice physics models"""
 import firedrake
 from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from . import utilities
 from ..utilities import (default_solver_parameters,
                         facet_normal_nd, div_nd, grad_nd, ds_nd)
 
