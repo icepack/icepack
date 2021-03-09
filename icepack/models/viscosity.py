@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -17,7 +17,7 @@ and, in particular, the viscous part of the action functional for ice flow.
 Several flow models all have essentially the same viscous part.
 """
 
-import warnings
+from operator import itemgetter
 import numpy as np
 import firedrake
 from firedrake import grad, sqrt, Identity, inner, sym, tr as trace
@@ -94,7 +94,7 @@ def membrane_stress(ε, A):
         return 4 * μ * ε
 
 
-def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
+def viscosity_depth_averaged(**kwargs):
     r"""Return the viscous part of the action for depth-averaged models
 
     The viscous component of the action for depth-averaged ice flow is
@@ -125,20 +125,7 @@ def viscosity_depth_averaged(u=None, h=None, A=None, **kwargs):
     -------
     firedrake.Form
     """
-    # NOTE: This mess is for backwards-compatibility, so users can still pass
-    # in the velocity, thickness, and fluidity as positional arguments if they
-    # are still using old code.
-    if (u is not None) or (h is not None) or (A is not None):
-        warnings.warn("Abbreviated names (u, h, A) have been deprecated, use "
-                      "full names (velocity, thickness, fluidity) instead.",
-                      FutureWarning)
-
-    if u is None:
-        u = kwargs['velocity']
-    if h is None:
-        h = kwargs['thickness']
-    if A is None:
-        A = kwargs['fluidity']
+    u, h, A = itemgetter('velocity', 'thickness', 'fluidity')(kwargs)
 
     dim = get_mesh_dimensions(u.ufl_domain())
     if dim == 'xy':

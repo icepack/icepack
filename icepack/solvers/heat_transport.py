@@ -10,13 +10,10 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+from operator import itemgetter
 import firedrake
 from firedrake import dx, Constant
 from ..utilities import default_solver_parameters
-
-# TODO: Remove fetching 'E' from fields dictionary once this naming scheme is
-# fully deprecated
-
 
 class HeatTransportSolver:
     def __init__(self, model, **kwargs):
@@ -55,8 +52,7 @@ class HeatTransportSolver:
         dflux = self.model.diffusive_flux(**self.fields)
         sources = self.model.sources(**self.fields)
         dE_dt = sources - aflux - dflux
-        E = self.fields.get('energy', self.fields.get('E'))
-        h = self.fields.get('thickness', self.fields.get('h'))
+        E, h = itemgetter('energy', 'thickness')(self.fields)
         E_0 = E.copy(deepcopy=True)
         ψ = firedrake.TestFunction(E.function_space())
         F = (E - E_0) * ψ * h * dx - dt * dE_dt
@@ -81,7 +77,7 @@ class HeatTransportSolver:
             for name, field in kwargs.items():
                 self.fields[name].assign(field)
 
-        E = self.fields.get('energy', self.fields.get('E'))
+        E = self.fields['energy']
         self._energy_old.assign(E)
         self._timestep.assign(dt)
         self._solver.solve()

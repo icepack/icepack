@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+from operator import itemgetter
 import firedrake
 from firedrake import inner, dx, ds
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
@@ -18,7 +19,7 @@ from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import (bed_friction, side_friction,
                                      normal_flow_penalty)
 from icepack.models.mass_transport import Continuity
-from icepack.utilities import get_mesh_dimensions, facet_normal_nd, grad_nd, add_kwarg_wrapper, get_kwargs_alt
+from icepack.utilities import get_mesh_dimensions, facet_normal_nd, grad_nd, add_kwarg_wrapper
 
 
 def gravity(**kwargs):
@@ -38,10 +39,7 @@ def gravity(**kwargs):
     s : firedrake.Function
         ice surface elevation
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
-
+    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
     return -ρ_I * g * h * inner(grad_nd(s), u)
 
 
@@ -64,9 +62,7 @@ def terminus(**kwargs):
     thickness : firedrake.Function
     surface : firedrake.Function
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
 
     d = firedrake.min_value(s - h, 0)
     τ_I = ρ_I * g * h**2 / 2
@@ -102,7 +98,7 @@ class IceStream:
     def action(self, **kwargs):
         r"""Return the action functional that gives the ice stream
         diagnostic model as the Euler-Lagrange equations"""
-        u = kwargs.get('velocity', kwargs.get('u'))
+        u = kwargs['velocity']
         mesh = u.ufl_domain()
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
@@ -142,9 +138,7 @@ class IceStream:
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
-        u = kwargs.get('velocity', kwargs.get('u'))
-        h = kwargs.get('thickness', kwargs.get('h'))
-
+        u, h = itemgetter('velocity', 'thickness')(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return 3 * (degree_u - 1) + 2 * degree_h

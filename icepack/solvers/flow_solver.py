@@ -19,9 +19,6 @@ from ..utilities import (default_solver_parameters,
                         facet_normal_nd, div_nd, grad_nd, ds_nd)
 
 
-# TODO: Remove all dictionary access of 'u' and 'h' once these names are
-# fully deprecated from the library
-
 class FlowSolver:
     def __init__(self, model, **kwargs):
         r"""Solves the diagnostic and prognostic models of ice physics
@@ -181,7 +178,7 @@ class IcepackSolver:
                     raise TypeError('Input fields must be Constant or Function!')
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self._fields.get('velocity', self._fields.get('u'))
+        u = self._fields['velocity']
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
         if hasattr(V._ufl_element,'_sub_element'):
@@ -225,7 +222,7 @@ class IcepackSolver:
 
         # Solve the minimization problem and return the velocity field
         self._solver.solve()
-        u = self._fields.get('velocity', self._fields.get('u'))
+        u = self._fields['velocity']
         return u.copy(deepcopy=True)
 
 
@@ -258,7 +255,7 @@ class PETScSolver:
                     raise TypeError('Input fields must be Constant or Function!')
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self._fields.get('velocity', self._fields.get('u'))
+        u = self._fields['velocity']
         V = u.function_space()
         bcs = firedrake.DirichletBC(V, u, self._dirichlet_ids)
         if not self._dirichlet_ids:
@@ -295,7 +292,7 @@ class PETScSolver:
 
         # Solve the minimization problem and return the velocity field
         self._solver.solve()
-        u = self._fields.get('velocity', self._fields.get('u'))
+        u = self._fields['velocity']
         return u.copy(deepcopy=True)
 
 
@@ -327,7 +324,7 @@ class ImplicitEuler:
 
         dt = firedrake.Constant(1.)
         dh_dt = self._continuity(dt, **self._fields)
-        h = self._fields.get('thickness', self._fields.get('h'))
+        h = self._fields['thickness']
         h_0 = h.copy(deepcopy=True)
         q = firedrake.TestFunction(h.function_space())
         F = (h - h_0) * q * dx - dt * dh_dt
@@ -348,7 +345,7 @@ class ImplicitEuler:
             for name, field in kwargs.items():
                 self._fields[name].assign(field)
 
-        h = self._fields.get('thickness', self._fields.get('h'))
+        h = self._fields['thickness']
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
         self._solver.solve()
@@ -383,8 +380,8 @@ class LaxWendroff:
                     raise TypeError('Input fields must be Constant or Function!')
 
         dt = firedrake.Constant(1.)
-        h = self._fields.get('thickness', self._fields.get('h'))
-        u = self._fields.get('velocity', self._fields.get('u'))
+        h = self._fields['thickness']
+        u = self._fields['velocity']
         h_0 = h.copy(deepcopy=True)
 
         Q = h.function_space()
@@ -420,7 +417,7 @@ class LaxWendroff:
             for name, field in kwargs.items():
                 self._fields[name].assign(field)
 
-        h = self._fields.get('thickness', self._fields.get('h'))
+        h = self._fields['thickness']
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
         self._solver.solve()

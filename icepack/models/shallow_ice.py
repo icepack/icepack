@@ -10,13 +10,14 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx
 from icepack.constants import (
     ice_density as ρ_I, gravity as g, glen_flow_law as n
 )
 from icepack.models.mass_transport import Continuity
-from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
+from icepack.utilities import add_kwarg_wrapper
 
 
 def mass(**kwargs):
@@ -36,7 +37,7 @@ def mass(**kwargs):
     -------
     firedrake.Form
     """
-    u = kwargs.get('velocity', kwargs.get('u'))
+    u = kwargs['velocity']
     return .5 * inner(u, u)
 
 
@@ -60,8 +61,7 @@ def gravity(**kwargs):
     firedrake.Form
     """
     keys = ('velocity', 'thickness', 'surface', 'fluidity')
-    keys_alt = ('u', 'h', 's', 'A')
-    u, h, s, A = get_kwargs_alt(kwargs, keys, keys_alt)
+    u, h, s, A = itemgetter(*keys)(kwargs)
 
     return (2 * A * (ρ_I * g)**n / (n + 2)) * h**(n + 1) * grad(s)**(n - 1) * inner(grad(s), u)
 
@@ -83,7 +83,7 @@ def penalty(**kwargs):
     -------
     firedrake.Form
     """
-    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    u, h = itemgetter('velocity', 'thickness')(kwargs)
     l = 2 * firedrake.max_value(firedrake.CellDiameter(u.ufl_domain()), 5 * h)
     return .5 * l**2 * inner(grad(u), grad(u))
 
@@ -139,12 +139,8 @@ class ShallowIce:
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
-        u = kwargs.get('velocity', kwargs.get('u'))
-        h = kwargs.get('thickness', kwargs.get('h'))
-        s = kwargs.get('surface', kwargs.get('s'))
-
+        u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         degree_s = s.ufl_element().degree()
-
         return int((n + 1) * degree_h + n * degree_s + degree_u)

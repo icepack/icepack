@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 r"""Miscellaneous utilities for depth-averaging 3D fields, computing
 horizontal gradients of 3D fields, lifting 2D fields into 3D, etc."""
 
-import warnings
+from operator import itemgetter
 import inspect
 import numpy as np
 import firedrake
@@ -26,24 +26,6 @@ default_solver_parameters = {
     'pc_type': 'lu',
     'pc_factor_mat_solver_type': 'mumps'
 }
-
-
-def get_kwargs_alt(dictionary, keys, keys_alt):
-    r"""Get value from dictionary by key or by an alternate, deprecated key
-
-    This helper function is to aid in a refactoring of icepack where shorter
-    keyword arguments were replaced by longer names, for example `velocity`
-    instead of `u`, `thickness` instead of `h`, etc. For backwards
-    compatibility, it should be possible to use either the new or old keyword
-    argument names, but a warning should be thrown on using the old name.
-    """
-    if all([key in dictionary for key in keys]):
-        return map(dictionary.__getitem__, keys)
-
-    warnings.warn(f"Abbreviated names {keys_alt} have been deprecated, use "
-                  f"full names {keys} instead.", FutureWarning, stacklevel=2)
-    return tuple((dictionary.get(key, dictionary.get(alt_key))
-                  for key, alt_key in zip(keys, keys_alt)))
 
 
 def get_mesh_dimensions(mesh):
@@ -133,10 +115,7 @@ def compute_surface(**kwargs):
 
     provided everything is in hydrostatic balance.
     """
-    # TODO: Remove the 'h' and 'b' arguments once these are deprecated.
-    h = kwargs.get('thickness', kwargs.get('h'))
-    b = kwargs.get('bed', kwargs.get('b'))
-
+    h, b = itemgetter('thickness', 'bed')(kwargs)
     Q = h.ufl_function_space()
     s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
     return firedrake.interpolate(s_expr, Q)

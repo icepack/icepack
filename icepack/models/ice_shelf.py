@@ -10,6 +10,7 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx, ds
 from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
@@ -18,7 +19,7 @@ from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from icepack.utilities import add_kwarg_wrapper, get_kwargs_alt
+from icepack.utilities import add_kwarg_wrapper
 
 
 def gravity(**kwargs):
@@ -40,7 +41,7 @@ def gravity(**kwargs):
     -------
     firedrake.Form
     """
-    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    u, h = itemgetter('velocity', 'thickness')(kwargs)
 
     ρ = ρ_I * (1 - ρ_I / ρ_W)
     return -0.5 * ρ * g * inner(grad(h**2), u)
@@ -57,7 +58,7 @@ def terminus(**kwargs):
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.
     """
-    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
+    u, h = itemgetter('velocity', 'thickness')(kwargs)
 
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
@@ -119,7 +120,7 @@ class IceShelf:
             and gravity functionals. The ice fluidity coefficient, for
             example, is passed as a keyword argument.
         """
-        u = kwargs.get('velocity', kwargs.get('u'))
+        u = kwargs['velocity']
         mesh = u.ufl_domain()
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
@@ -153,9 +154,7 @@ class IceShelf:
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
-        u = kwargs.get('velocity', kwargs.get('u'))
-        h = kwargs.get('thickness', kwargs.get('h'))
-
+        u, h = itemgetter('velocity', 'thickness')(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return 3 * (degree_u - 1) + 2 * degree_h

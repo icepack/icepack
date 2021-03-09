@@ -17,12 +17,13 @@ This module contains a solver for the conservative advection equation that
 describes the evolution of ice damage (Albrecht and Levermann 2014).
 """
 
+from operator import itemgetter
 import firedrake
 from firedrake import (
     inner, grad, div, dx, ds, dS, sqrt, det, min_value, max_value, conditional
 )
 from icepack.constants import year
-from icepack.utilities import eigenvalues, get_kwargs_alt
+from icepack.utilities import eigenvalues
 
 
 class DamageTransport:
@@ -40,8 +41,7 @@ class DamageTransport:
 
     def flux(self, **kwargs):
         keys = ('damage', 'velocity', 'damage_inflow')
-        keys_alt = ('D', 'u', 'D_inflow')
-        D, u, D_inflow = get_kwargs_alt(kwargs, keys, keys_alt)
+        D, u, D_inflow = itemgetter(*keys)(kwargs)
 
         Q = D.function_space()
         φ = firedrake.TestFunction(Q)
@@ -60,8 +60,7 @@ class DamageTransport:
 
     def sources(self, **kwargs):
         keys = ('damage', 'velocity', 'strain_rate', 'membrane_stress')
-        keys_alt = ('D', 'u', 'ε', 'M')
-        D, u, ε, M = get_kwargs_alt(kwargs, keys, keys_alt)
+        D, u, ε, M = itemgetter(*keys)(kwargs)
 
         # Increase/decrease damage depending on stress and strain rates
         ε_1 = eigenvalues(ε)[0]

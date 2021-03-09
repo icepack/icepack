@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -10,11 +10,11 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-import warnings
+from operator import itemgetter
 import firedrake
 from firedrake import inner, sqrt
 from icepack.constants import weertman_sliding_law as m
-from icepack.utilities import facet_normal_nd, diameter, get_kwargs_alt
+from icepack.utilities import facet_normal_nd, diameter
 
 
 def friction_stress(u, C):
@@ -22,7 +22,7 @@ def friction_stress(u, C):
     return -C * sqrt(inner(u, u))**(1 / m - 1) * u
 
 
-def bed_friction(u=None, C=None, **kwargs):
+def bed_friction(**kwargs):
     r"""Return the bed friction part of the ice stream action functional
 
     The frictional part of the ice stream action functional is
@@ -35,18 +35,7 @@ def bed_friction(u=None, C=None, **kwargs):
     .. math::
        \tau(u, C) = -C|u|^{1/m - 1}u
     """
-    # NOTE: This mess is for backwards-compatibility, so users can still pass
-    # in the velocity, thickness, and fluidity as positional arguments if they
-    # are still using old code.
-    if (u is not None) or (C is not None):
-        warnings.warn("Abbreviated names (u, C) have been deprecated, use full"
-                      " names (velocity, friction) instead.", FutureWarning)
-
-    if u is None:
-        u = kwargs['velocity']
-    if C is None:
-        C = kwargs['friction']
-
+    u, C = itemgetter('velocity', 'friction')(kwargs)
     τ = friction_stress(u, C)
     return -m / (m + 1) * inner(τ, u)
 
@@ -65,8 +54,8 @@ def side_friction(**kwargs):
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
-    u, h = get_kwargs_alt(kwargs, ('velocity', 'thickness'), ('u', 'h'))
-    Cs = kwargs.get('side_friction', kwargs.get('Cs', firedrake.Constant(0.)))
+    u, h = itemgetter('velocity', 'thickness')(kwargs)
+    Cs = kwargs.get('side_friction', firedrake.Constant(0.))
 
     mesh = u.ufl_domain()
     ν = facet_normal_nd(mesh)
@@ -84,7 +73,7 @@ def normal_flow_penalty(**kwargs):
     enforce this boundary condition directly, we add a penalty for normal
     flow to the action functional.
     """
-    u, = get_kwargs_alt(kwargs, ('velocity',), ('u',))
+    u = kwargs['velocity']
     scale = kwargs.get('scale', firedrake.Constant(1.))
 
     mesh = u.ufl_domain()

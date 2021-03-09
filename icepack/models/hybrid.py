@@ -11,6 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import functools
+from operator import itemgetter
 import sympy
 import firedrake
 from firedrake import (
@@ -30,8 +31,7 @@ from icepack.utilities import (
     get_mesh_dimensions,
     facet_normal_nd,
     grad_nd,
-    add_kwarg_wrapper,
-    get_kwargs_alt
+    add_kwarg_wrapper
 )
 
 
@@ -52,10 +52,7 @@ def gravity(**kwargs):
     s : firedrake.Function
         ice surface elevation
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
-
+    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
     return -ρ_I * g * inner(grad_nd(s), u) * h
 
 
@@ -100,9 +97,7 @@ def terminus(**kwargs):
         numeric IDs of the parts of the boundary corresponding to the
         calving front
     """
-    keys = ('velocity', 'thickness', 'surface')
-    keys_alt = ('u', 'h', 's')
-    u, h, s = get_kwargs_alt(kwargs, keys, keys_alt)
+    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
 
     mesh = u.ufl_domain()
     zdegree = u.ufl_element().degree()[1]
@@ -189,8 +184,7 @@ def viscosity(**kwargs):
     firedrake.Form
     """
     keys = ('velocity', 'thickness', 'surface', 'fluidity')
-    keys_alt = ('u', 'h', 's', 'A')
-    u, h, s, A = get_kwargs_alt(kwargs, keys, keys_alt)
+    u, h, s, A = itemgetter(*keys)(kwargs)
 
     ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
     M, τ_z = stresses(ε_x, ε_z, A)
@@ -221,9 +215,7 @@ class HybridModel:
     def action(self, **kwargs):
         r"""Return the action functional that gives the hybrid model as its
         Euler-Lagrange equations"""
-        u = kwargs.get('velocity', kwargs.get('u'))
-        h = kwargs.get('thickness', kwargs.get('h'))
-
+        u, h = itemgetter('velocity', 'thickness')(kwargs)
         mesh = u.ufl_domain()
         ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
         side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
@@ -267,9 +259,7 @@ class HybridModel:
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
-        u = kwargs.get('velocity', kwargs.get('u'))
-        h = kwargs.get('thickness', kwargs.get('h'))
-
+        u, h = itemgetter('velocity', 'thickness')(kwargs)
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
         return (3 * (xdegree_u - 1) + 2 * degree_h,

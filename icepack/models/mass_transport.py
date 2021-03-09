@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -19,6 +19,7 @@ grounded glaciers will also need to update the ice surface elevation in a
 manner consistent with the bed elevation and where the ice may go afloat.
 """
 
+from operator import itemgetter
 import firedrake
 from firedrake import dx, inner
 from icepack import utilities
@@ -29,9 +30,8 @@ class Continuity:
 
     def __call__(self, dt, **kwargs):
         keys = ('thickness', 'velocity', 'accumulation')
-        keys_alt = ('h', 'u', 'a')
-        h, u, a = utilities.get_kwargs_alt(kwargs, keys, keys_alt)
-        h_inflow = kwargs.get('thickness_inflow', kwargs.get('h_inflow', h))
+        h, u, a = itemgetter(*keys)(kwargs)
+        h_inflow = kwargs.get('thickness_inflow', h)
 
         Q = h.function_space()
         q = firedrake.TestFunction(Q)

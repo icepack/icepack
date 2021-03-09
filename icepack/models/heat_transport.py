@@ -10,12 +10,13 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx, ds_b, ds_t, ds_v
 from icepack.constants import (ice_density as ρ_I, thermal_diffusivity as α,
                                heat_capacity as c, latent_heat as L,
                                melting_temperature as Tm)
-from icepack.utilities import facet_normal_nd, get_kwargs_alt
+from icepack.utilities import facet_normal_nd
 
 
 class HeatTransport3D:
@@ -41,8 +42,7 @@ class HeatTransport3D:
     def advective_flux(self, **kwargs):
         keys = ('energy', 'velocity', 'vertical_velocity', 'thickness',
                 'energy_inflow', 'energy_surface')
-        keys_alt = ('E', 'u', 'w', 'h', 'E_inflow', 'E_surface')
-        E, u, w, h, E_inflow, E_surface = get_kwargs_alt(kwargs, keys, keys_alt)
+        E, u, w, h, E_inflow, E_surface = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()
         ψ = firedrake.TestFunction(Q)
@@ -71,8 +71,7 @@ class HeatTransport3D:
 
     def diffusive_flux(self, **kwargs):
         keys = ('energy', 'thickness', 'energy_surface')
-        keys_alt = ('E', 'h', 'E_surface')
-        E, h, E_surface = get_kwargs_alt(kwargs, keys, keys_alt)
+        E, h, E_surface = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()
         ψ = firedrake.TestFunction(Q)
@@ -85,8 +84,7 @@ class HeatTransport3D:
 
     def sources(self, **kwargs):
         keys = ('energy', 'thickness', 'heat', 'heat_bed')
-        keys_alt = ('E', 'h', 'q', 'q_bed')
-        E, h, q, q_bed = get_kwargs_alt(kwargs, keys, keys_alt)
+        E, h, q, q_bed = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()
         ψ = firedrake.TestFunction(Q)
