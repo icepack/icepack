@@ -122,41 +122,39 @@ def compute_surface(**kwargs):
     return firedrake.interpolate(s_expr, Q)
 
 
-def depth_average(q_highd, weight=firedrake.Constant(1)):
+def depth_average(q_xz, weight=firedrake.Constant(1)):
     r"""Return the weighted depth average of a function on an extruded mesh"""
-    element_highd = q_highd.ufl_element()
+    element_xz = q_xz.ufl_element()
 
     # Create the element `E x DG0` where `E` is the horizontal element for the
     # input field
     element_z = firedrake.FiniteElement(family="DG", cell="interval", degree=0)
-    shape = q_highd.ufl_shape
+    shape = q_xz.ufl_shape
     if len(shape) == 0:
-        element_xy = element_highd.sub_elements()[0]
-        element_avg = firedrake.TensorProductElement(element_xy, element_z)
-        element_lowd = element_xy
+        element_x = element_xz.sub_elements()[0]
+        element_avg = firedrake.TensorProductElement(element_x, element_z)
     elif len(shape) == 1:
-        element_xy = element_highd.sub_elements()[0].sub_elements()[0]
+        element_xy = element_xz.sub_elements()[0].sub_elements()[0]
         element_u = firedrake.TensorProductElement(element_xy, element_z)
         element_avg = firedrake.VectorElement(element_u, dim=shape[0])
-        element_lowd = firedrake.VectorElement(element_xy, dim=shape[0])
+        element_x = firedrake.VectorElement(element_xy, dim=shape[0])
     else:
         raise NotImplementedError("Depth average of tensor fields not yet implemented!")
 
     # Project the weighted 3D field onto vertical DG0
-    mesh_highd = q_highd.ufl_domain()
-    Q_avg = firedrake.FunctionSpace(mesh_highd, element_avg)
-    q_avg = firedrake.project(weight * q_highd, Q_avg)
+    mesh_xz = q_xz.ufl_domain()
+    Q_avg = firedrake.FunctionSpace(mesh_xz, element_avg)
+    q_avg = firedrake.project(weight * q_xz, Q_avg)
 
     # Create a function space on the 2D mesh and a 2D function defined on this
     # space, then copy the raw vector of expansion coefficients from the 3D DG0
-    # field into the coefficients of the 2D field. TODO: Get some assurance
-    # from the firedrake folks that this will always work.
-    mesh_lowd = mesh_highd._base_mesh
-    Q_lowD = firedrake.FunctionSpace(mesh_lowd, element_lowd)
-    q_lowd = firedrake.Function(Q_lowD)
-    q_lowd.dat.data[:] = q_avg.dat.data_ro[:]
+    # field into the coefficients of the 2D field.
+    mesh_x = mesh_xz._base_mesh
+    Q_x = firedrake.FunctionSpace(mesh_x, element_x)
+    q_x = firedrake.Function(Q_x)
+    q_x.dat.data[:] = q_avg.dat.data_ro[:]
 
-    return q_lowd
+    return q_x
 
 
 def lift3d(q2d, Q3D):

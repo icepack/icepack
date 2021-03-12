@@ -15,6 +15,7 @@ import firedrake
 from firedrake import dx, Constant
 from ..utilities import default_solver_parameters
 
+
 class HeatTransportSolver:
     def __init__(self, model, **kwargs):
         self._model = model

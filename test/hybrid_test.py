@@ -56,56 +56,54 @@ def test_order_0(dim):
     Nx, Ny = 64, 64
     if dim == "xz":
         opts = {"dirichlet_ids": [1], "tolerance": 1e-14}
-        mesh_lowd = firedrake.IntervalMesh(Nx, Lx)
-        x = firedrake.SpatialCoordinate(mesh_lowd)[0]
+        mesh_x = firedrake.IntervalMesh(Nx, Lx)
+        x = firedrake.SpatialCoordinate(mesh_x)[0]
     elif dim == "xyz":
         opts = {"dirichlet_ids": [1], "side_wall_ids": [3, 4], "tolerance": 1e-14}
-        mesh_lowd = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
-        x, y = firedrake.SpatialCoordinate(mesh_lowd)
-    Q_lowd = firedrake.FunctionSpace(mesh_lowd, family="CG", degree=2)
-    h = firedrake.interpolate(h_expr(x), Q_lowd)
-    s = firedrake.interpolate(s_expr(x), Q_lowd)
+        mesh_x = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
+        x, y = firedrake.SpatialCoordinate(mesh_x)
+    Q_x = firedrake.FunctionSpace(mesh_x, family="CG", degree=2)
+    h = firedrake.interpolate(h_expr(x), Q_x)
+    s = firedrake.interpolate(s_expr(x), Q_x)
     if dim == "xz":
-        u0 = firedrake.interpolate(exact_u(x), Q_lowd)
+        u0 = firedrake.interpolate(exact_u(x), Q_x)
     elif dim == "xyz":
-        V_lowd = firedrake.VectorFunctionSpace(mesh_lowd, family="CG", degree=2)
+        V_x = firedrake.VectorFunctionSpace(mesh_x, family="CG", degree=2)
         u_expr = firedrake.as_vector((exact_u(x), 0))
-        u0 = firedrake.interpolate(u_expr, V_lowd)
+        u0 = firedrake.interpolate(u_expr, V_x)
 
-    model_lowd = icepack.models.IceStream()
-    solver_lowd = icepack.solvers.FlowSolver(model_lowd, **opts)
-    u_lowd = solver_lowd.diagnostic_solve(
+    model_x = icepack.models.IceStream()
+    solver_x = icepack.solvers.FlowSolver(model_x, **opts)
+    u_x = solver_x.diagnostic_solve(
         velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
     )
 
-    mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+    mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
     if dim == "xz":
         x, ζ = firedrake.SpatialCoordinate(mesh)
-        V_highd = firedrake.FunctionSpace(
+        V_xz = firedrake.FunctionSpace(
             mesh, family="CG", degree=2, vfamily="GL", vdegree=0
         )
-        u0 = firedrake.interpolate(exact_u(x), V_highd)
+        u0 = firedrake.interpolate(exact_u(x), V_xz)
     elif dim == "xyz":
         x, y, ζ = firedrake.SpatialCoordinate(mesh)
-        V_highd = firedrake.VectorFunctionSpace(
+        V_xz = firedrake.VectorFunctionSpace(
             mesh, dim=2, family="CG", degree=2, vfamily="GL", vdegree=0
         )
         u_expr = firedrake.as_vector((exact_u(x), 0))
-        u0 = firedrake.interpolate(u_expr, V_highd)
-    Q_highd = firedrake.FunctionSpace(
-        mesh, family="CG", degree=2, vfamily="DG", vdegree=0
-    )
-    h = firedrake.interpolate(h_expr(x), Q_highd)
-    s = firedrake.interpolate(s_expr(x), Q_highd)
+        u0 = firedrake.interpolate(u_expr, V_xz)
+    Q_xz = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="DG", vdegree=0)
+    h = firedrake.interpolate(h_expr(x), Q_xz)
+    s = firedrake.interpolate(s_expr(x), Q_xz)
 
-    model_highd = icepack.models.HybridModel()
-    solver_highd = icepack.solvers.FlowSolver(model_highd, **opts)
-    u_highd = solver_highd.diagnostic_solve(
+    model_xz = icepack.models.HybridModel()
+    solver_xz = icepack.solvers.FlowSolver(model_xz, **opts)
+    u_xz = solver_xz.diagnostic_solve(
         velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
     )
 
-    U_lowD, U_highD = u_lowd.dat.data_ro, u_highd.dat.data_ro
-    assert np.linalg.norm(U_highD - U_lowD) / np.linalg.norm(U_lowD) < 1e-2
+    U_x, U_xz = u_x.dat.data_ro, u_xz.dat.data_ro
+    assert np.linalg.norm(U_xz - U_x) / np.linalg.norm(U_x) < 1e-2
 
 
 @pytest.mark.parametrize("dim", ["xz", "xyz"])
@@ -113,15 +111,15 @@ def test_diagnostic_solver(dim):
     Nx, Ny, Nz = 32, 32, 32
     if dim == "xz":
         opts = {"dirichlet_ids": [1], "tol": 1e-12}
-        mesh_lowd = firedrake.IntervalMesh(Nx, Lx)
-        mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+        mesh_x = firedrake.IntervalMesh(Nx, Lx)
+        mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
         x, ζ = firedrake.SpatialCoordinate(mesh)
         u_expr = (0.95 + 0.05 * ζ) * exact_u(x)
         xs = np.array([(Lx / 2, k / Nz) for k in range(Nz + 1)])
     elif dim == "xyz":
         opts = {"dirichlet_ids": [1, 3, 4], "tol": 1e-12}
-        mesh_lowd = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
-        mesh = firedrake.ExtrudedMesh(mesh_lowd, layers=1)
+        mesh_x = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
+        mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
         x, y, ζ = firedrake.SpatialCoordinate(mesh)
         u_expr = firedrake.as_vector(((0.95 + 0.05 * ζ) * exact_u(x), 0))
         xs = np.array([(Lx / 2, Ly / 2, k / Nz) for k in range(Nz + 1)])
