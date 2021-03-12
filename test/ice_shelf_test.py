@@ -96,7 +96,7 @@ def test_diagnostic_solver_convergence(solver_type):
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
+        print(f'log(error) ~= {slope:g} * log(dx) + {intercept:g}')
         assert slope > degree + 0.8
 
 
@@ -157,7 +157,7 @@ def test_diagnostic_solver_parameterization():
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
+    print(f'log(error) ~= {slope:g} * log(dx) + {intercept:g}')
     assert slope > degree - 0.05
 
 

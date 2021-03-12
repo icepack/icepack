@@ -299,7 +299,7 @@ class InverseSolver:
         result = minimize_scalar(f, bracket=brack, options=line_search_options)
 
         if not result.success:
-            raise ValueError("Line search failed: {}".format(result.message))
+            raise ValueError(f"Line search failed: {result.message}")
 
         return result.x
 

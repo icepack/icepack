@@ -141,6 +141,5 @@ class NewtonSolver:
             self.step()
             if self.iteration >= self.max_iterations:
                 raise firedrake.ConvergenceError(
-                    'Newton search did not converge after {} iterations!'
-                    .format(self.max_iterations)
+                    f'Newton search did not converge after {self.max_iterations} iterations!'
                 )

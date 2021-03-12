@@ -83,7 +83,7 @@ def fetch_measures_greenland():
     r"""Fetch the MEaSUREs Greenland velocity map"""
     return [
         nsidc_data.fetch(
-            'greenland_vel_mosaic200_2015_2016_{}_v02.1.tif'.format(field_name),
+            f'greenland_vel_mosaic200_2015_2016_{field_name}_v02.1.tif',
             downloader=_earthdata_downloader
         )
         for field_name in ['vx', 'vy', 'ex', 'ey']

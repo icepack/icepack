@@ -113,5 +113,5 @@ def test_diagnostic_solver_convergence():
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print('log(error) ~= {:g} * log(dx) + {:g}'.format(slope, intercept))
+        print(f'log(error) ~= {slope:g} * log(dx) + {intercept:g}')
         assert slope > 0.9
