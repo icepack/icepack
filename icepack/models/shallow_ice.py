@@ -13,9 +13,7 @@
 from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx
-from icepack.constants import (
-    ice_density as ρ_I, gravity as g, glen_flow_law as n
-)
+from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law as n
 from icepack.models.mass_transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
 
@@ -37,8 +35,8 @@ def mass(**kwargs):
     -------
     firedrake.Form
     """
-    u = kwargs['velocity']
-    return .5 * inner(u, u)
+    u = kwargs["velocity"]
+    return 0.5 * inner(u, u)
 
 
 def gravity(**kwargs):
@@ -60,10 +58,15 @@ def gravity(**kwargs):
     -------
     firedrake.Form
     """
-    keys = ('velocity', 'thickness', 'surface', 'fluidity')
+    keys = ("velocity", "thickness", "surface", "fluidity")
     u, h, s, A = itemgetter(*keys)(kwargs)
 
-    return (2 * A * (ρ_I * g)**n / (n + 2)) * h**(n + 1) * grad(s)**(n - 1) * inner(grad(s), u)
+    return (
+        (2 * A * (ρ_I * g) ** n / (n + 2))
+        * h ** (n + 1)
+        * grad(s) ** (n - 1)
+        * inner(grad(s), u)
+    )
 
 
 def penalty(**kwargs):
@@ -83,9 +86,9 @@ def penalty(**kwargs):
     -------
     firedrake.Form
     """
-    u, h = itemgetter('velocity', 'thickness')(kwargs)
+    u, h = itemgetter("velocity", "thickness")(kwargs)
     l = 2 * firedrake.max_value(firedrake.CellDiameter(u.ufl_domain()), 5 * h)
-    return .5 * l**2 * inner(grad(u), grad(u))
+    return 0.5 * l ** 2 * inner(grad(u), grad(u))
 
 
 class ShallowIce:
@@ -94,8 +97,10 @@ class ShallowIce:
     and surface elevation of a grounded area of slow flowing ice.
 
     """
-    def __init__(self, mass=mass, gravity=gravity, penalty=penalty,
-                 continuity=Continuity()):
+
+    def __init__(
+        self, mass=mass, gravity=gravity, penalty=penalty, continuity=Continuity()
+    ):
         self.mass = add_kwarg_wrapper(mass)
         self.gravity = add_kwarg_wrapper(gravity)
         self.penalty = add_kwarg_wrapper(penalty)
@@ -139,7 +144,7 @@ class ShallowIce:
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
-        u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
+        u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         degree_s = s.ufl_element().degree()

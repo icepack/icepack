@@ -19,7 +19,7 @@ from firedrake import (
     LinearVariationalProblem,
     LinearVariationalSolver,
     max_value,
-    min_value
+    min_value,
 )
 
 
@@ -48,14 +48,14 @@ class DamageSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
         # Create symbolic representations of the flux and sources of damage
-        dt = firedrake.Constant(1.)
+        dt = firedrake.Constant(1.0)
         flux = self.model.flux(**self.fields)
 
         # Create the finite element mass matrix
-        D = self.fields['damage']
+        D = self.fields["damage"]
         Q = D.function_space()
         φ, ψ = firedrake.TrialFunction(Q), firedrake.TestFunction(Q)
         M = φ * ψ * dx
@@ -69,10 +69,10 @@ class DamageSolver:
         dD = firedrake.Function(Q)
 
         parameters = {
-            'solver_parameters': {
-                'ksp_type': 'preonly',
-                'pc_type': 'bjacobi',
-                'sub_pc_type': 'ilu'
+            "solver_parameters": {
+                "ksp_type": "preonly",
+                "pc_type": "bjacobi",
+                "sub_pc_type": "ilu",
             }
         }
 
@@ -89,7 +89,7 @@ class DamageSolver:
         self._timestep = dt
 
     def solve(self, dt, **kwargs):
-        if not hasattr(self, '_solvers'):
+        if not hasattr(self, "_solvers"):
             self._setup(**kwargs)
         else:
             for name, field in kwargs.items():
@@ -97,7 +97,7 @@ class DamageSolver:
 
         δt = self._timestep
         δt.assign(dt)
-        D = self.fields['damage']
+        D = self.fields["damage"]
 
         solver1, solver2, solver3 = self._solvers
         D1, D2 = self._stages
@@ -106,9 +106,9 @@ class DamageSolver:
         solver1.solve()
         D1.assign(D + dD)
         solver2.solve()
-        D2.assign(3/4 * D + 1/4 * (D1 + dD))
+        D2.assign(3 / 4 * D + 1 / 4 * (D1 + dD))
         solver3.solve()
-        D.assign(1/3 * D + 2/3 * (D2 + dD))
+        D.assign(1 / 3 * D + 2 / 3 * (D2 + dD))
 
         S = self.model.sources(**self.fields)
         D.project(min_value(max_value(D + δt * S, 0), 1))

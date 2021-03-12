@@ -13,13 +13,16 @@
 from operator import itemgetter
 import firedrake
 from firedrake import inner, dx, ds
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               gravity as g)
+from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
-from icepack.models.friction import (bed_friction, side_friction,
-                                     normal_flow_penalty)
+from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
-from icepack.utilities import get_mesh_dimensions, facet_normal_nd, grad_nd, add_kwarg_wrapper
+from icepack.utilities import (
+    get_mesh_dimensions,
+    facet_normal_nd,
+    grad_nd,
+    add_kwarg_wrapper,
+)
 
 
 def gravity(**kwargs):
@@ -39,7 +42,7 @@ def gravity(**kwargs):
     s : firedrake.Function
         ice surface elevation
     """
-    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
+    u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
     return -ρ_I * g * h * inner(grad_nd(s), u)
 
 
@@ -62,11 +65,11 @@ def terminus(**kwargs):
     thickness : firedrake.Function
     surface : firedrake.Function
     """
-    u, h, s = itemgetter('velocity', 'thickness', 'surface')(kwargs)
+    u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
 
     d = firedrake.min_value(s - h, 0)
-    τ_I = ρ_I * g * h**2 / 2
-    τ_W = ρ_W * g * d**2 / 2
+    τ_I = ρ_I * g * h ** 2 / 2
+    τ_W = ρ_W * g * d ** 2 / 2
 
     ν = facet_normal_nd(u.ufl_domain())
 
@@ -83,10 +86,17 @@ class IceStream:
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice stream viscous action
     """
-    def __init__(self, viscosity=viscosity, friction=bed_friction,
-                 side_friction=side_friction, penalty=normal_flow_penalty,
-                 gravity=gravity, terminus=terminus,
-                 continuity=Continuity()):
+
+    def __init__(
+        self,
+        viscosity=viscosity,
+        friction=bed_friction,
+        side_friction=side_friction,
+        penalty=normal_flow_penalty,
+        gravity=gravity,
+        terminus=terminus,
+        continuity=Continuity(),
+    ):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
@@ -98,10 +108,10 @@ class IceStream:
     def action(self, **kwargs):
         r"""Return the action functional that gives the ice stream
         diagnostic model as the Euler-Lagrange equations"""
-        u = kwargs['velocity']
+        u = kwargs["velocity"]
         mesh = u.ufl_domain()
-        ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
-        side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
+        ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
+        side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
         viscosity = self.viscosity(**kwargs) * dx
         friction = self.friction(**kwargs) * dx
@@ -109,17 +119,15 @@ class IceStream:
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        if get_mesh_dimensions(mesh) == 'xy':
+        if get_mesh_dimensions(mesh) == "xy":
             penalty = self.penalty(**kwargs) * ds_w
-        elif get_mesh_dimensions(mesh) == 'x':
-            penalty = 0.
+        elif get_mesh_dimensions(mesh) == "x":
+            penalty = 0.0
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
         terminus = self.terminus(**kwargs) * ds_t
 
-        return (
-            viscosity + friction + side_friction - gravity - terminus + penalty
-        )
+        return viscosity + friction + side_friction - gravity - terminus + penalty
 
     def scale(self, **kwargs):
         r"""Return the positive, convex part of the action functional
@@ -138,7 +146,7 @@ class IceStream:
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
-        u, h = itemgetter('velocity', 'thickness')(kwargs)
+        u, h = itemgetter("velocity", "thickness")(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return 3 * (degree_u - 1) + 2 * degree_h

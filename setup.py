@@ -13,18 +13,27 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='icepack',
-    version='0.0.3',
-    license='GPL v3',
-    description='ice sheet flow modelling with the finite element method',
-    author='Daniel Shapero',
-    url='https://github.com/icepack/icepack',
-    packages=find_packages(exclude=['doc', 'test']),
-    package_data={'icepack': ['registry-nsidc.txt', 'registry-outlines.txt']},
-    install_requires=['numpy', 'scipy', 'matplotlib', 'rasterio>=1.0.26',
-                      'netCDF4', 'geojson', 'shapely', 'pooch>=1.0.0',
-                      'pygmsh<=6.1.1', 'meshio>=3.3.1', 'MeshPy', 'tqdm'],
-    extras_require = {
-        'doc': ['sphinx', 'ipykernel', 'nbconvert', 'nikola']
-    }
+    name="icepack",
+    version="0.0.3",
+    license="GPL v3",
+    description="ice sheet flow modelling with the finite element method",
+    author="Daniel Shapero",
+    url="https://github.com/icepack/icepack",
+    packages=find_packages(exclude=["doc", "test"]),
+    package_data={"icepack": ["registry-nsidc.txt", "registry-outlines.txt"]},
+    install_requires=[
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "rasterio>=1.0.26",
+        "netCDF4",
+        "geojson",
+        "shapely",
+        "pooch>=1.0.0",
+        "pygmsh<=6.1.1",
+        "meshio>=3.3.1",
+        "MeshPy",
+        "tqdm",
+    ],
+    extras_require={"doc": ["sphinx", "ipykernel", "nbconvert", "nikola"]},
 )

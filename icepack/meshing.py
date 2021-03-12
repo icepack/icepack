@@ -33,21 +33,20 @@ def _flatten(features):
     LineString features"""
     flat_features = []
     for feature in features:
-        if feature['geometry']['type'] == 'LineString':
+        if feature["geometry"]["type"] == "LineString":
             flat_features.append(feature)
-        if feature['geometry']['type'] == 'MultiLineString':
-            properties = feature['properties']
-            for line_string in feature['geometry']['coordinates']:
+        if feature["geometry"]["type"] == "MultiLineString":
+            properties = feature["properties"]
+            for line_string in feature["geometry"]["coordinates"]:
                 geometry = geojson.LineString(coordinates=line_string)
-                flat_feature = geojson.Feature(geometry=geometry,
-                                               properties=properties)
+                flat_feature = geojson.Feature(geometry=geometry, properties=properties)
                 flat_features.append(flat_feature)
 
     return flat_features
 
 
 def _dist(x, y):
-    return np.sqrt(sum((x - y)**2))
+    return np.sqrt(sum((x - y) ** 2))
 
 
 def _closest_endpoint(features, feature_index, point_index):
@@ -57,7 +56,7 @@ def _closest_endpoint(features, feature_index, point_index):
     The result could be the opposite endpoint of the same feature.
     """
     feature = features[feature_index]
-    x = np.array(feature['geometry']['coordinates'][point_index])
+    x = np.array(feature["geometry"]["coordinates"][point_index])
 
     min_distance = np.inf
     min_findex = None
@@ -65,7 +64,7 @@ def _closest_endpoint(features, feature_index, point_index):
 
     for findex in set(range(len(features))) - set([feature_index]):
         for pindex in (0, -1):
-            y = features[findex]['geometry']['coordinates'][pindex]
+            y = features[findex]["geometry"]["coordinates"][pindex]
             distance = _dist(x, y)
             if distance < min_distance:
                 min_distance = distance
@@ -73,7 +72,7 @@ def _closest_endpoint(features, feature_index, point_index):
                 min_pindex = pindex
 
     pindex = 0 if point_index == -1 else -1
-    y = features[feature_index]['geometry']['coordinates'][pindex]
+    y = features[feature_index]["geometry"]["coordinates"][pindex]
     if _dist(x, y) < min_distance:
         min_findex = feature_index
         min_pindex = pindex
@@ -106,20 +105,21 @@ def _snap(input_features):
         for ei in (0, -1):
             j, ej = adjacency[(i, ei)]
 
-            xi = features[i]['geometry']['coordinates'][ei]
-            xj = features[j]['geometry']['coordinates'][ej]
+            xi = features[i]["geometry"]["coordinates"][ei]
+            xj = features[j]["geometry"]["coordinates"][ej]
             average = ((np.array(xi) + np.array(xj)) / 2).tolist()
 
-            features[i]['geometry']['coordinates'][ei] = average
-            features[j]['geometry']['coordinates'][ej] = average
+            features[i]["geometry"]["coordinates"][ei] = average
+            features[j]["geometry"]["coordinates"][ej] = average
 
     return features
 
 
 def _powerset(iterable):
     s = list(iterable)
-    return itertools.chain.from_iterable(itertools.combinations(s, r)
-                                         for r in range(len(s) + 1))
+    return itertools.chain.from_iterable(
+        itertools.combinations(s, r) for r in range(len(s) + 1)
+    )
 
 
 def _reorient(input_features):
@@ -145,12 +145,12 @@ def _reorient(input_features):
 
         if all([A[(i, ei)][1] != ei for i in range(n) for ei in (0, -1)]):
             for i in s:
-                coords = features[i]['geometry']['coordinates']
-                features[i]['geometry']['coordinates'] = coords[::-1]
+                coords = features[i]["geometry"]["coordinates"]
+                features[i]["geometry"]["coordinates"] = coords[::-1]
 
             return features
 
-    raise ValueError('Input collection is not orientable! How did you even?!')
+    raise ValueError("Input collection is not orientable! How did you even?!")
 
 
 def _features_to_loops(features):
@@ -185,8 +185,7 @@ def _topologize(input_features):
     loops = _features_to_loops(input_features)
     features = []
     for loop in loops:
-        coords = [list(geojson.utils.coords(input_features[index]))
-                  for index in loop]
+        coords = [list(geojson.utils.coords(input_features[index])) for index in loop]
         multi_line_string = geojson.MultiLineString(coords)
         features.append(geojson.Feature(geometry=multi_line_string))
 
@@ -196,16 +195,14 @@ def _topologize(input_features):
 def _find_bounding_feature(features):
     r"""Return the index of the feature in the collection that contains all
     other features"""
-    line_strings = [sum(feature['geometry']['coordinates'], [])
-                    for feature in features]
-    polygons = [shapely.geometry.Polygon(line_string)
-                for line_string in line_strings]
+    line_strings = [sum(feature["geometry"]["coordinates"], []) for feature in features]
+    polygons = [shapely.geometry.Polygon(line_string) for line_string in line_strings]
 
     for index, poly in enumerate(polygons):
         if all([poly.contains(p) for p in polygons if p is not poly]):
             return index
 
-    raise ValueError('No polygon contains all other polygons!')
+    raise ValueError("No polygon contains all other polygons!")
 
 
 def _reorder(input_features):
@@ -220,7 +217,7 @@ def normalize(input_collection):
     transformed into the input for a mesh generator"""
     collection = copy.deepcopy(input_collection)
     for function in [_flatten, _snap, _reorient, _topologize, _reorder]:
-        collection['features'] = function(collection['features'])
+        collection["features"] = function(collection["features"])
 
     return collection
 
@@ -250,16 +247,24 @@ def collection_to_geo(collection, lcar=10e3):
     r"""Convert a GeoJSON FeatureCollection into pygmsh geometry that can then
     be transformed into an unstructured triangular mesh"""
     collection = normalize(collection)
-    features = collection['features']
+    features = collection["features"]
 
     geometry = pygmsh.built_in.Geometry()
-    points = [[[geometry.add_point((point[0], point[1], 0.), lcar=lcar)
-                for point in line_string[:-1]]
-               for line_string in feature['geometry']['coordinates']]
-              for feature in features]
+    points = [
+        [
+            [
+                geometry.add_point((point[0], point[1], 0.0), lcar=lcar)
+                for point in line_string[:-1]
+            ]
+            for line_string in feature["geometry"]["coordinates"]
+        ]
+        for feature in features
+    ]
 
-    line_loops = [_add_loop_to_geometry(geometry, multi_line_string)
-                  for multi_line_string in points]
+    line_loops = [
+        _add_loop_to_geometry(geometry, multi_line_string)
+        for multi_line_string in points
+    ]
     plane_surface = geometry.add_plane_surface(line_loops[0], line_loops[1:])
     geometry.add_physical(plane_surface)
 
@@ -300,7 +305,7 @@ def _find_interior_point(points):
 
     # Sort the points by distance from `X_0`; the average of the first two
     # points is inside the polygon.
-    intersections = sorted(intersections, key=lambda X: np.sum((X - X_0)**2))
+    intersections = sorted(intersections, key=lambda X: np.sum((X - X_0) ** 2))
     return (intersections[0] + intersections[1]) / 2
 
 
@@ -314,19 +319,15 @@ def collection_to_triangle(collection, max_volume=None):
     markers = []
     num_edges = 0
     num_segments = 1
-    for feature in collection['features']:
-        feature_coords = sum(
-            [l[:-1] for l in feature['geometry']['coordinates']], []
-        )
+    for feature in collection["features"]:
+        feature_coords = sum([l[:-1] for l in feature["geometry"]["coordinates"]], [])
 
         n = len(feature_coords)
-        feature_edges = [
-            (num_edges + i, num_edges + (i + 1) % n) for i in range(n)
-        ]
+        feature_edges = [(num_edges + i, num_edges + (i + 1) % n) for i in range(n)]
         num_edges += n
 
         feature_markers = []
-        for l in feature['geometry']['coordinates']:
+        for l in feature["geometry"]["coordinates"]:
             feature_markers.extend([num_segments for i in range(len(l) - 1)])
             num_segments += 1
 
@@ -335,10 +336,8 @@ def collection_to_triangle(collection, max_volume=None):
         markers.extend(feature_markers)
 
     holes = []
-    for feature in collection['features'][1:]:
-        feature_coords = sum(
-            [l[:-1] for l in feature['geometry']['coordinates']], []
-        )
+    for feature in collection["features"][1:]:
+        feature_coords = sum([l[:-1] for l in feature["geometry"]["coordinates"]], [])
         point = _find_interior_point(np.array(feature_coords))
         holes.append(point)
 
@@ -359,8 +358,8 @@ def triangle_to_firedrake(mesh, comm=firedrake.COMM_WORLD):
         for index, (v1, v2) in enumerate(mesh.facets)
     }
     plex.createLabel(dmcommon.FACE_SETS_LABEL)
-    plex.markBoundaryFaces('boundary_faces')
-    boundary_faces = plex.getStratumIS('boundary_faces', 1).getIndices()
+    plex.markBoundaryFaces("boundary_faces")
+    boundary_faces = plex.getStratumIS("boundary_faces", 1).getIndices()
     offset = plex.getDepthStratum(0)[0]
     for face in boundary_faces:
         vertices = tuple(sorted([v - offset for v in plex.getCone(face)]))

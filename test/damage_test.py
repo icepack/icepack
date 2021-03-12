@@ -15,19 +15,23 @@ from firedrake import norm, interpolate, Constant, as_vector, sym, grad
 import icepack
 from icepack.models.viscosity import membrane_stress
 from icepack.constants import (
-    ice_density as ρ_I, water_density as ρ_W, gravity as g, glen_flow_law as n
+    ice_density as ρ_I,
+    water_density as ρ_W,
+    gravity as g,
+    glen_flow_law as n,
 )
 from icepack.utilities import eigenvalues
+
 
 def test_eigenvalues():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
     x, y = firedrake.SpatialCoordinate(mesh)
 
-    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=2)
+    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=2)
     u = interpolate(as_vector((x, 0)), V)
 
-    Q = firedrake.FunctionSpace(mesh, family='DG', degree=2)
+    Q = firedrake.FunctionSpace(mesh, family="DG", degree=2)
     ε = sym(grad(u))
     Λ1, Λ2 = eigenvalues(ε)
     λ1 = firedrake.project(Λ1, Q)
@@ -43,28 +47,28 @@ def test_damage_transport():
     mesh = firedrake.RectangleMesh(nx, ny, Lx, Ly)
     x, y = firedrake.SpatialCoordinate(mesh)
 
-    V = firedrake.VectorFunctionSpace(mesh, 'CG', 2)
-    Q = firedrake.FunctionSpace(mesh, 'CG', 2)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
+    Q = firedrake.FunctionSpace(mesh, "CG", 2)
 
     u0 = 100.0
     h0, dh = 500.0, 100.0
     T = 268.0
 
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4)**n
-    q = 1 - (1 - (dh / h0) * (x / Lx))**(n + 1)
+    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
+    q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
     du = Z * q * Lx * (h0 / dh) / (n + 1)
 
     u = interpolate(as_vector((u0 + du, 0)), V)
     h = interpolate(h0 - dh * x / Lx, Q)
     A = firedrake.Constant(icepack.rate_factor(T))
 
-    S = firedrake.TensorFunctionSpace(mesh, 'DG', 1)
+    S = firedrake.TensorFunctionSpace(mesh, "DG", 1)
     ε = firedrake.project(sym(grad(u)), S)
     M = firedrake.project(membrane_stress(ε, A), S)
 
     degree = 1
-    Δ = firedrake.FunctionSpace(mesh, 'DG', degree)
+    Δ = firedrake.FunctionSpace(mesh, "DG", degree)
     D_inflow = firedrake.Constant(0.0)
     D = firedrake.Function(Δ)
 
@@ -72,7 +76,7 @@ def test_damage_transport():
     damage_solver = icepack.solvers.DamageSolver(damage_model)
 
     final_time = Lx / u0
-    max_speed = u.at((Lx - 1., Ly / 2), tolerance=1e-10)[0]
+    max_speed = u.at((Lx - 1.0, Ly / 2), tolerance=1e-10)[0]
     δx = Lx / nx
     timestep = δx / max_speed / (2 * degree + 1)
     num_steps = int(final_time / timestep)
@@ -85,7 +89,7 @@ def test_damage_transport():
             velocity=u,
             strain_rate=ε,
             membrane_stress=M,
-            damage_inflow=D_inflow
+            damage_inflow=D_inflow,
         )
 
     Dmax = D.dat.data_ro[:].max()

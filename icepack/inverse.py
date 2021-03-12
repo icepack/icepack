@@ -66,10 +66,19 @@ class InverseProblem:
     with, say, the mass conservation equation, which is hyperbolic.
     """
 
-    def __init__(self, model, objective, regularization,
-                 state_name, state, parameter_name, parameter,
-                 solver_type=FlowSolver, solver_kwargs={},
-                 diagnostic_solve_kwargs={}):
+    def __init__(
+        self,
+        model,
+        objective,
+        regularization,
+        state_name,
+        state,
+        parameter_name,
+        parameter,
+        solver_type=FlowSolver,
+        solver_kwargs={},
+        diagnostic_solve_kwargs={},
+    ):
         r"""Initialize the inverse problem
 
         Parameters
@@ -109,7 +118,7 @@ class InverseProblem:
         self.solver_type = solver_type
         self.solver_kwargs = solver_kwargs
         self.diagnostic_solve_kwargs = diagnostic_solve_kwargs
-        self.dirichlet_ids = solver_kwargs.get('dirichlet_ids', [])
+        self.dirichlet_ids = solver_kwargs.get("dirichlet_ids", [])
 
         self.parameter_name = parameter_name
         self.parameter = parameter
@@ -142,6 +151,7 @@ class InverseSolver:
     inherit from this one only need to define how the search direction is
     computed.
     """
+
     def _setup(self, problem, callback=(lambda s: None)):
         self._problem = problem
         self._callback = callback
@@ -154,13 +164,12 @@ class InverseSolver:
         )
         u_name, p_name = problem.state_name, problem.parameter_name
         solve_kwargs = dict(
-            **problem.diagnostic_solve_kwargs,
-            **{u_name: self._u, p_name: self._p}
+            **problem.diagnostic_solve_kwargs, **{u_name: self._u, p_name: self._p}
         )
 
         # Make the form compiler use a reasonable number of quadrature points
         degree = problem.model.quadrature_degree(**solve_kwargs)
-        self._fc_params = {'quadrature_degree': degree}
+        self._fc_params = {"quadrature_degree": degree}
 
         # Create the error, regularization, and barrier functionals
         self._E = problem.objective(self._u)
@@ -196,14 +205,17 @@ class InverseSolver:
         # Create the derivative of the objective functional
         self._dE = derivative(self._E, self._u)
         dR = derivative(self._R, self._p)
-        self._dJ = (action(adjoint(dF_dp), self._λ) + dR)
+        self._dJ = action(adjoint(dF_dp), self._λ) + dR
 
         # Create problem and solver objects for the adjoint state
         L = adjoint(self._dF_du)
         adjoint_problem = firedrake.LinearVariationalProblem(
-            L, -self._dE, self._λ, self._bc,
+            L,
+            -self._dE,
+            self._λ,
+            self._bc,
             form_compiler_parameters=self._fc_params,
-            constant_jacobian=False
+            constant_jacobian=False,
         )
         self._adjoint_solver = firedrake.LinearVariationalSolver(
             adjoint_problem, solver_parameters=self._solver_params
@@ -315,7 +327,7 @@ class InverseSolver:
         self.update_search_direction()
         self._callback(self)
 
-    def solve(self, atol=0., rtol=1e-6, etol=0., max_iterations=200):
+    def solve(self, atol=0.0, rtol=1e-6, etol=0.0, max_iterations=200):
         r"""Search for a new value of the parameters, stopping once either
         the objective functional gets below a threshold value or stops
         improving.
@@ -344,9 +356,9 @@ class InverseSolver:
             dJ_dq = self._assemble(firedrake.action(self.gradient, q))
 
             if (
-                ((J_initial - J) < rtol * J_initial) or
-                (-dJ_dq < etol * J) or
-                (J <= atol)
+                ((J_initial - J) < rtol * J_initial)
+                or (-dJ_dq < etol * J)
+                or (J <= atol)
             ):
                 return iteration
 
@@ -369,6 +381,7 @@ class GradientDescentSolver(InverseSolver):
     gradient of the objective functional. The search direction is easy to
     compute using this method, but is often poorly scaled, resulting in more
     expensive bracketing and line search phases."""
+
     def __init__(self, problem, callback=(lambda s: None)):
         self._setup(problem, callback)
         self.update_state()
@@ -421,9 +434,11 @@ class GaussNewtonCG:
         φ, ψ = firedrake.TestFunction(Q), firedrake.TrialFunction(Q)
         M = φ * ψ * dx + derivative(dR, p)
         residual_problem = firedrake.LinearVariationalProblem(
-            M, -dJ, z,
+            M,
+            -dJ,
+            z,
             form_compiler_parameters=solver._fc_params,
-            constant_jacobian=False
+            constant_jacobian=False,
         )
         residual_solver = firedrake.LinearVariationalSolver(
             residual_problem, solver_parameters=solver._solver_params
@@ -443,22 +458,27 @@ class GaussNewtonCG:
         # Create linear problem and solver objects for the auxiliary tangent
         # sub-problems
         tangent_linear_problem = firedrake.LinearVariationalProblem(
-            dF_du, action(dF_dp, s), w, bc,
+            dF_du,
+            action(dF_dp, s),
+            w,
+            bc,
             form_compiler_parameters=solver._fc_params,
-            constant_jacobian=False
+            constant_jacobian=False,
         )
         tangent_linear_solver = firedrake.LinearVariationalSolver(
             tangent_linear_problem, solver_parameters=solver._solver_params
         )
 
         adjoint_tangent_linear_problem = firedrake.LinearVariationalProblem(
-            adjoint(dF_du), derivative(dE, u, w), v, bc,
+            adjoint(dF_du),
+            derivative(dE, u, w),
+            v,
+            bc,
             form_compiler_parameters=solver._fc_params,
-            constant_jacobian=False
+            constant_jacobian=False,
         )
         adjoint_tangent_linear_solver = firedrake.LinearVariationalSolver(
-            adjoint_tangent_linear_problem,
-            solver_parameters=solver._solver_params
+            adjoint_tangent_linear_problem, solver_parameters=solver._solver_params
         )
 
         self._rhs = dJ
@@ -474,9 +494,11 @@ class GaussNewtonCG:
         δz = firedrake.Function(Q)
         Gs = self._product
         delta_residual_problem = firedrake.LinearVariationalProblem(
-            M, Gs, δz,
+            M,
+            Gs,
+            δz,
             form_compiler_parameters=solver._fc_params,
-            constant_jacobian=False
+            constant_jacobian=False,
         )
         delta_residual_solver = firedrake.LinearVariationalSolver(
             delta_residual_problem, solver_parameters=solver._solver_params
@@ -485,8 +507,8 @@ class GaussNewtonCG:
         self._delta_residual = δz
         self._delta_residual_solver = delta_residual_solver
 
-        self._residual_energy = 0.
-        self._search_direction_energy = 0.
+        self._residual_energy = 0.0
+        self._search_direction_energy = 0.0
 
         self.reinit()
 
@@ -508,8 +530,8 @@ class GaussNewtonCG:
         self.update_state()
         self._search_direction_energy = self._assemble(action(Gs, s))
 
-        self._energy = 0.
-        self._objective = 0.
+        self._energy = 0.0
+        self._objective = 0.0
 
     @property
     def iteration(self):
@@ -579,8 +601,7 @@ class GaussNewtonCG:
         Gs = self.operator_product
         dJ = self._rhs
         delta_energy = α * (
-            self._assemble(action(Gs, q)) +
-            0.5 * α * self.search_direction_energy
+            self._assemble(action(Gs, q)) + 0.5 * α * self.search_direction_energy
         )
         self._energy += delta_energy
         self._objective += delta_energy + α * self._assemble(action(dJ, s))
@@ -640,15 +661,21 @@ class GaussNewtonSolver(InverseSolver):
     scaled to the dimensions of the problem and converges in far fewer
     iterations.
     """
-    def __init__(self, problem, callback=(lambda s: None),
-                 search_tolerance=1e-6, search_max_iterations=100):
+
+    def __init__(
+        self,
+        problem,
+        callback=(lambda s: None),
+        search_tolerance=1e-6,
+        search_max_iterations=100,
+    ):
         self._setup(problem, callback)
         self.update_state()
         self.update_adjoint_state()
 
         self._search_tolerance = search_tolerance
         self._search_max_iterations = search_max_iterations
-        self._line_search_options = {'xtol': search_tolerance / 2}
+        self._line_search_options = {"xtol": search_tolerance / 2}
 
         self._search_solver = GaussNewtonCG(self)
         self.update_search_direction()
@@ -659,9 +686,7 @@ class GaussNewtonSolver(InverseSolver):
         r"""Solve the Gauss-Newton system for the new search direction using
         the preconditioned conjugate gradient method"""
         self._search_solver.reinit()
-        self._search_solver.solve(
-            self._search_tolerance, self._search_max_iterations
-        )
+        self._search_solver.solve(self._search_tolerance, self._search_max_iterations)
         self.search_direction.assign(self._search_solver.solution)
 
 
@@ -678,6 +703,7 @@ class BFGSSolver(InverseSolver):
 
     See chapters 6-7 of Nocedal and Wright, Numerical Optimization, 2nd ed.
     """
+
     def __init__(self, problem, callback=(lambda s: None), memory=5):
         self._setup(problem, callback)
         self.update_state()
@@ -731,9 +757,9 @@ class BFGSSolver(InverseSolver):
         fs.append(f.copy(deepcopy=True))
 
         # Forget any old values of the parameters and objective gradient
-        ps = ps[-(self.memory + 1):]
-        fs = fs[-(self.memory + 1):]
-        ρ = ρ[-self.memory:]
+        ps = ps[-(self.memory + 1) :]
+        fs = fs[-(self.memory + 1) :]
+        ρ = ρ[-self.memory :]
 
         g = f.copy(deepcopy=True)
         m = len(ρ)

@@ -36,7 +36,7 @@ class MinimizationProblem:
         self.form_compiler_parameters = form_compiler_parameters
 
     def assemble(self, *args, **kwargs):
-        kwargs['form_compiler_parameters'] = self.form_compiler_parameters
+        kwargs["form_compiler_parameters"] = self.form_compiler_parameters
         return firedrake.assemble(*args, **kwargs)
 
 
@@ -67,9 +67,9 @@ class NewtonSolver:
         if solver_parameters is None:
             solver_parameters = default_solver_parameters
 
-        self.armijo = kwargs.pop('armijo', 1e-4)
-        self.contraction = kwargs.pop('contraction', 0.5)
-        self.max_iterations = kwargs.pop('max_iterations', 50)
+        self.armijo = kwargs.pop("armijo", 1e-4)
+        self.contraction = kwargs.pop("contraction", 0.5)
+        self.max_iterations = kwargs.pop("max_iterations", 50)
 
         u = self.problem.u
         V = u.function_space()
@@ -85,20 +85,24 @@ class NewtonSolver:
         if self.problem.bcs:
             bcs = firedrake.homogenize(self.problem.bcs)
         problem = firedrake.LinearVariationalProblem(
-            self.J, -self.F, v, bcs, constant_jacobian=False,
-            form_compiler_parameters=self.problem.form_compiler_parameters
+            self.J,
+            -self.F,
+            v,
+            bcs,
+            constant_jacobian=False,
+            form_compiler_parameters=self.problem.form_compiler_parameters,
         )
         self.search_direction_solver = firedrake.LinearVariationalSolver(
             problem, solver_parameters=solver_parameters
         )
 
         self.search_direction_solver.solve()
-        self.t = firedrake.Constant(0.)
+        self.t = firedrake.Constant(0.0)
         self.iteration = 0
 
     def reinit(self):
         self.search_direction_solver.solve()
-        self.t.assign(0.)
+        self.t.assign(0.0)
         self.iteration = 0
 
     def step(self):
@@ -109,14 +113,14 @@ class NewtonSolver:
         v = self.v
         t = self.t
 
-        t.assign(1.)
+        t.assign(1.0)
         E_0 = self.problem.assemble(E)
         slope = self.problem.assemble(self.dE_dv)
         if slope > 0:
             raise firedrake.ConvergenceError(
-                'Minimization solver has invalid search direction. This is '
-                'likely due to a negative thickness or friction coefficient or'
-                'otherwise physically invalid input data.'
+                "Minimization solver has invalid search direction. This is "
+                "likely due to a negative thickness or friction coefficient or"
+                "otherwise physically invalid input data."
             )
 
         E_t = firedrake.replace(E, {u: u + t * v})
@@ -141,5 +145,5 @@ class NewtonSolver:
             self.step()
             if self.iteration >= self.max_iterations:
                 raise firedrake.ConvergenceError(
-                    f'Newton search did not converge after {self.max_iterations} iterations!'
+                    f"Newton search did not converge after {self.max_iterations} iterations!"
                 )

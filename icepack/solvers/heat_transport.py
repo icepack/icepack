@@ -21,7 +21,7 @@ class HeatTransportSolver:
         self._fields = {}
 
         self._solver_parameters = kwargs.get(
-            'solver_parameters', default_solver_parameters
+            "solver_parameters", default_solver_parameters
         )
 
     @property
@@ -44,21 +44,21 @@ class HeatTransportSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
-        dt = Constant(1.)
+        dt = Constant(1.0)
 
         aflux = self.model.advective_flux(**self.fields)
         dflux = self.model.diffusive_flux(**self.fields)
         sources = self.model.sources(**self.fields)
         dE_dt = sources - aflux - dflux
-        E, h = itemgetter('energy', 'thickness')(self.fields)
+        E, h = itemgetter("energy", "thickness")(self.fields)
         E_0 = E.copy(deepcopy=True)
         ψ = firedrake.TestFunction(E.function_space())
         F = (E - E_0) * ψ * h * dx - dt * dE_dt
 
         degree = E.ufl_element().degree()
-        fc_params = {'quadrature_degree': (3 * degree[0], 2 * degree[1])}
+        fc_params = {"quadrature_degree": (3 * degree[0], 2 * degree[1])}
         problem = firedrake.NonlinearVariationalProblem(
             F, E, form_compiler_parameters=fc_params
         )
@@ -71,13 +71,13 @@ class HeatTransportSolver:
         self._timestep = dt
 
     def solve(self, dt, **kwargs):
-        if not hasattr(self, '_solver'):
+        if not hasattr(self, "_solver"):
             self._setup(**kwargs)
         else:
             for name, field in kwargs.items():
                 self.fields[name].assign(field)
 
-        E = self.fields['energy']
+        E = self.fields["energy"]
         self._energy_old.assign(E)
         self._timestep.assign(dt)
         self._solver.solve()

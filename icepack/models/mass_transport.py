@@ -29,14 +29,18 @@ class Continuity:
     r"""Describes the form of the mass continuity equation"""
 
     def __call__(self, dt, **kwargs):
-        keys = ('thickness', 'velocity', 'accumulation')
+        keys = ("thickness", "velocity", "accumulation")
         h, u, a = itemgetter(*keys)(kwargs)
-        h_inflow = kwargs.get('thickness_inflow', h)
+        h_inflow = kwargs.get("thickness_inflow", h)
 
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
 
-        grad, ds, n = utilities.grad_nd, utilities.ds_nd(q), utilities.facet_normal_nd(Q.mesh())
+        grad, ds, n = (
+            utilities.grad_nd,
+            utilities.ds_nd(q),
+            utilities.facet_normal_nd(Q.mesh()),
+        )
 
         u_n = inner(u, n)
         flux_cells = -inner(h * u, grad(q)) * dx

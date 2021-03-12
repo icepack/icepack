@@ -13,9 +13,13 @@
 from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx, ds_b, ds_t, ds_v
-from icepack.constants import (ice_density as ρ_I, thermal_diffusivity as α,
-                               heat_capacity as c, latent_heat as L,
-                               melting_temperature as Tm)
+from icepack.constants import (
+    ice_density as ρ_I,
+    thermal_diffusivity as α,
+    heat_capacity as c,
+    latent_heat as L,
+    melting_temperature as Tm,
+)
 from icepack.utilities import facet_normal_nd
 
 
@@ -28,6 +32,7 @@ class HeatTransport3D:
     enthalpy because it comes out to a nice round number (about 500 MPa/m^3)
     in the unit system we use.
     """
+
     def __init__(self, surface_exchange_coefficient=9):
         r"""Create a heat transport model
 
@@ -40,8 +45,14 @@ class HeatTransport3D:
         self.surface_exchange_coefficient = surface_exchange_coefficient
 
     def advective_flux(self, **kwargs):
-        keys = ('energy', 'velocity', 'vertical_velocity', 'thickness',
-                'energy_inflow', 'energy_surface')
+        keys = (
+            "energy",
+            "velocity",
+            "vertical_velocity",
+            "thickness",
+            "energy_inflow",
+            "energy_surface",
+        )
         E, u, w, h, E_inflow, E_surface = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()
@@ -56,21 +67,21 @@ class HeatTransport3D:
         inflow = firedrake.min_value(inner(u, ν), 0)
 
         flux_outflow = (
-            E * outflow * ψ * h * ds_v +
-            E * firedrake.max_value(-w, 0) * ψ * h * ds_b +
-            E * firedrake.max_value(+w, 0) * ψ * h * ds_t
+            E * outflow * ψ * h * ds_v
+            + E * firedrake.max_value(-w, 0) * ψ * h * ds_b
+            + E * firedrake.max_value(+w, 0) * ψ * h * ds_t
         )
 
         flux_inflow = (
-            E_inflow * inflow * ψ * h * ds_v +
-            E_surface * firedrake.min_value(-w, 0) * ψ * h * ds_b +
-            E_surface * firedrake.min_value(+w, 0) * ψ * h * ds_t
+            E_inflow * inflow * ψ * h * ds_v
+            + E_surface * firedrake.min_value(-w, 0) * ψ * h * ds_b
+            + E_surface * firedrake.min_value(+w, 0) * ψ * h * ds_t
         )
 
         return flux_cells + flux_outflow + flux_inflow
 
     def diffusive_flux(self, **kwargs):
-        keys = ('energy', 'thickness', 'energy_surface')
+        keys = ("energy", "thickness", "energy_surface")
         E, h, E_surface = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()
@@ -83,7 +94,7 @@ class HeatTransport3D:
         return cell_flux + surface_flux
 
     def sources(self, **kwargs):
-        keys = ('energy', 'thickness', 'heat', 'heat_bed')
+        keys = ("energy", "thickness", "heat", "heat_bed")
         E, h, q, q_bed = itemgetter(*keys)(kwargs)
 
         Q = E.function_space()

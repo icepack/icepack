@@ -15,7 +15,7 @@ from firedrake import sqrt, inner, grad, dx, assemble
 from icepack import utilities
 
 
-def norm(u, norm_type='L2'):
+def norm(u, norm_type="L2"):
     r"""Compute the norm of a field
 
     Computes one of any number of norms of a scalar or vector field. The
@@ -37,29 +37,29 @@ def norm(u, norm_type='L2'):
     the domain in the infinity metric. This extra factor is included to
     make the norm scale appropriately with the size of the domain.
     """
-    if norm_type == 'L2':
+    if norm_type == "L2":
         form, p = inner(u, u) * dx, 2
 
-    if norm_type == 'H01':
+    if norm_type == "H01":
         form, p = inner(grad(u), grad(u)) * dx, 2
 
-    if norm_type == 'H1':
+    if norm_type == "H1":
         L = utilities.diameter(u.ufl_domain())
-        form, p = inner(u, u) * dx + L**2 * inner(grad(u), grad(u)) * dx, 2
+        form, p = inner(u, u) * dx + L ** 2 * inner(grad(u), grad(u)) * dx, 2
 
-    if norm_type == 'L1':
+    if norm_type == "L1":
         form, p = sqrt(inner(u, u)) * dx, 1
 
-    if norm_type == 'TV':
+    if norm_type == "TV":
         form, p = sqrt(inner(grad(u), grad(u))) * dx, 1
 
-    if norm_type == 'Linfty':
+    if norm_type == "Linfty":
         data = u.dat.data_ro
         if len(data.shape) == 1:
             local_max = np.max(np.abs(data))
         elif len(data.shape) == 2:
-            local_max = np.max(np.sqrt(np.sum(data**2, 1)))
+            local_max = np.max(np.sqrt(np.sum(data ** 2, 1)))
 
         return u.comm.allreduce(local_max, op=max)
 
-    return assemble(form)**(1 / p)
+    return assemble(form) ** (1 / p)

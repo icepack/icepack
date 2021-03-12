@@ -12,28 +12,24 @@
 
 import firedrake
 from firedrake import (
-    inner, 
-    grad, 
+    inner,
+    grad,
     sqrt,
-    interpolate, 
-    max_value, 
+    interpolate,
+    max_value,
     assemble,
     norm,
-    Constant, 
-    UnitDiskMesh
+    Constant,
+    UnitDiskMesh,
 )
 import icepack
-from icepack.constants import (
-    ice_density as ρ_I,
-    glen_flow_law as n,
-    gravity as g
-)
+from icepack.constants import ice_density as ρ_I, glen_flow_law as n, gravity as g
 import numpy as np
 
 # Test our numerical solvers against this analytical solution.
-R = 100e3 # Radius of ice sheet in meters
-R_mesh = R * .75 # Radius of mesh (set multiplier to <1 to
-                 # ignore interpolation errors at the edge)
+R = 100e3  # Radius of ice sheet in meters
+R_mesh = R * 0.75  # Radius of mesh (set multiplier to <1 to
+# ignore interpolation errors at the edge)
 alpha = Constant(R)
 T = Constant(254.15)
 A = icepack.rate_factor(T)
@@ -43,7 +39,7 @@ A0 = 2 * A * (ρ_I * g) ** n / (n + 2)
 def make_mesh(R_mesh, refinement):
     mesh = UnitDiskMesh(refinement)
     mesh.coordinates.dat.data[:] *= R_mesh
-    return mesh 
+    return mesh
 
 
 # Pick a geometry in order to have an exact solution. We'll use the
@@ -51,30 +47,38 @@ def make_mesh(R_mesh, refinement):
 # Citation: Greve, Ralf, and Heinz Blatter. Dynamics of ice sheets
 # and glaciers. Springer Science & Business Media, 2009.
 
+
 def Bueler_profile(mesh, R):
     x, y = firedrake.SpatialCoordinate(mesh)
-    r = sqrt(x**2 + y**2)
-    h_divide = (2 * R * (alpha/A0)**(1/n) * (n-1)/n)**(n/(2*n+2))
-    h_part2 = (n+1)*(r/R) - n*(r/R)**((n+1)/n) + n*(max_value(1-(r/R),0))**((n+1)/n) - 1
-    h_expr = (h_divide/((n-1)**(n/(2*n+2)))) * (max_value(h_part2,0))**(n/(2*n+2))
+    r = sqrt(x ** 2 + y ** 2)
+    h_divide = (2 * R * (alpha / A0) ** (1 / n) * (n - 1) / n) ** (n / (2 * n + 2))
+    h_part2 = (
+        (n + 1) * (r / R)
+        - n * (r / R) ** ((n + 1) / n)
+        + n * (max_value(1 - (r / R), 0)) ** ((n + 1) / n)
+        - 1
+    )
+    h_expr = (h_divide / ((n - 1) ** (n / (2 * n + 2)))) * (max_value(h_part2, 0)) ** (
+        n / (2 * n + 2)
+    )
     return h_expr
 
 
 def exact_u(h_expr, Q):
-    h = interpolate(h_expr,Q)
-    u_exact = -A0 * h**(n + 1) * inner(grad(h), grad(h)) * grad(h)
+    h = interpolate(h_expr, Q)
+    u_exact = -A0 * h ** (n + 1) * inner(grad(h), grad(h)) * grad(h)
     return u_exact
 
 
 def norm(v):
-    return icepack.norm(v, norm_type='L2')
+    return icepack.norm(v, norm_type="L2")
 
 
 def penalty_low(**kwargs):
-    u = kwargs['velocity']
-    h = kwargs['thickness']
+    u = kwargs["velocity"]
+    h = kwargs["thickness"]
     l = 2 * max_value(firedrake.CellDiameter(u.ufl_domain()), h)
-    return .5 * l**2 * inner(grad(u), grad(u))
+    return 0.5 * l ** 2 * inner(grad(u), grad(u))
 
 
 def test_diagnostic_solver_convergence():
@@ -85,8 +89,8 @@ def test_diagnostic_solver_convergence():
         for N in range(0, 8 - 1 * (degree - 1), 1):
             mesh = make_mesh(R_mesh, N)
 
-            Q = firedrake.FunctionSpace(mesh, 'CG', degree)
-            V = firedrake.VectorFunctionSpace(mesh, 'CG', degree)
+            Q = firedrake.FunctionSpace(mesh, "CG", degree)
+            V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
 
             h_expr = Bueler_profile(mesh, R)
             u_exact = interpolate(exact_u(h_expr, Q), V)
@@ -97,10 +101,7 @@ def test_diagnostic_solver_convergence():
 
             solver = icepack.solvers.FlowSolver(model)
             u_num = solver.diagnostic_solve(
-                velocity=u,
-                thickness=h,
-                surface=s,
-                fluidity=A
+                velocity=u, thickness=h, surface=s, fluidity=A
             )
             error.append(norm(u_exact - u_num) / norm(u_exact))
             delta_x.append(mesh.cell_sizes.dat.data_ro.min())
@@ -113,5 +114,5 @@ def test_diagnostic_solver_convergence():
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print(f'log(error) ~= {slope:g} * log(dx) + {intercept:g}')
+        print(f"log(error) ~= {slope:g} * log(dx) + {intercept:g}")
         assert slope > 0.9

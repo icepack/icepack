@@ -16,6 +16,7 @@ import firedrake
 from firedrake import interpolate, as_vector
 import icepack, icepack.plot
 
+
 def test_plot_mesh():
     nx, ny = 32, 32
     Lx, Ly = 1e5, 1e5
@@ -28,13 +29,11 @@ def test_plot_mesh():
 
 def test_plot_field():
     mesh = firedrake.UnitSquareMesh(32, 32)
-    Q = firedrake.FunctionSpace(mesh, family='CG', degree=1)
+    Q = firedrake.FunctionSpace(mesh, family="CG", degree=1)
     x, y = firedrake.SpatialCoordinate(mesh)
     u = interpolate(x * y, Q)
 
-    fig, axes = icepack.plot.subplots(
-        nrows=2, ncols=2, sharex=True, sharey=True
-    )
+    fig, axes = icepack.plot.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
 
     filled_contours = icepack.plot.tricontourf(u, axes=axes[0, 0])
     assert filled_contours is not None
@@ -44,19 +43,17 @@ def test_plot_field():
     contours = icepack.plot.tricontour(u, axes=axes[0, 1])
     assert contours is not None
 
-    colors_flat = icepack.plot.tripcolor(u, shading='flat', axes=axes[1, 0])
+    colors_flat = icepack.plot.tripcolor(u, shading="flat", axes=axes[1, 0])
     assert colors_flat is not None
 
-    colors_gouraud = icepack.plot.tripcolor(
-        u, shading='gouraud', axes=axes[1, 1]
-    )
+    colors_gouraud = icepack.plot.tripcolor(u, shading="gouraud", axes=axes[1, 1])
     assert colors_flat.get_array().shape != colors_gouraud.get_array().shape
 
 
 def test_streamlines():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
-    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=1)
+    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=1)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     v = interpolate(as_vector((-y, x)), V)
@@ -71,13 +68,13 @@ def test_streamlines():
 
     for n in range(num_points):
         x = xs[n, :]
-        assert abs(sum(x**2) - radius**2) < resolution
+        assert abs(sum(x ** 2) - radius ** 2) < resolution
 
 
 def test_plot_vector_field():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
-    V = firedrake.VectorFunctionSpace(mesh, family='CG', degree=1)
+    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=1)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u = interpolate(as_vector((x + 0.01, x * y * (1 - y) * (y - 0.5))), V)
@@ -99,14 +96,12 @@ def test_plot_extruded_field():
     mesh3d = firedrake.ExtrudedMesh(mesh2d, layers=1)
     x, y, z = firedrake.SpatialCoordinate(mesh3d)
 
-    Q = firedrake.FunctionSpace(mesh3d, 'CG', 2, vfamily='GL', vdegree=4)
-    q = interpolate((x**2 - y**2) * (1 - z**4), Q)
+    Q = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4)
+    q = interpolate((x ** 2 - y ** 2) * (1 - z ** 4), Q)
     q_contours = icepack.plot.tricontourf(q)
     assert q_contours is not None
 
-    V = firedrake.VectorFunctionSpace(
-        mesh3d, 'CG', 2, vfamily='GL', vdegree=4, dim=2
-    )
-    u = interpolate(as_vector((1 - z**4, 0)), V)
+    V = firedrake.VectorFunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4, dim=2)
+    u = interpolate(as_vector((1 - z ** 4, 0)), V)
     u_contours = icepack.plot.tricontourf(u)
     assert u_contours is not None

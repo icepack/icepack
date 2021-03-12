@@ -42,6 +42,7 @@ def _get_coordinates(mesh):
     element = coordinates.function_space().ufl_element()
     if element.degree() != 1:
         from firedrake import VectorFunctionSpace, interpolate
+
         V = VectorFunctionSpace(mesh, element.family(), 1)
         coordinates = interpolate(coordinates, V)
 
@@ -49,13 +50,13 @@ def _get_coordinates(mesh):
 
 
 def subplots(*args, **kwargs):
-    subplot_kw = kwargs.get('subplot_kw', {})
-    subplot_kw['adjustable'] = subplot_kw.get('adjustable', 'box')
-    kwargs['subplot_kw'] = subplot_kw
+    subplot_kw = kwargs.get("subplot_kw", {})
+    subplot_kw["adjustable"] = subplot_kw.get("adjustable", "box")
+    kwargs["subplot_kw"] = subplot_kw
     fig, axes = plt.subplots(*args, **kwargs)
 
     def fmt(ax):
-        ax.set_aspect('equal')
+        ax.set_aspect("equal")
         ax.xaxis.set_major_formatter(ScalarFormatter(useOffset=True))
         ax.yaxis.set_major_formatter(ScalarFormatter(useOffset=True))
         ax.xaxis.get_major_formatter().set_powerlimits((0, 0))
@@ -135,18 +136,19 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     xs : numpy array of points
     """
     if isinstance(velocity, firedrake.Function):
+
         def v(x):
             return velocity.at(x, dont_raise=True)
 
     vx = v(initial_point)
     if vx is None:
-        raise ValueError('Initial point is not inside the domain!')
+        raise ValueError("Initial point is not inside the domain!")
 
     xs = [np.array(initial_point)]
     n = 0
     while n < max_num_points:
         n += 1
-        speed = np.sqrt(sum(vx**2))
+        speed = np.sqrt(sum(vx ** 2))
         x = xs[-1] + resolution / speed * vx
         vx = v(x)
         if vx is None:
@@ -158,7 +160,7 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     n = 0
     while n < max_num_points:
         n += 1
-        speed = np.sqrt(sum(vy**2))
+        speed = np.sqrt(sum(vy ** 2))
         y = ys[-1] - resolution / speed * vy
         vy = v(y)
         if vy is None:
@@ -181,7 +183,7 @@ def _mesh_hmin(coordinates):
             x = vertices[cell[n], :]
             for m in range(n + 1, vertices_per_cell):
                 y = vertices[cell[m], :]
-                hmin = min(hmin, sum((x - y)**2))
+                hmin = min(hmin, sum((x - y) ** 2))
 
     return np.sqrt(hmin)
 
@@ -196,19 +198,19 @@ class StreamplotSet(mpl_streamplot.StreamplotSet, mpl_cmaps.ScalarMappable):
 def streamplot(u, **kwargs):
     r"""Draw streamlines of a vector field"""
     if u.ufl_shape != (2,):
-        raise ValueError('Stream plots only defined for 2D vector fields!')
+        raise ValueError("Stream plots only defined for 2D vector fields!")
 
     u = _project_to_2d(u)
-    axes = kwargs.pop('axes', plt.gca())
-    cmap = kwargs.pop('cmap', mpl_cmaps.viridis)
+    axes = kwargs.pop("axes", plt.gca())
+    cmap = kwargs.pop("cmap", mpl_cmaps.viridis)
 
     mesh = u.ufl_domain()
     coordinates = _get_coordinates(mesh)
-    precision = kwargs.pop('precision', _mesh_hmin(coordinates))
-    density = kwargs.pop('density', 2 * _mesh_hmin(coordinates))
-    max_num_points = kwargs.pop('max_num_points', np.inf)
+    precision = kwargs.pop("precision", _mesh_hmin(coordinates))
+    density = kwargs.pop("density", 2 * _mesh_hmin(coordinates))
+    max_num_points = kwargs.pop("max_num_points", np.inf)
     coords = coordinates.dat.data_ro
-    max_speed = icepack.norm(u, norm_type='Linfty')
+    max_speed = icepack.norm(u, norm_type="Linfty")
 
     tree = scipy.spatial.KDTree(coords)
     indices = set(range(len(coords)))
@@ -226,7 +228,7 @@ def streamplot(u, **kwargs):
             points = s.reshape(-1, 1, 2)
             trajectories.extend(np.hstack([points[:-1], points[1:]]))
 
-            speeds = np.sqrt(np.sum(np.asarray(u.at(s, tolerance=1e-10))**2, 1))
+            speeds = np.sqrt(np.sum(np.asarray(u.at(s, tolerance=1e-10)) ** 2, 1))
             colors = speeds / max_speed
             line_colors.extend(cmap(colors[:-1]))
 

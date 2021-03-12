@@ -35,9 +35,9 @@ def _sample(dataset, X, method):
         top=ymax,
         width=dataset.width,
         height=dataset.height,
-        transform=dataset.transform
+        transform=dataset.transform,
     )
-    window = window.round_lengths(op='ceil').round_offsets(op='floor')
+    window = window.round_lengths(op="ceil").round_offsets(op="floor")
     transform = rasterio.windows.transform(window, dataset.transform)
 
     upper_left = transform * (0, 0)
@@ -50,7 +50,7 @@ def _sample(dataset, X, method):
     return interpolator(X, method=method)
 
 
-def interpolate(f, Q, method='linear'):
+def interpolate(f, Q, method="linear"):
     r"""Interpolate an expression or a gridded data set to a function space
 
     Parameters
@@ -82,12 +82,14 @@ def interpolate(f, Q, method='linear'):
 
     if isinstance(f, rasterio.DatasetReader):
         q.dat.data[:] = _sample(f, X, method)
-    elif (isinstance(f, tuple) and
-          all(isinstance(fi, rasterio.DatasetReader) for fi in f)):
+    elif isinstance(f, tuple) and all(
+        isinstance(fi, rasterio.DatasetReader) for fi in f
+    ):
         for i, fi in enumerate(f):
             q.dat.data[:, i] = _sample(fi, X, method)
     else:
-        raise ValueError('Argument must be a rasterio data set or a tuple of '
-                         'data sets!')
+        raise ValueError(
+            "Argument must be a rasterio data set or a tuple of data sets!"
+        )
 
     return q

@@ -19,7 +19,7 @@ from icepack.utilities import facet_normal_nd, diameter
 
 def friction_stress(u, C):
     r"""Compute the shear stress for a given sliding velocity"""
-    return -C * sqrt(inner(u, u))**(1 / m - 1) * u
+    return -C * sqrt(inner(u, u)) ** (1 / m - 1) * u
 
 
 def bed_friction(**kwargs):
@@ -35,7 +35,7 @@ def bed_friction(**kwargs):
     .. math::
        \tau(u, C) = -C|u|^{1/m - 1}u
     """
-    u, C = itemgetter('velocity', 'friction')(kwargs)
+    u, C = itemgetter("velocity", "friction")(kwargs)
     τ = friction_stress(u, C)
     return -m / (m + 1) * inner(τ, u)
 
@@ -54,8 +54,8 @@ def side_friction(**kwargs):
     Side wall friction is relevant for glaciers that flow through a fjord
     with rock walls on either side.
     """
-    u, h = itemgetter('velocity', 'thickness')(kwargs)
-    Cs = kwargs.get('side_friction', firedrake.Constant(0.))
+    u, h = itemgetter("velocity", "thickness")(kwargs)
+    Cs = kwargs.get("side_friction", firedrake.Constant(0.0))
 
     mesh = u.ufl_domain()
     ν = facet_normal_nd(mesh)
@@ -73,8 +73,8 @@ def normal_flow_penalty(**kwargs):
     enforce this boundary condition directly, we add a penalty for normal
     flow to the action functional.
     """
-    u = kwargs['velocity']
-    scale = kwargs.get('scale', firedrake.Constant(1.))
+    u = kwargs["velocity"]
+    scale = kwargs.get("scale", firedrake.Constant(1.0))
 
     mesh = u.ufl_domain()
     ν = facet_normal_nd(mesh)
@@ -90,7 +90,7 @@ def normal_flow_penalty(**kwargs):
         d = degree[0]
     else:
         d = degree
-    exponent = kwargs.get('exponent', d + 1)
+    exponent = kwargs.get("exponent", d + 1)
 
-    penalty = scale * (L / δx)**exponent
-    return 0.5 * penalty * inner(u, ν)**2
+    penalty = scale * (L / δx) ** exponent
+    return 0.5 * penalty * inner(u, ν) ** 2

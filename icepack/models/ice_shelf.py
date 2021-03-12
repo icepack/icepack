@@ -13,8 +13,7 @@
 from operator import itemgetter
 import firedrake
 from firedrake import inner, grad, dx, ds
-from icepack.constants import (ice_density as ρ_I, water_density as ρ_W,
-                               gravity as g)
+from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
@@ -41,10 +40,10 @@ def gravity(**kwargs):
     -------
     firedrake.Form
     """
-    u, h = itemgetter('velocity', 'thickness')(kwargs)
+    u, h = itemgetter("velocity", "thickness")(kwargs)
 
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return -0.5 * ρ * g * inner(grad(h**2), u)
+    return -0.5 * ρ * g * inner(grad(h ** 2), u)
 
 
 def terminus(**kwargs):
@@ -58,12 +57,12 @@ def terminus(**kwargs):
     We assume that sea level is at :math:`z = 0` for calculating the water
     depth.
     """
-    u, h = itemgetter('velocity', 'thickness')(kwargs)
+    u, h = itemgetter("velocity", "thickness")(kwargs)
 
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return 0.5 * ρ * g * h**2 * inner(u, ν)
+    return 0.5 * ρ * g * h ** 2 * inner(u, ν)
 
 
 class IceShelf:
@@ -77,9 +76,16 @@ class IceShelf:
        :py:func:`icepack.models.viscosity.viscosity_depth_averaged`
           Default implementation of the ice shelf viscous action
     """
-    def __init__(self, viscosity=viscosity, gravity=gravity, terminus=terminus,
-                 side_friction=side_friction, penalty=normal_flow_penalty,
-                 continuity=Continuity()):
+
+    def __init__(
+        self,
+        viscosity=viscosity,
+        gravity=gravity,
+        terminus=terminus,
+        side_friction=side_friction,
+        penalty=normal_flow_penalty,
+        continuity=Continuity(),
+    ):
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.side_friction = add_kwarg_wrapper(side_friction)
         self.penalty = add_kwarg_wrapper(penalty)
@@ -120,10 +126,10 @@ class IceShelf:
             and gravity functionals. The ice fluidity coefficient, for
             example, is passed as a keyword argument.
         """
-        u = kwargs['velocity']
+        u = kwargs["velocity"]
         mesh = u.ufl_domain()
-        ice_front_ids = tuple(kwargs.pop('ice_front_ids', ()))
-        side_wall_ids = tuple(kwargs.pop('side_wall_ids', ()))
+        ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
+        side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
         viscosity = self.viscosity(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
@@ -154,7 +160,7 @@ class IceShelf:
         expression. By exploiting known structure of the problem, we can
         reduce the number of quadrature points while preserving accuracy.
         """
-        u, h = itemgetter('velocity', 'thickness')(kwargs)
+        u, h = itemgetter("velocity", "thickness")(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return 3 * (degree_u - 1) + 2 * degree_h

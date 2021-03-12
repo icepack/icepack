@@ -15,11 +15,7 @@ import numpy as np
 import firedrake
 from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
 import icepack
-from icepack.constants import (
-    year,
-    thermal_diffusivity as α,
-    melting_temperature as Tm
-)
+from icepack.constants import year, thermal_diffusivity as α, melting_temperature as Tm
 
 # Using the same mesh and data for every test case.
 Nx, Ny = 32, 32
@@ -27,21 +23,15 @@ Lx, Ly = 20e3, 20e3
 mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
 mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
-Q = firedrake.FunctionSpace(
-    mesh, family='CG', degree=2, vfamily='GL', vdegree=4
-)
+Q = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="GL", vdegree=4)
 
-Q_c = firedrake.FunctionSpace(
-    mesh, family='CG', degree=2, vfamily='R', vdegree=0
-)
+Q_c = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="R", vdegree=0)
 
 V = firedrake.VectorFunctionSpace(
-    mesh, dim=2, family='CG', degree=2, vfamily='GL', vdegree=4
+    mesh, dim=2, family="CG", degree=2, vfamily="GL", vdegree=4
 )
 
-W = firedrake.FunctionSpace(
-    mesh, family='DG', degree=1, vfamily='GL', vdegree=5
-)
+W = firedrake.FunctionSpace(mesh, family="DG", degree=1, vfamily="GL", vdegree=5)
 
 x, y, ζ = firedrake.SpatialCoordinate(mesh)
 
@@ -59,7 +49,7 @@ E_surface = 480
 q_bed = 50e-3 * year * 1e-6
 
 
-@pytest.mark.parametrize('params', [{'ksp_type': 'cg', 'pc_type': 'ilu'}, None])
+@pytest.mark.parametrize("params", [{"ksp_type": "cg", "pc_type": "ilu"}, None])
 def test_diffusion(params):
     E_true = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
     E = firedrake.interpolate(Constant(480), Q)
@@ -71,16 +61,14 @@ def test_diffusion(params):
             super(DiffusionTransportModel, self).__init__()
 
         def advective_flux(self, **kwargs):
-            E = kwargs['energy']
-            h = kwargs['thickness']
+            E = kwargs["energy"]
+            h = kwargs["thickness"]
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
             return Constant(0) * ψ * h * dx
 
     model = DiffusionTransportModel()
-    solver = icepack.solvers.HeatTransportSolver(
-        model, solver_parameters=params
-    )
+    solver = icepack.solvers.HeatTransportSolver(model, solver_parameters=params)
 
     dt = 250.0
     final_time = 6000
@@ -92,11 +80,11 @@ def test_diffusion(params):
             thickness=h,
             energy_surface=Constant(E_surface),
             heat=Constant(0),
-            heat_bed=Constant(q_bed)
+            heat_bed=Constant(q_bed),
         )
 
-    assert assemble((E - E_true)**2 * ds_t) / assemble(E_true**2 * ds_t) < 1e-3
-    assert assemble((E - E_true)**2 * ds_b) / assemble(E_true**2 * ds_b) < 1e-3
+    assert assemble((E - E_true) ** 2 * ds_t) / assemble(E_true ** 2 * ds_t) < 1e-3
+    assert assemble((E - E_true) ** 2 * ds_b) / assemble(E_true ** 2 * ds_b) < 1e-3
 
 
 def test_advection():
@@ -110,8 +98,8 @@ def test_advection():
             super(AdvectionTransportModel, self).__init__()
 
         def diffusive_flux(self, **kwargs):
-            E = kwargs['energy']
-            h = kwargs['thickness']
+            E = kwargs["energy"]
+            h = kwargs["thickness"]
             Q = E.function_space()
             ψ = firedrake.TestFunction(Q)
             return Constant(0) * ψ * h * dx
@@ -139,13 +127,13 @@ def test_advection():
             heat=Constant(0),
             heat_bed=Constant(q_bed),
             energy_inflow=E_initial,
-            energy_surface=Constant(E_surface)
+            energy_surface=Constant(E_surface),
         )
 
-    error_surface = assemble((E - E_surface)**2 * ds_t)
-    assert error_surface / assemble(E_surface**2 * ds_t(mesh)) < 1e-2
-    error_bed = assemble((E - E_initial)**2 * ds_b)
-    assert error_bed / assemble(E_initial**2 * ds_b(mesh)) < 1e-2
+    error_surface = assemble((E - E_surface) ** 2 * ds_t)
+    assert error_surface / assemble(E_surface ** 2 * ds_t(mesh)) < 1e-2
+    error_bed = assemble((E - E_initial) ** 2 * ds_b)
+    assert error_bed / assemble(E_initial ** 2 * ds_b(mesh)) < 1e-2
 
 
 def test_advection_diffusion():
@@ -174,10 +162,10 @@ def test_advection_diffusion():
             heat=Constant(0),
             heat_bed=Constant(q_bed),
             energy_inflow=E_initial,
-            energy_surface=Constant(E_surface)
+            energy_surface=Constant(E_surface),
         )
 
-    rms = np.sqrt(assemble(E**2 * h * dx) / assemble(h * dx))
+    rms = np.sqrt(assemble(E ** 2 * h * dx) / assemble(h * dx))
     assert (E_surface - 5 < rms) and (rms < E_surface + 5 + q_bed / α * h0)
 
 
@@ -211,11 +199,8 @@ def test_strain_heating():
     E_q = E_initial.copy(deepcopy=True)
     E_0 = E_initial.copy(deepcopy=True)
 
-    from icepack.models.hybrid import (
-        horizontal_strain,
-        vertical_strain,
-        stresses
-    )
+    from icepack.models.hybrid import horizontal_strain, vertical_strain, stresses
+
     model = icepack.models.HeatTransport3D()
     T = model.temperature(E_q)
     A = icepack.rate_factor(T)
@@ -224,13 +209,13 @@ def test_strain_heating():
     q = firedrake.project(inner(τ_x, ε_x) + inner(τ_z, ε_z), Q)
 
     fields = {
-        'velocity': u,
-        'vertical_velocity': w,
-        'thickness': h,
-        'surface': s,
-        'heat_bed': Constant(q_bed),
-        'energy_inflow': E_initial,
-        'energy_surface': Constant(E_surface)
+        "velocity": u,
+        "vertical_velocity": w,
+        "thickness": h,
+        "surface": s,
+        "heat_bed": Constant(q_bed),
+        "energy_inflow": E_initial,
+        "energy_surface": Constant(E_surface),
     }
 
     dt = 10.0

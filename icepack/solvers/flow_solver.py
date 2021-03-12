@@ -15,8 +15,13 @@ r"""Solvers for ice physics models"""
 import firedrake
 from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from ..utilities import (default_solver_parameters,
-                        facet_normal_nd, div_nd, grad_nd, ds_nd)
+from ..utilities import (
+    default_solver_parameters,
+    facet_normal_nd,
+    div_nd,
+    grad_nd,
+    ds_nd,
+)
 
 
 class FlowSolver:
@@ -84,16 +89,13 @@ class FlowSolver:
 
         # Prepare the diagnostic solver
         diagnostic_parameters = kwargs.get(
-            'diagnostic_solver_parameters', default_solver_parameters
+            "diagnostic_solver_parameters", default_solver_parameters
         )
 
-        if 'diagnostic_solver_type' in kwargs.keys():
-            solver_type = kwargs['diagnostic_solver_type']
+        if "diagnostic_solver_type" in kwargs.keys():
+            solver_type = kwargs["diagnostic_solver_type"]
             if isinstance(solver_type, str):
-                solvers_dict = {
-                    'icepack': IcepackSolver,
-                    'petsc': PETScSolver
-                }
+                solvers_dict = {"icepack": IcepackSolver, "petsc": PETScSolver}
                 solver_type = solvers_dict[solver_type]
         else:
             solver_type = IcepackSolver
@@ -102,21 +104,21 @@ class FlowSolver:
             self.model,
             self._fields,
             diagnostic_parameters,
-            dirichlet_ids=kwargs.pop('dirichlet_ids', []),
-            side_wall_ids=kwargs.pop('side_wall_ids', [])
+            dirichlet_ids=kwargs.pop("dirichlet_ids", []),
+            side_wall_ids=kwargs.pop("side_wall_ids", []),
         )
 
         # Prepare the prognostic solver
         prognostic_parameters = kwargs.get(
-            'prognostic_solver_parameters', default_solver_parameters
+            "prognostic_solver_parameters", default_solver_parameters
         )
 
-        if 'prognostic_solver_type' in kwargs.keys():
-            solver_type = kwargs['prognostic_solver_type']
+        if "prognostic_solver_type" in kwargs.keys():
+            solver_type = kwargs["prognostic_solver_type"]
             if isinstance(solver_type, str):
                 solvers_dict = {
-                    'implicit-euler': ImplicitEuler,
-                    'lax-wendroff': LaxWendroff
+                    "implicit-euler": ImplicitEuler,
+                    "lax-wendroff": LaxWendroff,
                 }
                 solver_type = solvers_dict[solver_type]
         else:
@@ -148,20 +150,15 @@ class FlowSolver:
 
 class IcepackSolver:
     def __init__(
-        self,
-        model,
-        fields,
-        solver_parameters,
-        dirichlet_ids=[],
-        side_wall_ids=[]
+        self, model, fields, solver_parameters, dirichlet_ids=[], side_wall_ids=[]
     ):
         r"""Diagnostic solver implementation using hand-written Newton line
         search optimization algorithm"""
         self._model = model
         self._fields = fields
         self._solver_parameters = solver_parameters.copy()
-        self._tolerance = self._solver_parameters.pop('tolerance', 1e-12)
-        self._max_iterations = self._solver_parameters.pop('max_iterations', 50)
+        self._tolerance = self._solver_parameters.pop("tolerance", 1e-12)
+        self._max_iterations = self._solver_parameters.pop("max_iterations", 50)
         self._dirichlet_ids = dirichlet_ids
         self._side_wall_ids = side_wall_ids
 
@@ -175,13 +172,13 @@ class IcepackSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self._fields['velocity']
+        u = self._fields["velocity"]
         V = u.function_space()
         # NOTE: This will have to change when we do Stokes!
-        if hasattr(V._ufl_element,'_sub_element'):
+        if hasattr(V._ufl_element, "_sub_element"):
             bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
         else:
             bcs = firedrake.DirichletBC(V, Constant(0), self._dirichlet_ids)
@@ -194,27 +191,24 @@ class IcepackSolver:
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 
         # Create the action and scale functionals
-        _kwargs = {
-            'side_wall_ids': self._side_wall_ids,
-            'ice_front_ids': ice_front_ids
-        }
+        _kwargs = {"side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids}
         action = self._model.action(**self._fields, **_kwargs)
         scale = self._model.scale(**self._fields, **_kwargs)
 
         # Set up a minimization problem and solver
         quadrature_degree = self._model.quadrature_degree(**self._fields)
-        params = {'quadrature_degree': quadrature_degree}
+        params = {"quadrature_degree": quadrature_degree}
         problem = MinimizationProblem(action, scale, u, bcs, params)
         self._solver = NewtonSolver(
             problem,
             self._tolerance,
             solver_parameters=self._solver_parameters,
-            max_iterations=self._max_iterations
+            max_iterations=self._max_iterations,
         )
 
     def solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""
-        if not hasattr(self, '_solver'):
+        if not hasattr(self, "_solver"):
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
@@ -222,18 +216,13 @@ class IcepackSolver:
 
         # Solve the minimization problem and return the velocity field
         self._solver.solve()
-        u = self._fields['velocity']
+        u = self._fields["velocity"]
         return u.copy(deepcopy=True)
 
 
 class PETScSolver:
     def __init__(
-        self,
-        model,
-        fields,
-        solver_parameters,
-        dirichlet_ids=[],
-        side_wall_ids=[]
+        self, model, fields, solver_parameters, dirichlet_ids=[], side_wall_ids=[]
     ):
         r"""Diagnostic solver implementation using PETSc SNES"""
         self._model = model
@@ -252,10 +241,10 @@ class PETScSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
-        u = self._fields['velocity']
+        u = self._fields["velocity"]
         V = u.function_space()
         bcs = firedrake.DirichletBC(V, u, self._dirichlet_ids)
         if not self._dirichlet_ids:
@@ -267,15 +256,12 @@ class PETScSolver:
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 
         # Create the action and scale functionals
-        _kwargs = {
-            'side_wall_ids': self._side_wall_ids,
-            'ice_front_ids': ice_front_ids
-        }
+        _kwargs = {"side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids}
         action = self._model.action(**self._fields, **_kwargs)
         F = firedrake.derivative(action, u)
 
         degree = self._model.quadrature_degree(**self._fields)
-        params = {'form_compiler_parameters': {'quadrature_degree': degree}}
+        params = {"form_compiler_parameters": {"quadrature_degree": degree}}
         problem = firedrake.NonlinearVariationalProblem(F, u, bcs, **params)
         self._solver = firedrake.NonlinearVariationalSolver(
             problem, solver_parameters=self._solver_parameters
@@ -283,7 +269,7 @@ class PETScSolver:
 
     def solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""
-        if not hasattr(self, '_solver'):
+        if not hasattr(self, "_solver"):
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
@@ -292,7 +278,7 @@ class PETScSolver:
 
         # Solve the minimization problem and return the velocity field
         self._solver.solve()
-        u = self._fields['velocity']
+        u = self._fields["velocity"]
         return u.copy(deepcopy=True)
 
 
@@ -320,11 +306,11 @@ class ImplicitEuler:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
-        dt = firedrake.Constant(1.)
+        dt = firedrake.Constant(1.0)
         dh_dt = self._continuity(dt, **self._fields)
-        h = self._fields['thickness']
+        h = self._fields["thickness"]
         h_0 = h.copy(deepcopy=True)
         q = firedrake.TestFunction(h.function_space())
         F = (h - h_0) * q * dx - dt * dh_dt
@@ -339,13 +325,13 @@ class ImplicitEuler:
 
     def solve(self, dt, **kwargs):
         r"""Compute the thickness evolution after time `dt`"""
-        if not hasattr(self, '_solver'):
+        if not hasattr(self, "_solver"):
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
                 self._fields[name].assign(field)
 
-        h = self._fields['thickness']
+        h = self._fields["thickness"]
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
         self._solver.solve()
@@ -377,11 +363,11 @@ class LaxWendroff:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError('Input fields must be Constant or Function!')
+                    raise TypeError("Input fields must be Constant or Function!")
 
-        dt = firedrake.Constant(1.)
-        h = self._fields['thickness']
-        u = self._fields['velocity']
+        dt = firedrake.Constant(1.0)
+        h = self._fields["thickness"]
+        u = self._fields["velocity"]
         h_0 = h.copy(deepcopy=True)
 
         Q = h.function_space()
@@ -411,13 +397,13 @@ class LaxWendroff:
 
     def solve(self, dt, **kwargs):
         r"""Compute the thickness evolution after time `dt`"""
-        if not hasattr(self, '_solver'):
+        if not hasattr(self, "_solver"):
             self.setup(**kwargs)
         else:
             for name, field in kwargs.items():
                 self._fields[name].assign(field)
 
-        h = self._fields['thickness']
+        h = self._fields["thickness"]
         self._thickness_old.assign(h)
         self._timestep.assign(dt)
         self._solver.solve()
