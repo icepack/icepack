@@ -21,7 +21,7 @@ def test_interpolating_function():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
     x = firedrake.SpatialCoordinate(mesh)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=2)
+    Q = firedrake.FunctionSpace(mesh, "CG", 2)
     q = icepack.interpolate(x[0] ** 2 - x[1] ** 2, Q)
     assert abs(firedrake.assemble(q * dx)) < 1e-6
 
@@ -69,7 +69,7 @@ def test_interpolating_scalar_field():
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=1)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1)
     p = firedrake.interpolate(x + y, Q)
     q = icepack.interpolate(dataset, Q)
 
@@ -86,7 +86,7 @@ def test_nearest_neighbor_interpolation():
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=1)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1)
     p = firedrake.interpolate(x + y, Q)
     q = icepack.interpolate(dataset, Q, method="nearest")
 
@@ -110,7 +110,7 @@ def test_interpolating_vector_field():
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=1)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
@@ -126,5 +126,5 @@ def test_close_to_edge():
 
     xmin, ymin = 1 / (2 * n), 3 / (4 * n)
     mesh = make_domain(48, 48, xmin=xmin, ymin=ymin, width=1 / 2, height=1 / 2)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=1)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1)
     q = icepack.interpolate(dataset, Q)

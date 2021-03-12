@@ -39,8 +39,8 @@ def test_mass_transport_solver_convergence(solver_type):
         x, y = firedrake.SpatialCoordinate(mesh)
 
         degree = 1
-        V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=degree)
-        Q = firedrake.FunctionSpace(mesh, family="CG", degree=degree)
+        V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
+        Q = firedrake.FunctionSpace(mesh, "CG", degree)
         solver = icepack.solvers.FlowSolver(model, prognostic_solver_type=solver_type)
 
         h0 = interpolate(h_in - dh * x / Lx, Q)
@@ -152,8 +152,8 @@ def test_shallow_ice_prognostic_solve():
     T = firedrake.Constant(254.15)
     A = icepack.rate_factor(T)
 
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=2)
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=2)
+    Q = firedrake.FunctionSpace(mesh, "CG", 2)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     r = firedrake.sqrt(x ** 2 + y ** 2)
@@ -202,8 +202,8 @@ def test_ice_stream_prognostic_solve():
     N = 32
     mesh = firedrake.RectangleMesh(N, N, Lx, Ly)
 
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=2)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=2)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
+    Q = firedrake.FunctionSpace(mesh, "CG", 2)
     solver = icepack.solvers.FlowSolver(model, **opts)
 
     x, y = firedrake.SpatialCoordinate(mesh)

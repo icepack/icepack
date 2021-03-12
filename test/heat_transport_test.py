@@ -23,15 +23,10 @@ Lx, Ly = 20e3, 20e3
 mesh2d = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
 mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
-Q = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="GL", vdegree=4)
-
-Q_c = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="R", vdegree=0)
-
-V = firedrake.VectorFunctionSpace(
-    mesh, dim=2, family="CG", degree=2, vfamily="GL", vdegree=4
-)
-
-W = firedrake.FunctionSpace(mesh, family="DG", degree=1, vfamily="GL", vdegree=5)
+Q = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="GL", vdegree=4)
+Q_c = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="R", vdegree=0)
+V = firedrake.VectorFunctionSpace(mesh, "CG", 2, vfamily="GL", vdegree=4, dim=2)
+W = firedrake.FunctionSpace(mesh, "DG", 1, vfamily="GL", vdegree=5)
 
 x, y, ζ = firedrake.SpatialCoordinate(mesh)
 

@@ -29,7 +29,7 @@ def test_plot_mesh():
 
 def test_plot_field():
     mesh = firedrake.UnitSquareMesh(32, 32)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=1)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1)
     x, y = firedrake.SpatialCoordinate(mesh)
     u = interpolate(x * y, Q)
 
@@ -53,7 +53,7 @@ def test_plot_field():
 def test_streamlines():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=1)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     v = interpolate(as_vector((-y, x)), V)
@@ -74,7 +74,7 @@ def test_streamlines():
 def test_plot_vector_field():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=1)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u = interpolate(as_vector((x + 0.01, x * y * (1 - y) * (y - 0.5))), V)

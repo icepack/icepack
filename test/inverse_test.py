@@ -72,7 +72,7 @@ def test_poisson_inverse(solver_type):
     Nx, Ny = 32, 32
     mesh = firedrake.UnitSquareMesh(Nx, Ny)
     degree = 2
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=degree)
+    Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     q_true = interpolate(-4 * ((x - 0.5) ** 2 + (y - 0.5) ** 2), Q)
@@ -145,8 +145,8 @@ def test_ice_shelf_inverse(solver_type):
 
     mesh = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
     degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=degree)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=degree)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
+    Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)
@@ -235,8 +235,8 @@ def test_ice_shelf_inverse_with_noise(solver_type):
 
     mesh = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
     degree = 2
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=degree)
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=degree)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
+    Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = interpolate(as_vector((exact_u(x), 0)), V)

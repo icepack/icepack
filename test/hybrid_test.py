@@ -62,13 +62,13 @@ def test_order_0(dim):
         opts = {"dirichlet_ids": [1], "side_wall_ids": [3, 4], "tolerance": 1e-14}
         mesh_x = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh_x)
-    Q_x = firedrake.FunctionSpace(mesh_x, family="CG", degree=2)
+    Q_x = firedrake.FunctionSpace(mesh_x, "CG", 2)
     h = firedrake.interpolate(h_expr(x), Q_x)
     s = firedrake.interpolate(s_expr(x), Q_x)
     if dim == "xz":
         u0 = firedrake.interpolate(exact_u(x), Q_x)
     elif dim == "xyz":
-        V_x = firedrake.VectorFunctionSpace(mesh_x, family="CG", degree=2)
+        V_x = firedrake.VectorFunctionSpace(mesh_x, "CG", 2)
         u_expr = firedrake.as_vector((exact_u(x), 0))
         u0 = firedrake.interpolate(u_expr, V_x)
 
@@ -81,18 +81,16 @@ def test_order_0(dim):
     mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
     if dim == "xz":
         x, ζ = firedrake.SpatialCoordinate(mesh)
-        V_xz = firedrake.FunctionSpace(
-            mesh, family="CG", degree=2, vfamily="GL", vdegree=0
-        )
+        V_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="GL", vdegree=0)
         u0 = firedrake.interpolate(exact_u(x), V_xz)
     elif dim == "xyz":
         x, y, ζ = firedrake.SpatialCoordinate(mesh)
         V_xz = firedrake.VectorFunctionSpace(
-            mesh, dim=2, family="CG", degree=2, vfamily="GL", vdegree=0
+            mesh, "CG", 2, vfamily="GL", vdegree=0, dim=2
         )
         u_expr = firedrake.as_vector((exact_u(x), 0))
         u0 = firedrake.interpolate(u_expr, V_xz)
-    Q_xz = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="DG", vdegree=0)
+    Q_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
     h = firedrake.interpolate(h_expr(x), Q_xz)
     s = firedrake.interpolate(s_expr(x), Q_xz)
 
@@ -124,7 +122,7 @@ def test_diagnostic_solver(dim):
         u_expr = firedrake.as_vector(((0.95 + 0.05 * ζ) * exact_u(x), 0))
         xs = np.array([(Lx / 2, Ly / 2, k / Nz) for k in range(Nz + 1)])
 
-    Q = firedrake.FunctionSpace(mesh, family="CG", degree=2, vfamily="DG", vdegree=0)
+    Q = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
 
     h = firedrake.interpolate(h0 - dh * x / Lx, Q)
     s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
@@ -139,18 +137,14 @@ def test_diagnostic_solver(dim):
     for vdegree in range(max_degree, 0, -1):
         solver = icepack.solvers.FlowSolver(model, **opts)
         if dim == "xz":
-            V = firedrake.FunctionSpace(
-                mesh, family="CG", degree=2, vfamily="DG", vdegree=vdegree
-            )
-            V0 = firedrake.FunctionSpace(
-                mesh, family="CG", degree=2, vfamily="DG", vdegree=0
-            )
+            V = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=vdegree)
+            V0 = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
         elif dim == "xyz":
             V = firedrake.VectorFunctionSpace(
-                mesh, dim=2, family="CG", degree=2, vfamily="DG", vdegree=vdegree
+                mesh, "CG", 2, vfamily="DG", vdegree=vdegree, dim=2
             )
             V0 = firedrake.VectorFunctionSpace(
-                mesh, dim=2, family="CG", degree=2, vfamily="DG", vdegree=0
+                mesh, "CG", 2, vfamily="DG", vdegree=0, dim=2
             )
 
         u0 = firedrake.interpolate(u_expr, V)

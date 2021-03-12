@@ -28,10 +28,10 @@ def test_eigenvalues():
     mesh = firedrake.UnitSquareMesh(nx, ny)
     x, y = firedrake.SpatialCoordinate(mesh)
 
-    V = firedrake.VectorFunctionSpace(mesh, family="CG", degree=2)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
     u = interpolate(as_vector((x, 0)), V)
 
-    Q = firedrake.FunctionSpace(mesh, family="DG", degree=2)
+    Q = firedrake.FunctionSpace(mesh, "DG", 2)
     ε = sym(grad(u))
     Λ1, Λ2 = eigenvalues(ε)
     λ1 = firedrake.project(Λ1, Q)
