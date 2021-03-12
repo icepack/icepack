@@ -16,6 +16,10 @@ commands:
   codecov:
     steps:
       - run: codecov
+  styletest:
+    steps:
+      - run: pip3 install black
+      - run: black --check ./
 
 jobs:
   python36:
@@ -32,6 +36,7 @@ jobs:
     working_directory: ~/icepack
     steps:
       - build
+      - styletest
       - unittest
       - codecov
       - realtest
