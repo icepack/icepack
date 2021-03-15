@@ -17,12 +17,8 @@ from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravit
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
-from icepack.utilities import (
-    get_mesh_dimensions,
-    facet_normal_nd,
-    grad_nd,
-    add_kwarg_wrapper,
-)
+from icepack.utilities import add_kwarg_wrapper
+from icepack.calculus import grad, FacetNormal, get_mesh_axes
 
 
 def gravity(**kwargs):
@@ -43,7 +39,7 @@ def gravity(**kwargs):
         ice surface elevation
     """
     u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
-    return -ρ_I * g * h * inner(grad_nd(s), u)
+    return -ρ_I * g * h * inner(grad(s), u)
 
 
 def terminus(**kwargs):
@@ -71,8 +67,7 @@ def terminus(**kwargs):
     τ_I = ρ_I * g * h ** 2 / 2
     τ_W = ρ_W * g * d ** 2 / 2
 
-    ν = facet_normal_nd(u.ufl_domain())
-
+    ν = FacetNormal(u.ufl_domain())
     return (τ_I - τ_W) * inner(u, ν)
 
 
@@ -119,9 +114,9 @@ class IceStream:
 
         ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        if get_mesh_dimensions(mesh) == "xy":
+        if get_mesh_axes(mesh) == "xy":
             penalty = self.penalty(**kwargs) * ds_w
-        elif get_mesh_dimensions(mesh) == "x":
+        else:
             penalty = 0.0
 
         ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)

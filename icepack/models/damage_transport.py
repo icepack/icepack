@@ -21,7 +21,6 @@ from operator import itemgetter
 import firedrake
 from firedrake import (
     inner,
-    grad,
     div,
     dx,
     ds,

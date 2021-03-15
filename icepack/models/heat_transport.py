@@ -20,7 +20,7 @@ from icepack.constants import (
     latent_heat as L,
     melting_temperature as Tm,
 )
-from icepack.utilities import facet_normal_nd
+from icepack.calculus import FacetNormal
 
 
 class HeatTransport3D:
@@ -58,11 +58,13 @@ class HeatTransport3D:
         Q = E.function_space()
         ψ = firedrake.TestFunction(Q)
 
+        # NOTE: Be careful here going to xz! You might have to separate this into
+        # the sum of a horizontal and vertical flux if we're shadowing Firedrake's
+        # grad operator with out own specialized one.
         U = firedrake.as_vector((u[0], u[1], w))
         flux_cells = -E * inner(U, grad(ψ)) * h * dx
 
-        mesh = Q.mesh()
-        ν = facet_normal_nd(mesh)
+        ν = FacetNormal(Q.mesh())
         outflow = firedrake.max_value(inner(u, ν), 0)
         inflow = firedrake.min_value(inner(u, ν), 0)
 

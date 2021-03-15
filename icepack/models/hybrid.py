@@ -14,7 +14,7 @@ import functools
 from operator import itemgetter
 import sympy
 import firedrake
-from firedrake import inner, outer, sym, Identity, tr as trace, sqrt, dx, ds_b, ds_v
+from firedrake import inner, outer, sqrt, dx, ds_b, ds_v
 from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
 from icepack.constants import (
@@ -23,12 +23,8 @@ from icepack.constants import (
     glen_flow_law as n,
     gravity as g,
 )
-from icepack.utilities import (
-    get_mesh_dimensions,
-    facet_normal_nd,
-    grad_nd,
-    add_kwarg_wrapper,
-)
+from icepack.utilities import add_kwarg_wrapper
+from icepack.calculus import grad, sym_grad, trace, Identity, FacetNormal, get_mesh_axes
 
 
 def gravity(**kwargs):
@@ -49,7 +45,7 @@ def gravity(**kwargs):
         ice surface elevation
     """
     u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
-    return -ρ_I * g * inner(grad_nd(s), u) * h
+    return -ρ_I * g * inner(grad(s), u) * h
 
 
 def _legendre(k, ζ):
@@ -105,40 +101,30 @@ def terminus(**kwargs):
     p_W = ρ_W * g * h * _pressure_approx(zdegree + 1)(ζ, ζ_sl)
     p_I = ρ_I * g * h * (1 - ζ)
 
-    ν = facet_normal_nd(mesh)
-
+    ν = FacetNormal(mesh)
     return (p_I - p_W) * inner(u, ν) * h
 
 
 def stresses(ε_x, ε_z, A):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
-    dim = get_mesh_dimensions(ε_x.ufl_domain())
-    if dim in ["xy", "xyz"]:
-        I = Identity(2)
-        tr = trace(ε_x)
-        ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr ** 2) / 2)
-        μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-        return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
-    elif dim in ["x", "xz"]:
-        ε_e = sqrt((2 * inner(ε_x, ε_x) + inner(ε_z, ε_z)) / 2)
-        μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-        return 4 * μ * ε_x, 2 * μ * ε_z
+    tr = trace(ε_x)
+    ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr ** 2) / 2)
+    μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
+    I = Identity(ε_x.ufl_domain().geometric_dimension() - 1)
+    return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
 
 
 def horizontal_strain(u, s, h):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
     mesh = u.ufl_domain()
-    dim = get_mesh_dimensions(mesh)
-    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension() - 1]
+    dim = mesh.geometric_dimension()
+    ζ = firedrake.SpatialCoordinate(mesh)[dim - 1]
     b = s - h
-    v = -((1 - ζ) * grad_nd(b) + ζ * grad_nd(s)) / h
-    du_dζ = u.dx(mesh.geometric_dimension() - 1)
-    if dim in ["xy", "xyz"]:
-        return sym(grad_nd(u)) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
-    elif dim in ["x", "xz"]:
-        return grad_nd(u) + du_dζ * v
+    v = -((1 - ζ) * grad(b) + ζ * grad(s)) / h
+    du_dζ = u.dx(dim - 1)
+    return sym_grad(u) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
 
 
 def vertical_strain(u, h):
@@ -228,9 +214,9 @@ class HybridModel:
 
         ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
         side_friction = self.side_friction(**kwargs) * ds_w
-        if get_mesh_dimensions(mesh) in ["xy", "xyz"]:
+        if get_mesh_axes(mesh) == "xyz":
             penalty = self.penalty(**kwargs) * ds_w
-        elif get_mesh_dimensions(mesh) in ["x", "xz"]:
+        else:
             penalty = 0.0
 
         xdegree_u, zdegree_u = u.ufl_element().degree()

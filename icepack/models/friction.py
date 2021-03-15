@@ -14,7 +14,8 @@ from operator import itemgetter
 import firedrake
 from firedrake import inner, sqrt
 from icepack.constants import weertman_sliding_law as m
-from icepack.utilities import facet_normal_nd, diameter
+from icepack.utilities import diameter
+from icepack.calculus import FacetNormal
 
 
 def friction_stress(u, C):
@@ -57,9 +58,7 @@ def side_friction(**kwargs):
     u, h = itemgetter("velocity", "thickness")(kwargs)
     Cs = kwargs.get("side_friction", firedrake.Constant(0.0))
 
-    mesh = u.ufl_domain()
-    ν = facet_normal_nd(mesh)
-
+    ν = FacetNormal(u.ufl_domain())
     u_t = u - inner(u, ν) * ν
     τ = friction_stress(u_t, Cs)
     return -m / (m + 1) * h * inner(τ, u_t)
@@ -77,8 +76,7 @@ def normal_flow_penalty(**kwargs):
     scale = kwargs.get("scale", firedrake.Constant(1.0))
 
     mesh = u.ufl_domain()
-    ν = facet_normal_nd(mesh)
-
+    ν = FacetNormal(mesh)
     L = diameter(mesh)
     δx = firedrake.FacetArea(mesh)
 

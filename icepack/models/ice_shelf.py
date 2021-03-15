@@ -17,7 +17,6 @@ from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravit
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
-from icepack.optimization import MinimizationProblem, NewtonSolver
 from icepack.utilities import add_kwarg_wrapper
 
 

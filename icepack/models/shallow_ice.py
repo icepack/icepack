@@ -45,7 +45,8 @@ def gravity(**kwargs):
     The gravity function for the shallow ice action functional is
 
     .. math::
-        E(u) = \int_\Omega\frac{2A(\varrho_I g)**n}{n+2} (\nabla h^2\cdot u) h^{n+1} \nabla s^{n-1}\; dx
+        E(u) = \int_\Omega\frac{2A(\varrho_I g)**n}{n+2} (\nabla h^2\cdot u)
+        h^{n+1} \nabla s^{n-1}\; dx
 
     Parameters
     ----------

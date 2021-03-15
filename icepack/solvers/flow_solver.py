@@ -15,13 +15,8 @@ r"""Solvers for ice physics models"""
 import firedrake
 from firedrake import dx, inner, Constant
 from icepack.optimization import MinimizationProblem, NewtonSolver
-from ..utilities import (
-    default_solver_parameters,
-    facet_normal_nd,
-    div_nd,
-    grad_nd,
-    ds_nd,
-)
+from ..utilities import default_solver_parameters
+from icepack.calculus import grad, div, FacetNormal
 
 
 class FlowSolver:
@@ -371,20 +366,20 @@ class LaxWendroff:
         h_0 = h.copy(deepcopy=True)
 
         Q = h.function_space()
-        model = self._continuity
-        n = facet_normal_nd(Q.mesh())
+        mesh = Q.mesh()
+        n = FacetNormal(mesh)
         outflow = firedrake.max_value(0, inner(u, n))
         inflow = firedrake.min_value(0, inner(u, n))
 
         # Additional streamlining terms that give 2nd-order accuracy
         q = firedrake.TestFunction(Q)
-        div, grad, ds = div_nd, grad_nd, ds_nd(q)
+        ds = firedrake.ds if mesh.layers is None else firedrake.ds_v
         flux_cells = -div(h * u) * inner(u, grad(q)) * dx
         flux_out = div(h * u) * q * outflow * ds
         flux_in = div(h_0 * u) * q * inflow * ds
         d2h_dt2 = flux_cells + flux_out + flux_in
 
-        dh_dt = model(dt, **self._fields)
+        dh_dt = self._continuity(dt, **self._fields)
         F = (h - h_0) * q * dx - dt * (dh_dt + 0.5 * dt * d2h_dt2)
 
         problem = firedrake.NonlinearVariationalProblem(F, h)

@@ -20,9 +20,9 @@ Several flow models all have essentially the same viscous part.
 from operator import itemgetter
 import numpy as np
 import firedrake
-from firedrake import grad, sqrt, Identity, inner, sym, tr as trace
+from firedrake import sqrt, inner
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n
-from icepack.utilities import get_mesh_dimensions
+from icepack.calculus import sym_grad, trace, Identity
 
 transition_temperature = 263.15  # K
 A0_cold = 3.985e-13 * year * 1.0e18  # mPa**-3 yr**-1
@@ -82,17 +82,11 @@ def rate_factor(T):
 def membrane_stress(ε, A):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
-    dim = get_mesh_dimensions(ε.ufl_domain())
-    if dim == "xy":
-        I = Identity(2)
-        tr_ε = trace(ε)
-        ε_e = sqrt((inner(ε, ε) + tr_ε ** 2) / 2)
-        μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-        return 2 * μ * (ε + tr_ε * I)
-    elif dim == "x":
-        ε_e = sqrt(inner(ε, ε))
-        μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-        return 4 * μ * ε
+    tr_ε = trace(ε)
+    ε_e = sqrt((inner(ε, ε) + tr_ε ** 2) / 2)
+    μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
+    I = Identity(ε.ufl_domain().geometric_dimension())
+    return 2 * μ * (ε + tr_ε * I)
 
 
 def viscosity_depth_averaged(**kwargs):
@@ -127,12 +121,6 @@ def viscosity_depth_averaged(**kwargs):
     firedrake.Form
     """
     u, h, A = itemgetter("velocity", "thickness", "fluidity")(kwargs)
-
-    dim = get_mesh_dimensions(u.ufl_domain())
-    if dim == "xy":
-        ε = sym(grad(u))
-    elif dim == "x":
-        ε = grad(u)
-
+    ε = sym_grad(u)
     M = membrane_stress(ε, A)
     return n / (n + 1) * h * inner(M, ε)

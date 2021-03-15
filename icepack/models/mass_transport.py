@@ -22,7 +22,7 @@ manner consistent with the bed elevation and where the ice may go afloat.
 from operator import itemgetter
 import firedrake
 from firedrake import dx, inner
-from icepack import utilities
+from icepack.calculus import grad, FacetNormal
 
 
 class Continuity:
@@ -36,11 +36,9 @@ class Continuity:
         Q = h.function_space()
         q = firedrake.TestFunction(Q)
 
-        grad, ds, n = (
-            utilities.grad_nd,
-            utilities.ds_nd(q),
-            utilities.facet_normal_nd(Q.mesh()),
-        )
+        mesh = Q.mesh()
+        n = FacetNormal(mesh)
+        ds = firedrake.ds if mesh.layers is None else firedrake.ds_v
 
         u_n = inner(u, n)
         flux_cells = -inner(h * u, grad(q)) * dx
