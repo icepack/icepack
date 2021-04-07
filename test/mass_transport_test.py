@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 import pytest
 import numpy as np
 import firedrake
-from firedrake import interpolate, assemble, dx
+from firedrake import Constant, interpolate, assemble, dx
 import icepack
 
 
@@ -114,12 +114,14 @@ def test_ice_shelf_prognostic_solver(solver_type):
         h = interpolate(h0 * u0 / ux, Q)
         h_initial = h.copy(deepcopy=True)
 
-        A = firedrake.Constant(icepack.rate_factor(T))
-        a = firedrake.Constant(0)
+        A = Constant(icepack.rate_factor(T))
+        a = Constant(0)
 
         solver = icepack.solvers.FlowSolver(model, **opts)
         u_guess = interpolate(firedrake.as_vector((ux, 0)), V)
-        u = solver.diagnostic_solve(velocity=u_guess, thickness=h, fluidity=A)
+        u = solver.diagnostic_solve(
+            velocity=u_guess, thickness=h, fluidity=A, strain_rate_min=Constant(0.0)
+        )
 
         final_time, dt = 1.0, 1.0 / 12
         num_timesteps = int(final_time / dt)
@@ -129,7 +131,9 @@ def test_ice_shelf_prognostic_solver(solver_type):
                 dt, thickness=h, velocity=u, accumulation=a, thickness_inflow=h_initial
             )
 
-            u = solver.diagnostic_solve(velocity=u, thickness=h, fluidity=A)
+            u = solver.diagnostic_solve(
+                velocity=u, thickness=h, fluidity=A, strain_rate_min=Constant(0.0)
+            )
 
         error.append(norm(h - h_initial) / norm(h_initial))
         print(delta_x[-1], error[-1])
@@ -145,11 +149,11 @@ def test_ice_shelf_prognostic_solver(solver_type):
 # Test solving the shallow ice approximation forward in time with no
 # accumulation and outflow and check that the total ice volume is conserved
 def test_shallow_ice_prognostic_solve():
-    R = firedrake.Constant(500e3)
+    R = Constant(500e3)
     num_refinements = 4
     mesh = firedrake.UnitDiskMesh(num_refinements)
     mesh.coordinates.dat.data[:] *= float(R)
-    T = firedrake.Constant(254.15)
+    T = Constant(254.15)
     A = icepack.rate_factor(T)
 
     Q = firedrake.FunctionSpace(mesh, "CG", 2)
@@ -158,16 +162,16 @@ def test_shallow_ice_prognostic_solve():
     x, y = firedrake.SpatialCoordinate(mesh)
     r = firedrake.sqrt(x ** 2 + y ** 2)
 
-    β = firedrake.Constant(0.5)
-    h_divide = firedrake.Constant(4e3)
+    β = Constant(0.5)
+    h_divide = Constant(4e3)
     h_expr = h_divide * firedrake.max_value(0, 1 - (r / (β * R)) ** 2)
     h_0 = interpolate(h_expr, Q)
     h = h_0.copy(deepcopy=True)
     u = firedrake.Function(V)
 
-    b = firedrake.Constant(0.0)
+    b = Constant(0.0)
     s = interpolate(b + h, Q)
-    a = firedrake.Constant(0.0)
+    a = Constant(0.0)
 
     model = icepack.models.ShallowIce()
     solver = icepack.solvers.FlowSolver(model)
@@ -226,13 +230,18 @@ def test_ice_stream_prognostic_solve():
     b = interpolate(s - h, Q)
 
     C = interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m), Q)
-    A = firedrake.Constant(icepack.rate_factor(T))
+    A = Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0 / 12
     num_timesteps = int(final_time / dt)
 
     u = solver.diagnostic_solve(
-        velocity=u0, thickness=h, surface=s, friction=C, fluidity=A
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C,
+        strain_rate_min=Constant(0.0),
     )
 
     a = firedrake.Function(Q)
@@ -248,7 +257,12 @@ def test_ice_stream_prognostic_solve():
         s = icepack.compute_surface(thickness=h, bed=b)
 
         u = solver.diagnostic_solve(
-            velocity=u, thickness=h, surface=s, friction=C, fluidity=A
+            velocity=u,
+            thickness=h,
+            surface=s,
+            fluidity=A,
+            friction=C,
+            strain_rate_min=Constant(0.0),
         )
 
     assert icepack.norm(h, norm_type="Linfty") < np.inf
@@ -297,14 +311,19 @@ def test_hybrid_prognostic_solve(solver_type):
     b = interpolate(s - h, Q)
 
     C = interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m), Q)
-    A = firedrake.Constant(icepack.rate_factor(T))
+    A = Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0 / 12
     num_timesteps = int(final_time / dt)
 
     solver = icepack.solvers.FlowSolver(model, **opts)
     u = solver.diagnostic_solve(
-        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C,
+        strain_rate_min=Constant(0.0),
     )
 
     a = firedrake.Function(Q)
@@ -320,7 +339,12 @@ def test_hybrid_prognostic_solve(solver_type):
         s = icepack.compute_surface(thickness=h, bed=b)
 
         u = solver.diagnostic_solve(
-            velocity=u, thickness=h, surface=s, fluidity=A, friction=C
+            velocity=u,
+            thickness=h,
+            surface=s,
+            fluidity=A,
+            friction=C,
+            strain_rate_min=Constant(0.0),
         )
 
     assert icepack.norm(h, norm_type="Linfty") < np.inf

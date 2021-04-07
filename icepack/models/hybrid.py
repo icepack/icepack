@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -22,6 +22,7 @@ from icepack.constants import (
     water_density as ρ_W,
     glen_flow_law as n,
     gravity as g,
+    strain_rate_min,
 )
 from icepack.utilities import add_kwarg_wrapper
 from icepack.calculus import grad, sym_grad, trace, Identity, FacetNormal, get_mesh_axes
@@ -105,19 +106,25 @@ def terminus(**kwargs):
     return (p_I - p_W) * inner(u, ν) * h
 
 
-def stresses(ε_x, ε_z, A):
+def _effective_strain_rate(ε_x, ε_z, ε_min):
+    return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + inner(ε_z, ε_z) + ε_min ** 2) / 2)
+
+
+def stresses(**kwargs):
     r"""Calculate the membrane and vertical shear stresses for the given
     horizontal and shear strain rates and fluidity"""
-    tr = trace(ε_x)
-    ε_e = sqrt((inner(ε_x, ε_x) + inner(ε_z, ε_z) + tr ** 2) / 2)
+    ε_x, ε_z, A = itemgetter("strain_rate_x", "strain_rate_z", "fluidity")(kwargs)
+    ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
+    ε_e = _effective_strain_rate(ε_x, ε_z, ε_min)
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
     I = Identity(ε_x.ufl_domain().geometric_dimension() - 1)
-    return 2 * μ * (ε_x + tr * I), 2 * μ * ε_z
+    return 2 * μ * (ε_x + trace(ε_x) * I), 2 * μ * ε_z
 
 
-def horizontal_strain(u, s, h):
+def horizontal_strain_rate(**kwargs):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
+    u, h, s = itemgetter("velocity", "surface", "thickness")(kwargs)
     mesh = u.ufl_domain()
     dim = mesh.geometric_dimension()
     ζ = firedrake.SpatialCoordinate(mesh)[dim - 1]
@@ -127,9 +134,10 @@ def horizontal_strain(u, s, h):
     return sym_grad(u) + 0.5 * (outer(du_dζ, v) + outer(v, du_dζ))
 
 
-def vertical_strain(u, h):
+def vertical_strain_rate(**kwargs):
     r"""Calculate the vertical strain rate with corrections for terrain-
     following coordinates"""
+    u, h = itemgetter("velocity", "thickness")(kwargs)
     mesh = u.ufl_domain()
     du_dζ = u.dx(mesh.geometric_dimension() - 1)
     return 0.5 * du_dζ / h
@@ -165,12 +173,13 @@ def viscosity(**kwargs):
     -------
     firedrake.Form
     """
-    keys = ("velocity", "thickness", "surface", "fluidity")
-    u, h, s, A = itemgetter(*keys)(kwargs)
+    u, h, s, A = itemgetter("velocity", "thickness", "surface", "fluidity")(kwargs)
+    ε_min = kwargs.get("strain_rate_min", firedrake.Constant(strain_rate_min))
 
-    ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
-    M, τ_z = stresses(ε_x, ε_z, A)
-    return n / (n + 1) * (inner(M, ε_x) + inner(τ_z, ε_z)) * h
+    ε_x = horizontal_strain_rate(velocity=u, surface=s, thickness=h)
+    ε_z = vertical_strain_rate(velocity=u, thickness=h)
+    ε_e = _effective_strain_rate(ε_x, ε_z, ε_min)
+    return 2 * n / (n + 1) * h * A ** (-1 / n) * ε_e ** (1 / n + 1)
 
 
 class HybridModel:

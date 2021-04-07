@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -184,7 +184,12 @@ def test_diagnostic_solver_convergence():
 
             solver = icepack.solvers.FlowSolver(model, **opts)
             u = solver.diagnostic_solve(
-                velocity=u_guess, thickness=h, surface=s, fluidity=A, friction=C
+                velocity=u_guess,
+                thickness=h,
+                surface=s,
+                fluidity=A,
+                friction=C,
+                strain_rate_min=firedrake.Constant(0.0),
             )
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)

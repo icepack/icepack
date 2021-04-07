@@ -21,11 +21,11 @@ from operator import itemgetter
 import numpy as np
 import firedrake
 from firedrake import sqrt, inner
-from icepack.constants import year, ideal_gas as R, glen_flow_law as n
+from icepack.constants import year, ideal_gas as R, glen_flow_law as n, strain_rate_min
 from icepack.calculus import sym_grad, trace, Identity
 
 transition_temperature = 263.15  # K
-A0_cold = 3.985e-13 * year * 1.0e18  # mPa**-3 yr**-1
+A0_cold = 3.985e-13 * year * 1.0e18  # 1 / (MPa^3 yr)
 A0_warm = 1.916e3 * year * 1.0e18
 Q_cold = 60  # kJ / mol
 Q_warm = 139
@@ -79,14 +79,19 @@ def rate_factor(T):
     return A0 * np.exp(-Q / (R * T))
 
 
-def membrane_stress(ε, A):
+def _effective_strain_rate(ε, ε_min):
+    return sqrt((inner(ε, ε) + trace(ε) ** 2 + ε_min ** 2) / 2)
+
+
+def membrane_stress(**kwargs):
     r"""Calculate the membrane stress for a given strain rate and
     fluidity"""
-    tr_ε = trace(ε)
-    ε_e = sqrt((inner(ε, ε) + tr_ε ** 2) / 2)
+    ε, A = itemgetter("strain_rate", "fluidity")(kwargs)
+    ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
+    ε_e = _effective_strain_rate(ε, ε_min)
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
     I = Identity(ε.ufl_domain().geometric_dimension())
-    return 2 * μ * (ε + tr_ε * I)
+    return 2 * μ * (ε + trace(ε) * I)
 
 
 def viscosity_depth_averaged(**kwargs):
@@ -110,17 +115,24 @@ def viscosity_depth_averaged(**kwargs):
     as an argument when initializing model objects to use your functional
     instead.
 
+    We include regularization of Glen's law in the limit of zero strain rate
+    by default. You can set the regularization to the value of your choice or
+    to zero by passing it to the `strain_rate_min` argument.
+
     Parameters
     ----------
     velocity : firedrake.Function
     thickness : firedrake.Function
     fluidity : firedrake.Function
+    strain_rate_min : firedrake.Constant
 
     Returns
     -------
     firedrake.Form
     """
     u, h, A = itemgetter("velocity", "thickness", "fluidity")(kwargs)
+    ε_min = kwargs.get("strain_rate_min", firedrake.Constant(strain_rate_min))
+
     ε = sym_grad(u)
-    M = membrane_stress(ε, A)
-    return n / (n + 1) * h * inner(M, ε)
+    ε_e = _effective_strain_rate(ε, ε_min)
+    return 2 * n / (n + 1) * h * A ** (-1 / n) * ε_e ** (1 / n + 1)
