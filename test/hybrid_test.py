@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,6 +12,7 @@
 
 import pytest
 import firedrake
+from firedrake import Constant
 import icepack
 from icepack.constants import (
     ice_density as ρ_I,
@@ -50,8 +51,8 @@ def test_order_0(dim):
     def s_expr(x):
         return d + h0 - dh + ds * (1 - x / Lx)
 
-    A = firedrake.Constant(icepack.rate_factor(254.15))
-    C = firedrake.Constant(0.001)
+    A = Constant(icepack.rate_factor(254.15))
+    C = Constant(0.001)
 
     Nx, Ny = 64, 64
     if dim == "xz":
@@ -75,7 +76,12 @@ def test_order_0(dim):
     model_x = icepack.models.IceStream()
     solver_x = icepack.solvers.FlowSolver(model_x, **opts)
     u_x = solver_x.diagnostic_solve(
-        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C,
+        strain_rate_min=Constant(0.0),
     )
 
     mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
@@ -97,7 +103,12 @@ def test_order_0(dim):
     model_xz = icepack.models.HybridModel()
     solver_xz = icepack.solvers.FlowSolver(model_xz, **opts)
     u_xz = solver_xz.diagnostic_solve(
-        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C,
+        strain_rate_min=Constant(0.0),
     )
 
     U_x, U_xz = u_x.dat.data_ro, u_xz.dat.data_ro
@@ -127,8 +138,8 @@ def test_diagnostic_solver(dim):
     h = firedrake.interpolate(h0 - dh * x / Lx, Q)
     s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
 
-    A = firedrake.Constant(icepack.rate_factor(254.15))
-    C = firedrake.Constant(0.001)
+    A = Constant(icepack.rate_factor(254.15))
+    C = Constant(0.001)
 
     model = icepack.models.HybridModel()
 

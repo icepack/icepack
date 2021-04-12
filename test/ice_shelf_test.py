@@ -83,7 +83,12 @@ def test_diagnostic_solver_convergence(solver_type):
             A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
 
             solver = icepack.solvers.FlowSolver(model, **opts)
-            u = solver.diagnostic_solve(velocity=u_guess, thickness=h, fluidity=A)
+            u = solver.diagnostic_solve(
+                velocity=u_guess,
+                thickness=h,
+                fluidity=A,
+                strain_rate_min=firedrake.Constant(0.0),
+            )
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 

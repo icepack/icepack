@@ -65,7 +65,7 @@ def test_damage_transport():
 
     S = firedrake.TensorFunctionSpace(mesh, "DG", 1)
     ε = firedrake.project(sym(grad(u)), S)
-    M = firedrake.project(membrane_stress(ε, A), S)
+    M = firedrake.project(membrane_stress(strain_rate=ε, fluidity=A), S)
 
     degree = 1
     Δ = firedrake.FunctionSpace(mesh, "DG", degree)

@@ -39,6 +39,9 @@ ideal_gas = 8.3144621e-3
 #: exponent in the nonlinear constitutive law for ice
 glen_flow_law = 3.0
 
+#: regularizing strain rate in Glen law (1 / yr)
+strain_rate_min = 1e-5
+
 #: exponent in the nonlinear friction law for ice sliding
 weertman_sliding_law = 3.0
 

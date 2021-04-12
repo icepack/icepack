@@ -16,6 +16,8 @@ import firedrake
 from firedrake import assemble, inner, as_vector, Constant, dx, ds_t, ds_b
 import icepack
 from icepack.constants import year, thermal_diffusivity as α, melting_temperature as Tm
+from icepack.models.hybrid import horizontal_strain_rate, vertical_strain_rate, stresses
+
 
 # Using the same mesh and data for every test case.
 Nx, Ny = 32, 32
@@ -194,13 +196,12 @@ def test_strain_heating():
     E_q = E_initial.copy(deepcopy=True)
     E_0 = E_initial.copy(deepcopy=True)
 
-    from icepack.models.hybrid import horizontal_strain, vertical_strain, stresses
-
     model = icepack.models.HeatTransport3D()
     T = model.temperature(E_q)
     A = icepack.rate_factor(T)
-    ε_x, ε_z = horizontal_strain(u, s, h), vertical_strain(u, h)
-    τ_x, τ_z = stresses(ε_x, ε_z, A)
+    ε_x = horizontal_strain_rate(velocity=u, surface=s, thickness=h)
+    ε_z = vertical_strain_rate(velocity=u, thickness=h)
+    τ_x, τ_z = stresses(strain_rate_x=ε_x, strain_rate_z=ε_z, fluidity=A)
     q = firedrake.project(inner(τ_x, ε_x) + inner(τ_z, ε_z), Q)
 
     fields = {
