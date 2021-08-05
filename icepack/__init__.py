@@ -19,6 +19,7 @@ import icepack.datasets
 import icepack.models
 import icepack.solvers
 import icepack.inverse
+import icepack.statistics
 
 __all__ = [
     "norm",
@@ -32,4 +33,5 @@ __all__ = [
     "models",
     "solvers",
     "inverse",
+    "statistics",
 ]
