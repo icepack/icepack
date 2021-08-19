@@ -217,22 +217,25 @@ class HybridModel:
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
+        ds_b = firedrake.ds_b(domain=mesh, metadata=metadata)
+        ds_v = firedrake.ds_v(domain=mesh)
+
         viscosity = self.viscosity(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
         friction = self.friction(**kwargs) * ds_b
 
-        ds_w = ds_v(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(**kwargs) * ds_w
+        side_friction = self.side_friction(**kwargs) * ds_v(side_wall_ids)
         if get_mesh_axes(mesh) == "xyz":
-            penalty = self.penalty(**kwargs) * ds_w
+            penalty = self.penalty(**kwargs) * ds_v(side_wall_ids)
         else:
             penalty = 0.0
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
         degree = (xdegree_u + degree_h, 2 * zdegree_u + 1)
-        metadata = {"quadrature_degree": degree}
-        ds_t = ds_v(domain=mesh, subdomain_id=ice_front_ids, metadata=metadata)
+        ds_t = firedrake.ds_v(ice_front_ids, metadata={"quadrature_degree": degree})
         terminus = self.terminus(**kwargs) * ds_t
 
         return viscosity + friction + side_friction - gravity - terminus + penalty
@@ -243,6 +246,11 @@ class HybridModel:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
+        u = kwargs["velocity"]
+        mesh = u.ufl_domain()
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
+        ds_b = firedrake.ds_b(domain=mesh, metadata=metadata)
         return self.viscosity(**kwargs) * dx + self.friction(**kwargs) * ds_b
 
     def quadrature_degree(self, **kwargs):

@@ -1,4 +1,4 @@
-# Copyright (C) 2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2020-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -255,9 +255,7 @@ class PETScSolver:
         action = self._model.action(**self._fields, **_kwargs)
         F = firedrake.derivative(action, u)
 
-        degree = self._model.quadrature_degree(**self._fields)
-        params = {"form_compiler_parameters": {"quadrature_degree": degree}}
-        problem = firedrake.NonlinearVariationalProblem(F, u, bcs, **params)
+        problem = firedrake.NonlinearVariationalProblem(F, u, bcs)
         self._solver = firedrake.NonlinearVariationalSolver(
             problem, solver_parameters=self._solver_parameters
         )

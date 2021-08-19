@@ -1,4 +1,4 @@
-# Copyright (C) 2020 by Jessica Badgeley <badgeley@uw.edu>
+# Copyright (C) 2020-2021 by Jessica Badgeley <badgeley@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,7 +12,7 @@
 
 from operator import itemgetter
 import firedrake
-from firedrake import inner, grad, dx
+from firedrake import inner, grad
 from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law as n
 from icepack.models.mass_transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
@@ -129,6 +129,8 @@ class ShallowIce:
             All other keyword arguments will be passed on to the
             'mass', 'gravity' and 'penalty' functionals
         """
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
         mass = self.mass(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
         penalty = self.penalty(**kwargs) * dx
@@ -140,13 +142,14 @@ class ShallowIce:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
         return (self.mass(**kwargs) + self.penalty(**kwargs)) * dx
 
     def quadrature_degree(self, **kwargs):
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
-        u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
+        u, h = itemgetter("velocity", "thickness")(kwargs)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
-        degree_s = s.ufl_element().degree()
-        return int((n + 1) * degree_h + n * degree_s + degree_u)
+        return int((2 * n + 1) * degree_h + degree_u)

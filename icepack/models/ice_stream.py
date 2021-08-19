@@ -12,7 +12,7 @@
 
 from operator import itemgetter
 import firedrake
-from firedrake import inner, dx, ds
+from firedrake import inner
 from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
@@ -108,19 +108,21 @@ class IceStream:
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
+        ds = firedrake.ds(domain=mesh, metadata=metadata)
+
         viscosity = self.viscosity(**kwargs) * dx
         friction = self.friction(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
 
-        ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(**kwargs) * ds_w
+        side_friction = self.side_friction(**kwargs) * ds(side_wall_ids)
         if get_mesh_axes(mesh) == "xy":
-            penalty = self.penalty(**kwargs) * ds_w
+            penalty = self.penalty(**kwargs) * ds(side_wall_ids)
         else:
             penalty = 0.0
 
-        ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
-        terminus = self.terminus(**kwargs) * ds_t
+        terminus = self.terminus(**kwargs) * ds(ice_front_ids)
 
         return viscosity + friction + side_friction - gravity - terminus + penalty
 
@@ -130,6 +132,8 @@ class IceStream:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
         return (self.viscosity(**kwargs) + self.friction(**kwargs)) * dx
 
     def quadrature_degree(self, **kwargs):
