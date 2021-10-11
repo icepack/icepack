@@ -167,7 +167,10 @@ class IcepackSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self._fields["velocity"]
@@ -236,7 +239,10 @@ class PETScSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self._fields["velocity"]
@@ -299,7 +305,10 @@ class ImplicitEuler:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         dt = firedrake.Constant(1.0)
         dh_dt = self._continuity(dt, **self._fields)
@@ -356,7 +365,10 @@ class LaxWendroff:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         dt = firedrake.Constant(1.0)
         h = self._fields["thickness"]
