@@ -48,7 +48,10 @@ class DamageSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         # Create symbolic representations of the flux and sources of damage
         dt = firedrake.Constant(1.0)

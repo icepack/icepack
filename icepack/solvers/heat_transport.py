@@ -45,7 +45,10 @@ class HeatTransportSolver:
                 elif isinstance(field, firedrake.Function):
                     self._fields[name] = field.copy(deepcopy=True)
                 else:
-                    raise TypeError("Input fields must be Constant or Function!")
+                    raise TypeError(
+                        "Input %s field has type %s, must be Constant or Function!"
+                        % (name, type(field))
+                    )
 
         dt = Constant(1.0)
 
