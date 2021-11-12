@@ -24,9 +24,9 @@ from icepack.constants import ice_density as ρ_I, water_density as ρ_W
 
 
 default_solver_parameters = {
-    'ksp_type': 'preonly',
-    'pc_type': 'lu',
-    'pc_factor_mat_solver_type': 'mumps'
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    "pc_factor_mat_solver_type": "mumps",
 }
 
 
@@ -42,14 +42,23 @@ def get_kwargs_alt(dictionary, keys, keys_alt):
     if all([key in dictionary for key in keys]):
         return map(dictionary.__getitem__, keys)
 
-    warnings.warn(f"Abbreviated names {keys_alt} have been deprecated, use "
-                  f"full names {keys} instead.", FutureWarning, stacklevel=2)
-    return tuple((dictionary.get(key, dictionary.get(alt_key))
-                  for key, alt_key in zip(keys, keys_alt)))
+    warnings.warn(
+        f"Abbreviated names {keys_alt} have been deprecated, use "
+        f"full names {keys} instead.",
+        FutureWarning,
+        stacklevel=2,
+    )
+    return tuple(
+        (
+            dictionary.get(key, dictionary.get(alt_key))
+            for key, alt_key in zip(keys, keys_alt)
+        )
+    )
 
 
 def _legendre(n, ζ):
-    return sympy.functions.special.polynomials.legendre(n,2 * ζ -1)
+    return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
+
 
 def facet_normal_2(mesh):
     r"""Compute the horizontal component of the unit outward normal vector
@@ -74,7 +83,7 @@ def eigenvalues(a):
     tr_a = tr(a)
     det_a = det(a)
     # TODO: Fret about numerical stability
-    Δ = sqrt(tr_a**2 - 4 * det_a)
+    Δ = sqrt(tr_a ** 2 - 4 * det_a)
     return ((tr_a + Δ) / 2, (tr_a - Δ) / 2)
 
 
@@ -99,8 +108,8 @@ def compute_surface(**kwargs):
     provided everything is in hydrostatic balance.
     """
     # TODO: Remove the 'h' and 'b' arguments once these are deprecated.
-    h = kwargs.get('thickness', kwargs.get('h'))
-    b = kwargs.get('bed', kwargs.get('b'))
+    h = kwargs.get("thickness", kwargs.get("h"))
+    b = kwargs.get("bed", kwargs.get("b"))
 
     Q = h.ufl_function_space()
     s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
@@ -113,7 +122,7 @@ def depth_average(q3d, weight=firedrake.Constant(1)):
 
     # Create the element `E x DG0` where `E` is the horizontal element for the
     # input field
-    element_z = firedrake.FiniteElement(family='DG', cell='interval', degree=0)
+    element_z = firedrake.FiniteElement(family="DG", cell="interval", degree=0)
     shape = q3d.ufl_shape
     if len(shape) == 0:
         element_xy = element3d.sub_elements()[0]
@@ -125,8 +134,9 @@ def depth_average(q3d, weight=firedrake.Constant(1)):
         element_avg = firedrake.VectorElement(element_u, dim=shape[0])
         element2d = firedrake.VectorElement(element_xy, dim=shape[0])
     else:
-        raise NotImplementedError('Depth average of tensor fields not yet '
-                                  'implemented!')
+        raise NotImplementedError(
+            "Depth average of tensor fields not yet " "implemented!"
+        )
 
     # Project the weighted 3D field onto vertical DG0
     mesh3d = q3d.ufl_domain()
@@ -175,41 +185,52 @@ def lift3d(q2d, Q3D):
 
 
 @functools.lru_cache(maxsize=None)
-def vertically_integrate(q,h):
+def vertically_integrate(q, h):
     r"""
     q : firedrake.Function
         integrand
     h : firedrake.Function
         ice thickness
     """
-    def weight(n,ζ):
-        norm=(1/sympy.integrate(_legendre(n,ζ)**2,(ζ,0,1)))**.5
-        return sympy.lambdify(ζ,norm*_legendre(n,ζ),'numpy')
 
-    def coefficient(n,q,ζ,ζsym,Q):
-        a_n=depth_average(q,weight=weight(n,ζsym)(ζ))
-        a_n3d=lift3d(a_n,Q)
+    def weight(n, ζ):
+        norm = (1 / sympy.integrate(_legendre(n, ζ) ** 2, (ζ, 0, 1))) ** 0.5
+        return sympy.lambdify(ζ, norm * _legendre(n, ζ), "numpy")
+
+    def coefficient(n, q, ζ, ζsym, Q):
+        a_n = depth_average(q, weight=weight(n, ζsym)(ζ))
+        a_n3d = lift3d(a_n, Q)
         return a_n3d
 
-    def recurrance_relation(n,ζ):
-        if n>0:
-            return sympy.lambdify(ζ,(1/(2*(2*n+1)))*(_legendre(n+1,ζ)-_legendre(n-1,ζ)),'numpy')
-        elif n==0:
-            return sympy.lambdify(ζ,ζ,'numpy')
-        if n<0:
+    def recurrance_relation(n, ζ):
+        if n > 0:
+            return sympy.lambdify(
+                ζ,
+                (1 / (2 * (2 * n + 1))) * (_legendre(n + 1, ζ) - _legendre(n - 1, ζ)),
+                "numpy",
+            )
+        elif n == 0:
+            return sympy.lambdify(ζ, ζ, "numpy")
+        if n < 0:
             raise ValueError("n must be positive")
 
-    Q=h.function_space()
-    mesh=Q.mesh()
-    x,y,ζ=firedrake.SpatialCoordinate(mesh)
-    xdegree_q,zdegree_q=q.ufl_element().degree()
+    Q = h.function_space()
+    mesh = Q.mesh()
+    x, y, ζ = firedrake.SpatialCoordinate(mesh)
+    xdegree_q, zdegree_q = q.ufl_element().degree()
 
-    ζsym = sympy.symbols('ζsym', real=True, positive=True)
+    ζsym = sympy.symbols("ζsym", real=True, positive=True)
 
-    q_int=sum([coefficient(k,q,ζ,ζsym,Q) * recurrance_relation(k,ζsym)(ζ) for k in range(zdegree_q)])
+    q_int = sum(
+        [
+            coefficient(k, q, ζ, ζsym, Q) * recurrance_relation(k, ζsym)(ζ)
+            for k in range(zdegree_q)
+        ]
+    )
     return q_int
 
-def vertical_velocity(u,h,m=0.0):
+
+def vertical_velocity(u, h, m=0.0):
     r"""
     u : firedrake.Function
         ice velocity
@@ -221,15 +242,19 @@ def vertical_velocity(u,h,m=0.0):
     Q = h.function_space()
     mesh = Q.mesh()
     xdegree_u, zdegree_u = u.ufl_element().degree()
-    W = firedrake.FunctionSpace(mesh,family='CG',degree=xdegree_u,vfamily='GL',vdegree=zdegree_u)
-    u_div = firedrake.interpolate(u[0].dx(0)+u[1].dx(1),W)
-    return (m/h-vertically_integrate(u_div,h))
+    W = firedrake.FunctionSpace(
+        mesh, family="CG", degree=xdegree_u, vfamily="GL", vdegree=zdegree_u
+    )
+    u_div = firedrake.interpolate(u[0].dx(0) + u[1].dx(1), W)
+    return m / h - vertically_integrate(u_div, h)
 
 
 def add_kwarg_wrapper(func):
     signature = inspect.signature(func)
-    if any(str(signature.parameters[param].kind) == 'VAR_KEYWORD'
-           for param in signature.parameters):
+    if any(
+        str(signature.parameters[param].kind) == "VAR_KEYWORD"
+        for param in signature.parameters
+    ):
         return func
 
     params = signature.parameters
