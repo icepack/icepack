@@ -1,5 +1,6 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
-#
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu> and
+# Andrew Hoffman <hoffmaao@uw.edu>
+# 
 # This file is part of icepack.
 #
 # icepack is free software: you can redistribute it and/or modify
@@ -29,52 +30,8 @@ default_solver_parameters = {
     "pc_factor_mat_solver_type": "mumps",
 }
 
-
-def get_kwargs_alt(dictionary, keys, keys_alt):
-    r"""Get value from dictionary by key or by an alternate, deprecated key
-
-    This helper function is to aid in a refactoring of icepack where shorter
-    keyword arguments were replaced by longer names, for example `velocity`
-    instead of `u`, `thickness` instead of `h`, etc. For backwards
-    compatibility, it should be possible to use either the new or old keyword
-    argument names, but a warning should be thrown on using the old name.
-    """
-    if all([key in dictionary for key in keys]):
-        return map(dictionary.__getitem__, keys)
-
-    warnings.warn(
-        f"Abbreviated names {keys_alt} have been deprecated, use "
-        f"full names {keys} instead.",
-        FutureWarning,
-        stacklevel=2,
-    )
-    return tuple(
-        (
-            dictionary.get(key, dictionary.get(alt_key))
-            for key, alt_key in zip(keys, keys_alt)
-        )
-    )
-
-
 def _legendre(n, ζ):
     return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
-
-
-def facet_normal_2(mesh):
-    r"""Compute the horizontal component of the unit outward normal vector
-    to a mesh"""
-    ν = firedrake.FacetNormal(mesh)
-    return firedrake.as_vector((ν[0], ν[1]))
-
-
-def grad_2(q):
-    r"""Compute the horizontal gradient of a 3D field"""
-    return firedrake.as_tensor((q.dx(0), q.dx(1)))
-
-
-def div_2(q):
-    r"""Compute the horizontal divergence of a 3D field"""
-    return q[0].dx(0) + q[1].dx(1)
 
 
 def eigenvalues(a):
@@ -184,7 +141,6 @@ def lift3d(q2d, Q3D):
     return q3d
 
 
-@functools.lru_cache(maxsize=None)
 def vertically_integrate(q, h):
     r"""
     q : firedrake.Function
@@ -202,7 +158,7 @@ def vertically_integrate(q, h):
         a_n3d = lift3d(a_n, Q)
         return a_n3d
 
-    def recurrance_relation(n, ζ):
+    def recurrence_relation(n, ζ):
         if n > 0:
             return sympy.lambdify(
                 ζ,
@@ -223,7 +179,7 @@ def vertically_integrate(q, h):
 
     q_int = sum(
         [
-            coefficient(k, q, ζ, ζsym, Q) * recurrance_relation(k, ζsym)(ζ)
+            coefficient(k, q, ζ, ζsym, Q) * recurrence_relation(k, ζsym)(ζ)
             for k in range(zdegree_q)
         ]
     )
