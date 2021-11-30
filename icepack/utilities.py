@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu> Andrew
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu> and
 # Andrew Hoffman <hoffmaao@uw.edu>
 #
 # This file is part of icepack.
