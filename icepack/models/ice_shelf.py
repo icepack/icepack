@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,7 +12,7 @@
 
 from operator import itemgetter
 import firedrake
-from firedrake import inner, grad, dx, ds
+from firedrake import inner, grad
 from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import side_friction, normal_flow_penalty
@@ -130,15 +130,16 @@ class IceShelf:
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
+        ds = firedrake.ds(domain=mesh, metadata=metadata)
+
         viscosity = self.viscosity(**kwargs) * dx
         gravity = self.gravity(**kwargs) * dx
 
-        ds_w = ds(domain=mesh, subdomain_id=side_wall_ids)
-        side_friction = self.side_friction(**kwargs) * ds_w
-        penalty = self.penalty(**kwargs) * ds_w
-
-        ds_t = ds(domain=mesh, subdomain_id=ice_front_ids)
-        terminus = self.terminus(**kwargs) * ds_t
+        side_friction = self.side_friction(**kwargs) * ds(side_wall_ids)
+        penalty = self.penalty(**kwargs) * ds(side_wall_ids)
+        terminus = self.terminus(**kwargs) * ds(ice_front_ids)
 
         return viscosity + side_friction - gravity - terminus + penalty
 
@@ -148,6 +149,8 @@ class IceShelf:
         The positive part of the action functional is used as a dimensional
         scale to determine when to terminate an optimization algorithm.
         """
+        metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
+        dx = firedrake.dx(metadata=metadata)
         return self.viscosity(**kwargs) * dx
 
     def quadrature_degree(self, **kwargs):

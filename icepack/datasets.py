@@ -135,7 +135,7 @@ def fetch_larsen_outline():
 def fetch_mosaic_of_antarctica():
     r"""Fetch the MODIS optical image mosaic of Antarctica"""
     return nsidc_data.fetch(
-        "moa750_2009_hp1_v01.1.tif.gz",
+        "moa750_2009_hp1_v02.0.tif.gz",
         downloader=_earthdata_downloader,
         processor=pooch.Decompress(),
     )
