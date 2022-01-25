@@ -1,4 +1,4 @@
-# Copyright (C) 2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2022 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -37,6 +37,27 @@ def test_scalar_field():
     assert norm(p_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
 
     Q0 = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=0)
+    q_lift = lift3d(q_avg, Q0)
+    assert norm(depth_average(q_lift) - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
+
+
+def test_multilayer():
+    Nx, Ny = 16, 16
+    mesh2d = firedrake.UnitSquareMesh(Nx, Ny)
+    mesh3d = firedrake.ExtrudedMesh(mesh2d, layers=2)
+    x, y, z = firedrake.SpatialCoordinate(mesh3d)
+
+    Q3D = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="DG", vdegree=0)
+    expr = firedrake.conditional(z < 0.5, 0.0, 1.0)
+    q3d = firedrake.project(expr, Q3D)
+
+    Q2D = firedrake.FunctionSpace(mesh2d, "CG", 2)
+    q2d = firedrake.interpolate(firedrake.Constant(0.5), Q2D)
+
+    q_avg = depth_average(q3d)
+    assert norm(q_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
+
+    Q0 = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="R", vdegree=0)
     q_lift = lift3d(q_avg, Q0)
     assert norm(depth_average(q_lift) - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
 
