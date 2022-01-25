@@ -31,7 +31,7 @@ default_solver_parameters = {
 }
 
 
-def _legendre(n, ζ):
+def legendre(n, ζ):
     return sympy.functions.special.polynomials.legendre(n, 2 * ζ - 1)
 
 
@@ -151,8 +151,8 @@ def vertically_integrate(q, h):
     """
 
     def weight(n, ζ):
-        norm = (1 / sympy.integrate(_legendre(n, ζ) ** 2, (ζ, 0, 1))) ** 0.5
-        return sympy.lambdify(ζ, norm * _legendre(n, ζ), "numpy")
+        norm = (1 / sympy.integrate(legendre(n, ζ) ** 2, (ζ, 0, 1))) ** 0.5
+        return sympy.lambdify(ζ, norm * legendre(n, ζ), "numpy")
 
     def coefficient(n, q, ζ, ζsym, Q):
         a_n = depth_average(q, weight=weight(n, ζsym)(ζ))
@@ -163,7 +163,7 @@ def vertically_integrate(q, h):
         if n > 0:
             return sympy.lambdify(
                 ζ,
-                (1 / (2 * (2 * n + 1))) * (_legendre(n + 1, ζ) - _legendre(n - 1, ζ)),
+                (1 / (2 * (2 * n + 1))) * (legendre(n + 1, ζ) - legendre(n - 1, ζ)),
                 "numpy",
             )
         elif n == 0:

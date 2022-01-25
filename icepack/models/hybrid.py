@@ -24,7 +24,7 @@ from icepack.constants import (
     gravity as g,
     strain_rate_min,
 )
-from icepack.utilities import add_kwarg_wrapper
+from icepack.utilities import add_kwarg_wrapper, legendre
 from icepack.calculus import grad, sym_grad, trace, Identity, FacetNormal, get_mesh_axes
 
 
@@ -49,20 +49,16 @@ def gravity(**kwargs):
     return -ρ_I * g * inner(grad(s), u) * h
 
 
-def _legendre(k, ζ):
-    return sympy.functions.special.polynomials.legendre(k, 2 * ζ - 1)
-
-
 @functools.lru_cache(maxsize=None)
 def _pressure_approx(N):
     ζ, ζ_sl = sympy.symbols("ζ ζ_sl", real=True, positive=True)
 
     def coefficient(k):
-        Sk = _legendre(k, ζ)
+        Sk = legendre(k, ζ)
         norm_square = sympy.integrate(Sk ** 2, (ζ, 0, 1))
         return sympy.integrate((ζ_sl - ζ) * Sk, (ζ, 0, ζ_sl)) / norm_square
 
-    polynomial = sum([coefficient(k) * _legendre(k, ζ) for k in range(N)])
+    polynomial = sum([coefficient(k) * legendre(k, ζ) for k in range(N)])
     return sympy.lambdify((ζ, ζ_sl), sympy.simplify(polynomial))
 
 
