@@ -1,6 +1,6 @@
-# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu> and
+# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu>
 # Andrew Hoffman <hoffmaao@uw.edu>
-#
+# Jessica Badgeley <badgeley@uw.edu>
 # This file is part of icepack.
 #
 # icepack is free software: you can redistribute it and/or modify
@@ -14,14 +14,14 @@
 r"""Miscellaneous utilities for depth-averaging 3D fields, computing
 horizontal gradients of 3D fields, lifting 2D fields into 3D, etc."""
 
-import warnings
-import functools
+from operator import itemgetter
 import inspect
 import sympy
 import numpy as np
 import firedrake
 from firedrake import sqrt, tr, det
-from icepack.constants import ice_density as ρ_I, water_density as ρ_W
+from .constants import ice_density as ρ_I, water_density as ρ_W
+from .calculus import div
 
 
 default_solver_parameters = {
@@ -169,7 +169,7 @@ def vertically_integrate(q, h):
 
     Q = h.function_space()
     mesh = Q.mesh()
-    x, y, ζ = firedrake.SpatialCoordinate(mesh)
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension() - 1]
     xdegree_q, zdegree_q = q.ufl_element().degree()
 
     ζsym = sympy.symbols("ζsym", real=True, positive=True)
@@ -183,22 +183,31 @@ def vertically_integrate(q, h):
     return q_int
 
 
-def vertical_velocity(u, h, m=0.0):
-    r"""
-    u : firedrake.Function
-        ice velocity
-    h : firedrake.Function
-        ice thickness
-    m : firedrake.Function
-        basal vertical velocity
+def vertical_velocity(**kwargs):
+    r"""Compute the vertical component of the full 3D ice velocity from the
+    horizontal components, assuming that the 3D flow field is divergence-free
+
+    Note that the returned vertical velocity is in terrain-following
+    coordinates -- it records the relative depth through the ice column and
+    thus has units of inverse years.
+
+    Parameters
+    ----------
+    velocity : firedrake.Function
+    thickness : firedrake.Function
+    basal_mass_balance : firedrake.Function
+
+    Returns
+    -------
+    vertical_velocity : firedrake.Function
     """
+    u, h, m = itemgetter("velocity", "thickness", "basal_mass_balance")(kwargs)
+
     Q = h.function_space()
     mesh = Q.mesh()
     xdegree_u, zdegree_u = u.ufl_element().degree()
-    W = firedrake.FunctionSpace(
-        mesh, family="CG", degree=xdegree_u, vfamily="GL", vdegree=zdegree_u
-    )
-    u_div = firedrake.interpolate(u[0].dx(0) + u[1].dx(1), W)
+    W = firedrake.FunctionSpace(mesh, "CG", xdegree_u, vfamily="GL", vdegree=zdegree_u)
+    u_div = firedrake.interpolate(div(u), W)
     return m / h - vertically_integrate(u_div, h)
 
 
