@@ -25,6 +25,7 @@ from icepack.constants import (
 )
 
 
+@pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
 def test_poisson_problem():
     Nx, Ny = 32, 32
 
@@ -76,6 +77,7 @@ def test_poisson_problem():
     assert firedrake.norm(q - q_true) < 0.25
 
 
+@pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
 @pytest.mark.parametrize("with_noise", [False, True])
 def test_ice_shelf_inverse(with_noise):
     Nx, Ny = 32, 32
