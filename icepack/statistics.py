@@ -13,7 +13,7 @@
 from copy import deepcopy
 import firedrake
 from firedrake import assemble
-import pyadjoint, pyadjoint.optimization.rol_solver
+import pyadjoint
 
 
 class StatisticsProblem:
@@ -62,27 +62,33 @@ class StatisticsProblem:
         return self._controls
 
 
-class _ROLObjectiveWrapper(pyadjoint.optimization.rol_solver.ROLObjective):
-    def __init__(self, *args, **kwargs):
-        r"""Wrapper around the ROL objective functional class that returns
-        infinity if the forward solver crashes"""
-        super(_ROLObjectiveWrapper, self).__init__(*args, **kwargs)
+try:
+    import pyadjoint.optimization.rol_solver
 
-    def update(self, x, flag, iteration):
-        try:
-            self.val = self.rf(x.dat)
-        except firedrake.ConvergenceError:
-            self.val = np.inf
+    class _ROLObjectiveWrapper(pyadjoint.optimization.rol_solver.ROLObjective):
+        def __init__(self, *args, **kwargs):
+            r"""Wrapper around the ROL objective functional class that returns
+            infinity if the forward solver crashes"""
+            super(_ROLObjectiveWrapper, self).__init__(*args, **kwargs)
 
+        def update(self, x, flag, iteration):
+            try:
+                self.val = self.rf(x.dat)
+            except firedrake.ConvergenceError:
+                self.val = np.inf
 
-class _ROLSolverWrapper(pyadjoint.ROLSolver):
-    def __init__(self, problem, controls, inner_product="L2"):
-        r"""Wrapper around the ROL solver class that uses the patched Objective
-        class"""
-        super(_ROLSolverWrapper, self).__init__(
-            problem, controls, inner_product=inner_product
-        )
-        self.rolobjective = _ROLObjectiveWrapper(problem.reduced_functional)
+    class _ROLSolverWrapper(pyadjoint.ROLSolver):
+        def __init__(self, problem, controls, inner_product="L2"):
+            r"""Wrapper around the ROL solver class that uses the patched Objective
+            class"""
+            super(_ROLSolverWrapper, self).__init__(
+                problem, controls, inner_product=inner_product
+            )
+            self.rolobjective = _ROLObjectiveWrapper(problem.reduced_functional)
+
+    has_rol = True
+except AttributeError:
+    has_rol = False
 
 
 _default_rol_options = {
@@ -139,6 +145,9 @@ class MaximumProbabilityEstimator:
 
         # Form the minimization problem and solver
         if isinstance(solver_type, str) and solver_type.lower() == "rol":
+            if not has_rol:
+                raise ImportError("Cannot import ROL!")
+
             problem_wrapper = pyadjoint.MinimizationProblem(reduced_objective)
 
             if "rol_options" in kwargs.keys():
