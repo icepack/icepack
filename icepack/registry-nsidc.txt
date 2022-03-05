@@ -6,4 +6,4 @@ greenland_vel_mosaic200_2015_2016_vx_v02.1.tif 77b8eb65a4718da055bb048b75c35b48c
 greenland_vel_mosaic200_2015_2016_vy_v02.1.tif fb5dbc07d032de9b1bdb0b990ed02a384964d73a150529515038139efb1e3193 https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0478.002/2015.09.01/greenland_vel_mosaic200_2015_2016_vy_v02.1.tif
 greenland_vel_mosaic200_2015_2016_ex_v02.1.tif 7e980fb7845fb8517f3791c9b3912ac62d3ce760938d062f1a4d575fad02ad89 https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0478.002/2015.09.01/greenland_vel_mosaic200_2015_2016_ex_v02.1.tif
 greenland_vel_mosaic200_2015_2016_ey_v02.1.tif 9a43092b4c92ac767dbc4e6b7d42e55887420bec94eb654382d724d2a2ab6d9a https://n5eil01u.ecs.nsidc.org/MEASURES/NSIDC-0478.002/2015.09.01/greenland_vel_mosaic200_2015_2016_ey_v02.1.tif
-
+BedMachineGreenland-2021-04-20.nc a22830d7769370fe15884944ca1aaf133951b47f5b1e3ee649555b6f4c22c72e https://n5eil01u.ecs.nsidc.org/ICEBRIDGE/IDBMG4.004/1993.01.01/BedMachineGreenland-2021-04-20.nc

@@ -94,6 +94,14 @@ def fetch_bedmachine_antarctica():
     )
 
 
+def fetch_bedmachine_greenland():
+    r"""Fetch the BedMachine map of Greenland ice thickness, surface elevation,
+    and bed elevation"""
+    return nsidc_data.fetch(
+        "BedMachineGreenland-2021-04-20.nc", downloader=_earthdata_downloader
+    )
+
+
 outlines_url = "https://raw.githubusercontent.com/icepack/glacier-meshes/"
 outlines_commit = "c98a8b7536b1891611566257d944e5ea024f2cdf"
 outlines = pooch.create(
