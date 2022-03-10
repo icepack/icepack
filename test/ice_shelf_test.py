@@ -92,15 +92,13 @@ def test_diagnostic_solver_convergence(solver_type):
             error.append(norm(u_exact - u) / norm(u_exact))
             delta_x.append(Lx / N)
 
-            print(delta_x[-1], error[-1])
-
         # Fit the error curve and check that the convergence rate is what we
         # expect
         log_delta_x = np.log2(np.array(delta_x))
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print(f"log(error) ~= {slope:g} * log(dx) + {intercept:g}")
+        print(f"log(error) ~= {slope:g} * log(dx) {intercept:+g}")
         assert slope > degree + 0.8
 
 
@@ -151,13 +149,11 @@ def test_diagnostic_solver_parameterization():
         error.append(norm(u_exact - u) / norm(u_exact))
         delta_x.append(Lx / N)
 
-        print(delta_x[-1], error[-1])
-
     log_delta_x = np.log2(np.array(delta_x))
     log_error = np.log2(np.array(error))
     slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-    print(f"log(error) ~= {slope:g} * log(dx) + {intercept:g}")
+    print(f"log(error) ~= {slope:g} * log(dx) {intercept:+g}")
     assert slope > degree - 0.05
 
 

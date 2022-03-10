@@ -106,13 +106,11 @@ def test_diagnostic_solver_convergence():
             error.append(norm(u_exact - u_num) / norm(u_exact))
             delta_x.append(mesh.cell_sizes.dat.data_ro.min())
 
-            print(delta_x[-1], error[-1])
-
             assert assemble(model.scale(velocity=u_num, thickness=h)) > 0
 
         log_delta_x = np.log2(np.array(delta_x))
         log_error = np.log2(np.array(error))
         slope, intercept = np.polyfit(log_delta_x, log_error, 1)
 
-        print(f"log(error) ~= {slope:g} * log(dx) + {intercept:g}")
+        print(f"log(error) ~= {slope:g} * log(dx) {intercept:+g}")
         assert slope > 0.9
