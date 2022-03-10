@@ -30,10 +30,14 @@ setup(
         "geojson",
         "shapely",
         "pooch>=1.0.0",
+        "gmsh",
         "pygmsh<=6.1.1",
         "meshio>=3.3.1",
         "MeshPy",
         "tqdm",
     ],
-    extras_require={"doc": ["sphinx", "ipykernel", "nbconvert", "nikola"]},
+    extras_require={
+        "doc": ["sphinx", "ipykernel", "nbconvert", "nikola"],
+        "opt": ["roltrilinos==0.0.9", "ROL==0.0.16"],
+    },
 )
