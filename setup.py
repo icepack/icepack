@@ -25,7 +25,7 @@ setup(
         "numpy",
         "scipy",
         "matplotlib",
-        "rasterio>=1.0.26",
+        "rasterio>=1.2.7",
         "netCDF4",
         "geojson",
         "shapely",

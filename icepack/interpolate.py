@@ -33,8 +33,6 @@ def _sample(dataset, X, method):
         right=xmax,
         bottom=ymin,
         top=ymax,
-        width=dataset.width,
-        height=dataset.height,
         transform=dataset.transform,
     )
     window = window.round_lengths(op="ceil").round_offsets(op="floor")
