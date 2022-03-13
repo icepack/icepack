@@ -261,7 +261,10 @@ class PETScSolver:
         action = self._model.action(**self._fields, **_kwargs)
         F = firedrake.derivative(action, u)
 
-        problem = firedrake.NonlinearVariationalProblem(F, u, bcs)
+        quad_degree = self._model.quadrature_degree(**self._fields)
+        problem = firedrake.NonlinearVariationalProblem(
+            F, u, bcs, form_compiler_parameters={"quadrature_degree": quad_degree}
+        )
         self._solver = firedrake.NonlinearVariationalSolver(
             problem, solver_parameters=self._solver_parameters
         )
