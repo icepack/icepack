@@ -215,6 +215,8 @@ def streamplot(u, **kwargs):
     tree = scipy.spatial.KDTree(coords)
     indices = set(range(len(coords)))
 
+    vmin = kwargs.get("vmin", 0)
+    vmax = kwargs.get("vmax", max_speed)
     trajectories = []
     line_colors = []
     while indices:
@@ -229,7 +231,7 @@ def streamplot(u, **kwargs):
             trajectories.extend(np.hstack([points[:-1], points[1:]]))
 
             speeds = np.sqrt(np.sum(np.asarray(u.at(s, tolerance=1e-10)) ** 2, 1))
-            colors = speeds / max_speed
+            colors = (speeds - vmin) / (vmax - vmin)
             line_colors.extend(cmap(colors[:-1]))
 
         except ValueError:
@@ -239,5 +241,5 @@ def streamplot(u, **kwargs):
     axes.add_collection(line_collection)
     axes.autoscale_view()
 
-    norm = matplotlib.colors.Normalize(vmin=0, vmax=max_speed)
+    norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     return StreamplotSet(lines=line_collection, cmap=cmap, norm=norm)
