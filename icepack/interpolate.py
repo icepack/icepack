@@ -70,11 +70,14 @@ def interpolate(f, Q, method="linear"):
 
     mesh = Q.mesh()
     element = Q.ufl_element()
-    if len(element.sub_elements()) > 0:
+
+    # Cannot take sub-elements if function is 3D scalar, otherwise shape will mismatch vertical basis
+    # This attempts to distinguish if multiple subelements due to dimension or vector function
+    if issubclass(type(element), firedrake.VectorElement):
         element = element.sub_elements()[0]
 
     V = firedrake.VectorFunctionSpace(mesh, element)
-    X = firedrake.interpolate(mesh.coordinates, V).dat.data_ro
+    X = firedrake.interpolate(mesh.coordinates, V).dat.data_ro[:, :2]
 
     q = firedrake.Function(Q)
 
