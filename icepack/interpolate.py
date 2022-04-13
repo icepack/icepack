@@ -22,11 +22,12 @@ from scipy.interpolate import RegularGridInterpolator
 
 def _sample(dataset, X, method):
     xres = dataset.res[0]
+    yres = dataset.res[1]
     bounds = dataset.bounds
-    xmin = max(X[:, 0].min() - 2 * xres, bounds.left)
-    xmax = min(X[:, 0].max() + 2 * xres, bounds.right)
-    ymin = max(X[:, 1].min() - 2 * xres, bounds.bottom)
-    ymax = min(X[:, 1].max() + 2 * xres, bounds.top)
+    xmin = max(X[:, 0].min() - 3 * xres, bounds.left)
+    xmax = min(X[:, 0].max() + 3 * xres, bounds.right)
+    ymin = max(X[:, 1].min() - 3 * yres, bounds.bottom)
+    ymax = min(X[:, 1].max() + 3 * yres, bounds.top)
 
     window = rasterio.windows.from_bounds(
         left=xmin,
