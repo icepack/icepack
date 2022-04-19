@@ -88,7 +88,7 @@ def test_interpolating_scalar_field_3d():
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
     x, y, z = firedrake.SpatialCoordinate(mesh)
-    Q = firedrake.FunctionSpace(mesh, "CG", 1, vfamily='R', vdegree=0)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1, vfamily="R", vdegree=0)
     p = firedrake.interpolate(x + y, Q)
     q = icepack.interpolate(dataset, Q)
 
@@ -154,7 +154,7 @@ def test_interpolating_vector_field_3d():
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
 
     x, y, z = firedrake.SpatialCoordinate(mesh)
-    V = firedrake.VectorFunctionSpace(mesh, "CG", 1, dim=2, vfamily='GL', vdegree=2)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 1, dim=2, vfamily="GL", vdegree=2)
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
