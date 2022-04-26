@@ -76,6 +76,25 @@ def test_interpolating_scalar_field():
     assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
 
 
+def test_interpolating_scalar_field_3d():
+    n = 32
+    array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
+    missing = -9999.0
+    array[0, 0] = missing
+    array = np.flipud(array)
+    dataset = make_rio_dataset(array, missing)
+
+    mesh2d = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
+    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
+
+    x, y, z = firedrake.SpatialCoordinate(mesh)
+    Q = firedrake.FunctionSpace(mesh, "CG", 1, vfamily="R", vdegree=0)
+    p = firedrake.interpolate(x + y, Q)
+    q = icepack.interpolate(dataset, Q)
+
+    assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
+
+
 def test_nearest_neighbor_interpolation():
     n = 32
     array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
@@ -111,6 +130,31 @@ def test_interpolating_vector_field():
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
     V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
+    u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
+    v = icepack.interpolate((vx, vy), V)
+
+    assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10
+
+
+def test_interpolating_vector_field_3d():
+    n = 32
+    array_vx = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
+    missing = -9999.0
+    array_vx[0, 0] = missing
+    array_vx = np.flipud(array_vx)
+
+    array_vy = np.array([[(j - i) / n for j in range(n + 1)] for i in range(n + 1)])
+    array_vy[-1, -1] = -9999.0
+    array_vy = np.flipud(array_vy)
+
+    vx = make_rio_dataset(array_vx, missing)
+    vy = make_rio_dataset(array_vy, missing)
+
+    mesh2d = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
+    mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
+
+    x, y, z = firedrake.SpatialCoordinate(mesh)
+    V = firedrake.VectorFunctionSpace(mesh, "CG", 1, dim=2, vfamily="GL", vdegree=2)
     u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
     v = icepack.interpolate((vx, vy), V)
 
