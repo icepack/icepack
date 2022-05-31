@@ -22,17 +22,17 @@ commands:
       - run: black --check ./
 
 jobs:
-  python36:
+  python38:
     docker:
-      - image: icepack/firedrake-python3.6:0.5.7
+      - image: icepack/firedrake-python3.8:0.6.0
     working_directory: ~/icepack
     steps:
       - build
       - unittest
       - realtest
-  python38:
+  python310:
     docker:
-      - image: icepack/firedrake-python3.8:0.5.7
+      - image: icepack/firedrake-python3.10:0.6.0
     working_directory: ~/icepack
     steps:
       - build
@@ -45,5 +45,5 @@ workflows:
   version: 2
   tests:
     jobs:
-      - python36
       - python38
+      - python310
