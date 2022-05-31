@@ -11,6 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
+import numpy as np
 import firedrake
 from firedrake import assemble
 import pyadjoint
