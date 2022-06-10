@@ -4,7 +4,8 @@ commands:
   build:
     steps:
       - checkout
-      - run: pip install --editable ."[doc]"
+      - run: pip install rasterio==1.3a4  # <- Dirty hack, remove later
+      - run: pip install --editable ."[doc,opt]"
       - run: pip install pytest-cov codecov
   unittest:
     steps:
