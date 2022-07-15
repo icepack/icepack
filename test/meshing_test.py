@@ -76,7 +76,7 @@ def test_converting_to_triangle(input_data):
     collection = input_data()
     lcar = 1e-1
     geometry = icepack.meshing.collection_to_triangle(
-        collection, max_volume=0.5 * lcar ** 2
+        collection, max_volume=0.5 * lcar**2
     )
     assert len(geometry.elements) > 0
 

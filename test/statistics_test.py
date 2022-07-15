@@ -67,7 +67,7 @@ def test_poisson_problem():
     α = firedrake.Constant(1e-4)
 
     def regularization(q):
-        return 0.5 * α ** 2 * inner(grad(q), grad(q)) * dx
+        return 0.5 * α**2 * inner(grad(q), grad(q)) * dx
 
     q_initial = firedrake.Function(Q)
     problem = StatisticsProblem(simulation, loss_functional, regularization, q_initial)
@@ -152,7 +152,7 @@ def test_ice_shelf_inverse(with_noise):
         return 0.5 * ((u - u_obs) / σ) ** 2 * dx
 
     def regularization(q):
-        return 0.5 * L ** 2 * inner(grad(q), grad(q)) * dx
+        return 0.5 * L**2 * inner(grad(q), grad(q)) * dx
 
     def simulation(q):
         return flow_solver.diagnostic_solve(

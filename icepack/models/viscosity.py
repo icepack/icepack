@@ -80,7 +80,7 @@ def rate_factor(T):
 
 
 def _effective_strain_rate(ε, ε_min):
-    return sqrt((inner(ε, ε) + trace(ε) ** 2 + ε_min ** 2) / 2)
+    return sqrt((inner(ε, ε) + trace(ε) ** 2 + ε_min**2) / 2)
 
 
 def membrane_stress(**kwargs):

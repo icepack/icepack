@@ -68,7 +68,7 @@ def test_streamlines():
 
     for n in range(num_points):
         x = xs[n, :]
-        assert abs(sum(x ** 2) - radius ** 2) < resolution
+        assert abs(sum(x**2) - radius**2) < resolution
 
 
 def test_plot_vector_field():
@@ -97,11 +97,11 @@ def test_plot_extruded_field():
     x, y, z = firedrake.SpatialCoordinate(mesh3d)
 
     Q = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4)
-    q = interpolate((x ** 2 - y ** 2) * (1 - z ** 4), Q)
+    q = interpolate((x**2 - y**2) * (1 - z**4), Q)
     q_contours = icepack.plot.tricontourf(q)
     assert q_contours is not None
 
     V = firedrake.VectorFunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4, dim=2)
-    u = interpolate(as_vector((1 - z ** 4, 0)), V)
+    u = interpolate(as_vector((1 - z**4, 0)), V)
     u_contours = icepack.plot.tricontourf(u)
     assert u_contours is not None

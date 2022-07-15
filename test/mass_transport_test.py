@@ -158,7 +158,7 @@ def test_shallow_ice_prognostic_solve():
     V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    r = firedrake.sqrt(x ** 2 + y ** 2)
+    r = firedrake.sqrt(x**2 + y**2)
 
     β = Constant(0.5)
     h_divide = Constant(4e3)
@@ -211,7 +211,7 @@ def test_ice_stream_prognostic_solve():
     x, y = firedrake.SpatialCoordinate(mesh)
     height_above_flotation = 10.0
     d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-    ρ = ρ_I - ρ_W * d ** 2 / (h0 - dh) ** 2
+    ρ = ρ_I - ρ_W * d**2 / (h0 - dh) ** 2
 
     Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
     q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
@@ -292,7 +292,7 @@ def test_hybrid_prognostic_solve(solver_type):
     x, y, ζ = firedrake.SpatialCoordinate(mesh)
     height_above_flotation = 10.0
     d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-    ρ = ρ_I - ρ_W * d ** 2 / (h0 - dh) ** 2
+    ρ = ρ_I - ρ_W * d**2 / (h0 - dh) ** 2
 
     Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
     q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)

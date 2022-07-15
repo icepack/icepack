@@ -25,13 +25,13 @@ typical temperatures.
 year = 365.25 * 24 * 60 * 60
 
 #: acceleration due to gravity (m / yr^2)
-gravity = 9.81 * year ** 2
+gravity = 9.81 * year**2
 
 #: density of ice
-ice_density = 917 / year ** 2 * 1.0e-6
+ice_density = 917 / year**2 * 1.0e-6
 
 #: density of seawater
-water_density = 1024 / year ** 2 * 1.0e-6
+water_density = 1024 / year**2 * 1.0e-6
 
 #: ideal gas constant (kJ / mol K)
 ideal_gas = 8.3144621e-3
@@ -46,7 +46,7 @@ strain_rate_min = 1e-5
 weertman_sliding_law = 3.0
 
 #: specific heat capacity of ice at -10C (m^2 / yr^2 / K)
-heat_capacity = 2.0e3 * year ** 2
+heat_capacity = 2.0e3 * year**2
 
 #: thermal diffusivity of ice at -10C (m^2 / yr)
 thermal_diffusivity = 2.3e-3 / (917 * 2.0) * year
@@ -55,4 +55,4 @@ thermal_diffusivity = 2.3e-3 / (917 * 2.0) * year
 melting_temperature = 273.15
 
 #: latent heat of melting of ice (m^2 / yr^2)
-latent_heat = 334e3 * year ** 2
+latent_heat = 334e3 * year**2

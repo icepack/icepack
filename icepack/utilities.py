@@ -41,7 +41,7 @@ def eigenvalues(a):
     tr_a = tr(a)
     det_a = det(a)
     # TODO: Fret about numerical stability
-    Δ = sqrt(tr_a ** 2 - 4 * det_a)
+    Δ = sqrt(tr_a**2 - 4 * det_a)
     return ((tr_a + Δ) / 2, (tr_a - Δ) / 2)
 
 

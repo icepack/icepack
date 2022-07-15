@@ -33,6 +33,6 @@ def test_scalar_field_norms():
 
 def test_vector_field_norms():
     u = firedrake.Function(V)
-    u.interpolate(firedrake.as_vector((x ** 2 - y ** 2, 2 * x * y)))
+    u.interpolate(firedrake.as_vector((x**2 - y**2, 2 * x * y)))
 
     assert abs(icepack.norm(u, norm_type="Linfty") - 2) < tolerance

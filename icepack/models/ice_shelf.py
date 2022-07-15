@@ -42,7 +42,7 @@ def gravity(**kwargs):
     u, h = itemgetter("velocity", "thickness")(kwargs)
 
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return -0.5 * ρ * g * inner(grad(h ** 2), u)
+    return -0.5 * ρ * g * inner(grad(h**2), u)
 
 
 def terminus(**kwargs):
@@ -61,7 +61,7 @@ def terminus(**kwargs):
     mesh = u.ufl_domain()
     ν = firedrake.FacetNormal(mesh)
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    return 0.5 * ρ * g * h ** 2 * inner(u, ν)
+    return 0.5 * ρ * g * h**2 * inner(u, ν)
 
 
 class IceShelf:

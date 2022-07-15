@@ -50,7 +50,7 @@ def make_mesh(R_mesh, refinement):
 
 def Bueler_profile(mesh, R):
     x, y = firedrake.SpatialCoordinate(mesh)
-    r = sqrt(x ** 2 + y ** 2)
+    r = sqrt(x**2 + y**2)
     h_divide = (2 * R * (alpha / A0) ** (1 / n) * (n - 1) / n) ** (n / (2 * n + 2))
     h_part2 = (
         (n + 1) * (r / R)
@@ -78,7 +78,7 @@ def penalty_low(**kwargs):
     u = kwargs["velocity"]
     h = kwargs["thickness"]
     l = 2 * max_value(firedrake.CellDiameter(u.ufl_domain()), h)
-    return 0.5 * l ** 2 * inner(grad(u), grad(u))
+    return 0.5 * l**2 * inner(grad(u), grad(u))
 
 
 def test_diagnostic_solver_convergence():
