@@ -45,7 +45,7 @@ def norm(u, norm_type="L2"):
 
     if norm_type == "H1":
         L = utilities.diameter(u.ufl_domain())
-        form, p = inner(u, u) * dx + L ** 2 * inner(grad(u), grad(u)) * dx, 2
+        form, p = inner(u, u) * dx + L**2 * inner(grad(u), grad(u)) * dx, 2
 
     if norm_type == "L1":
         form, p = sqrt(inner(u, u)) * dx, 1
@@ -58,7 +58,7 @@ def norm(u, norm_type="L2"):
         if len(data.shape) == 1:
             local_max = np.max(np.abs(data))
         elif len(data.shape) == 2:
-            local_max = np.max(np.sqrt(np.sum(data ** 2, 1)))
+            local_max = np.max(np.sqrt(np.sum(data**2, 1)))
 
         return u.comm.allreduce(local_max, op=max)
 

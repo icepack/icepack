@@ -42,7 +42,7 @@ def test_manufactured_solution():
     def boundary_condition(x, u, h, s, B):
         M = membrane_stress(x, u, B)
         d = (s - h).subs(x, L)
-        τ = (ρ_I * g * h ** 2 - ρ_W * g * d ** 2) / 2
+        τ = (ρ_I * g * h**2 - ρ_W * g * d**2) / 2
         return simplify((h * M - τ).subs(x, L))
 
     x = symbols("x", real=True)
@@ -52,7 +52,7 @@ def test_manufactured_solution():
 
     hf = symbols("hf", real=True, positive=True)
     d = -ρ_I / ρ_W * h.subs(x, L) + hf
-    ρ = (ρ_I - ρ_W * d ** 2 / h ** 2).subs(x, L)
+    ρ = (ρ_I - ρ_W * d**2 / h**2).subs(x, L)
 
     u0 = symbols("u0", real=True, positive=True)
     du = (
@@ -123,7 +123,7 @@ u_inflow = 100.0
 # velocity to satisfy the boundary condition at the terminus.
 height_above_flotation = 10.0
 d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-ρ = ρ_I - ρ_W * d ** 2 / (h0 - dh) ** 2
+ρ = ρ_I - ρ_W * d**2 / (h0 - dh) ** 2
 
 
 # We'll arbitrarily pick this to be the velocity, then we'll find a

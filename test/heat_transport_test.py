@@ -80,8 +80,8 @@ def test_diffusion(params):
             heat_bed=Constant(q_bed),
         )
 
-    assert assemble((E - E_true) ** 2 * ds_t) / assemble(E_true ** 2 * ds_t) < 1e-3
-    assert assemble((E - E_true) ** 2 * ds_b) / assemble(E_true ** 2 * ds_b) < 1e-3
+    assert assemble((E - E_true) ** 2 * ds_t) / assemble(E_true**2 * ds_t) < 1e-3
+    assert assemble((E - E_true) ** 2 * ds_b) / assemble(E_true**2 * ds_b) < 1e-3
 
 
 def test_advection():
@@ -128,9 +128,9 @@ def test_advection():
         )
 
     error_surface = assemble((E - E_surface) ** 2 * ds_t)
-    assert error_surface / assemble(E_surface ** 2 * ds_t(mesh)) < 1e-2
+    assert error_surface / assemble(E_surface**2 * ds_t(mesh)) < 1e-2
     error_bed = assemble((E - E_initial) ** 2 * ds_b)
-    assert error_bed / assemble(E_initial ** 2 * ds_b(mesh)) < 1e-2
+    assert error_bed / assemble(E_initial**2 * ds_b(mesh)) < 1e-2
 
 
 def test_advection_diffusion():
@@ -162,7 +162,7 @@ def test_advection_diffusion():
             energy_surface=Constant(E_surface),
         )
 
-    rms = np.sqrt(assemble(E ** 2 * h * dx) / assemble(h * dx))
+    rms = np.sqrt(assemble(E**2 * h * dx) / assemble(h * dx))
     assert (E_surface - 5 < rms) and (rms < E_surface + 5 + q_bed / α * h0)
 
 

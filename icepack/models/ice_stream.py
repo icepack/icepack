@@ -64,8 +64,8 @@ def terminus(**kwargs):
     u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
 
     d = firedrake.min_value(s - h, 0)
-    τ_I = ρ_I * g * h ** 2 / 2
-    τ_W = ρ_W * g * d ** 2 / 2
+    τ_I = ρ_I * g * h**2 / 2
+    τ_W = ρ_W * g * d**2 / 2
 
     ν = FacetNormal(u.ufl_domain())
     return (τ_I - τ_W) * inner(u, ν)

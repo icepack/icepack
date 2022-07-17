@@ -98,7 +98,7 @@ def test_poisson_inverse(solver_type):
     problem = icepack.inverse.InverseProblem(
         model=model,
         objective=lambda u: 0.5 * (u - u_obs) ** 2 * dx,
-        regularization=lambda q: 0.5 * L ** 2 * inner(grad(q), grad(q)) * dx,
+        regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name="u",
         state=u0,
         parameter_name="q",
@@ -189,7 +189,7 @@ def test_ice_shelf_inverse(solver_type):
     problem = icepack.inverse.InverseProblem(
         model=model,
         objective=lambda u: 0.5 * (u - u_true) ** 2 * dx,
-        regularization=lambda q: 0.5 * L ** 2 * inner(grad(q), grad(q)) * dx,
+        regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name="velocity",
         state=u_initial,
         parameter_name="log_fluidity",
@@ -286,7 +286,7 @@ def test_ice_shelf_inverse_with_noise(solver_type):
     problem = icepack.inverse.InverseProblem(
         model=model,
         objective=lambda u: 0.5 * ((u - u_obs) / σ) ** 2 * dx,
-        regularization=lambda q: 0.5 * L ** 2 * inner(grad(q), grad(q)) * dx,
+        regularization=lambda q: 0.5 * L**2 * inner(grad(q), grad(q)) * dx,
         state_name="velocity",
         state=u_initial,
         parameter_name="log_fluidity",

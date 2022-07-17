@@ -4,8 +4,8 @@ commands:
   build:
     steps:
       - checkout
-      - run: pip3 install --editable ."[doc]"
-      - run: pip3 install pytest-cov codecov
+      - run: pip install --editable ."[doc]"
+      - run: pip install pytest-cov codecov
   unittest:
     steps:
       - run: pytest --capture=no --verbose --cov=icepack
@@ -18,7 +18,7 @@ commands:
       - run: codecov
   styletest:
     steps:
-      - run: pip3 install black==21.12b0
+      - run: pip install black>=22.0
       - run: black --check ./
 
 jobs:

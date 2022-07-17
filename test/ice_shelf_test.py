@@ -112,7 +112,7 @@ def test_diagnostic_solver_parameterization():
     def M(ε, B):
         I = Identity(2)
         tr_ε = trace(ε)
-        ε_e = sqrt((inner(ε, ε) + tr_ε ** 2) / 2)
+        ε_e = sqrt((inner(ε, ε) + tr_ε**2) / 2)
         μ = 0.5 * B * ε_e ** (1 / n - 1)
         return 2 * μ * (ε + tr_ε * I)
 

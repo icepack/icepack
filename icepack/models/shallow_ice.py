@@ -89,7 +89,7 @@ def penalty(**kwargs):
     """
     u, h = itemgetter("velocity", "thickness")(kwargs)
     l = 2 * firedrake.max_value(firedrake.CellDiameter(u.ufl_domain()), 5 * h)
-    return 0.5 * l ** 2 * inner(grad(u), grad(u))
+    return 0.5 * l**2 * inner(grad(u), grad(u))
 
 
 class ShallowIce:

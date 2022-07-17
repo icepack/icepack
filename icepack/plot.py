@@ -148,7 +148,7 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     n = 0
     while n < max_num_points:
         n += 1
-        speed = np.sqrt(sum(vx ** 2))
+        speed = np.sqrt(sum(vx**2))
         x = xs[-1] + resolution / speed * vx
         vx = v(x)
         if vx is None:
@@ -160,7 +160,7 @@ def streamline(velocity, initial_point, resolution, max_num_points=np.inf):
     n = 0
     while n < max_num_points:
         n += 1
-        speed = np.sqrt(sum(vy ** 2))
+        speed = np.sqrt(sum(vy**2))
         y = ys[-1] - resolution / speed * vy
         vy = v(y)
         if vy is None:

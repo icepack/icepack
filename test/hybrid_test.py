@@ -29,7 +29,7 @@ u_inflow = 100.0
 
 height_above_flotation = 10.0
 d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-ρ = ρ_I - ρ_W * d ** 2 / (h0 - dh) ** 2
+ρ = ρ_I - ρ_W * d**2 / (h0 - dh) ** 2
 
 β = 1 / 2
 α = β * ρ / ρ_I * dh / Lx
@@ -171,7 +171,7 @@ def test_diagnostic_solver(dim):
         if dim == "xz":
             us[vdegree, :] = us_center
         elif dim == "xyz":
-            us[vdegree, :] = np.sqrt(np.sum(us_center ** 2, 1))
+            us[vdegree, :] = np.sqrt(np.sum(us_center**2, 1))
 
         norm = np.linalg.norm(us[max_degree, :])
         error = np.linalg.norm(us[vdegree, :] - us[max_degree, :]) / norm

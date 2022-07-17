@@ -55,7 +55,7 @@ def _pressure_approx(N):
 
     def coefficient(k):
         Sk = legendre(k, ζ)
-        norm_square = sympy.integrate(Sk ** 2, (ζ, 0, 1))
+        norm_square = sympy.integrate(Sk**2, (ζ, 0, 1))
         return sympy.integrate((ζ_sl - ζ) * Sk, (ζ, 0, ζ_sl)) / norm_square
 
     polynomial = sum([coefficient(k) * legendre(k, ζ) for k in range(N)])
@@ -103,7 +103,7 @@ def terminus(**kwargs):
 
 
 def _effective_strain_rate(ε_x, ε_z, ε_min):
-    return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + inner(ε_z, ε_z) + ε_min ** 2) / 2)
+    return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + inner(ε_z, ε_z) + ε_min**2) / 2)
 
 
 def stresses(**kwargs):
