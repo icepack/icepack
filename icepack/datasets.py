@@ -103,7 +103,7 @@ def fetch_bedmachine_greenland():
 
 
 outlines_url = "https://raw.githubusercontent.com/icepack/glacier-meshes/"
-outlines_commit = "c98a8b7536b1891611566257d944e5ea024f2cdf"
+outlines_commit = "5906b7c21d844a982aa012e934fe29b31ef13d41"
 outlines = pooch.create(
     path=pooch.os_cache("icepack"),
     base_url=outlines_url + outlines_commit + "/glaciers/",
@@ -127,7 +127,17 @@ def fetch_outline(name):
     r"""Fetch the outline of a glacier as a GeoJSON file"""
     names = get_glacier_names()
     if name not in names:
-        raise ValueError("Glacier name '%s' not in %s" % (name, names))
+        if name == "larsen":
+            warnings.warn(
+                "We've added meshes of Larsen after the calving of iceberg "
+                "A-68 in 2017. Please use `larsen-2015`, `larsen-2018`, or "
+                "`larsen-2019` to specify the year. Returning outline for "
+                "2015.",
+                FutureWarning,
+            )
+            name = "larsen-2015"
+        else:
+            raise ValueError("Glacier name '%s' not in %s" % (name, names))
     downloader = pooch.HTTPDownloader(progressbar=True)
     return outlines.fetch(name + ".geojson", downloader=downloader)
 
