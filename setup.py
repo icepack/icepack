@@ -27,6 +27,7 @@ setup(
         "matplotlib",
         "rasterio>=1.2.7",
         "netCDF4",
+        "xarray",
         "geojson",
         "shapely",
         "pooch>=1.0.0",
