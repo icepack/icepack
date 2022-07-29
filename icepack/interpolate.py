@@ -1,4 +1,5 @@
-# Copyright (C) 2017-2019 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu> and David
+# Lilien
 #
 # This file is part of icepack.
 #
@@ -13,14 +14,26 @@
 r"""Functions for interpolating gridded remote sensing data sets to finite
 element spaces"""
 
+from functools import singledispatch
+from collections.abc import Sequence
 import numpy as np
 import ufl
 import firedrake
 import rasterio
+import xarray
 from scipy.interpolate import RegularGridInterpolator
 
 
-def _sample(dataset, X, method):
+@singledispatch
+def _sample(dataset, X, **kwargs):
+    raise TypeError(
+        "Input must be a single or sequence of `rasterio.DatasetReader` or "
+        "`xarray.DataArray`!"
+    )
+
+
+@_sample.register
+def _sample_rasterio_scalar(dataset: rasterio.DatasetReader, X, **kwargs):
     xres = dataset.res[0]
     yres = dataset.res[1]
     bounds = dataset.bounds
@@ -45,11 +58,25 @@ def _sample(dataset, X, method):
     ys = np.linspace(lower_right[1], upper_left[1], window.height)
 
     data = np.flipud(dataset.read(indexes=1, window=window, masked=True)).T
+    method = kwargs.get("method", "linear")
     interpolator = RegularGridInterpolator((xs, ys), data, method=method)
     return interpolator(X, method=method)
 
 
-def interpolate(f, Q, method="linear"):
+@_sample.register
+def _xarray_sample(dataset: xarray.DataArray, X, **kwargs):
+    x = xarray.DataArray(X[:, 0], dims="z")
+    y = xarray.DataArray(X[:, 1], dims="z")
+    method = kwargs.get("method", "linear")
+    return dataset.interp(x=x, y=y, method=method).to_numpy()
+
+
+@_sample.register
+def _sample_vector(f: Sequence, X, **kwargs):
+    return np.column_stack([_sample(fi, X, **kwargs) for fi in f])
+
+
+def interpolate(f, Q, **kwargs):
     r"""Interpolate an expression or a gridded data set to a function space
 
     Parameters
@@ -72,8 +99,9 @@ def interpolate(f, Q, method="linear"):
     mesh = Q.mesh()
     element = Q.ufl_element()
 
-    # Cannot take sub-elements if function is 3D scalar, otherwise shape will mismatch vertical basis
-    # This attempts to distinguish if multiple subelements due to dimension or vector function
+    # Cannot take sub-elements if function is 3D scalar, otherwise shape will
+    # mismatch vertical basis. This attempts to distinguish if multiple
+    # subelements due to dimension or vector function.
     if issubclass(type(element), firedrake.VectorElement):
         element = element.sub_elements()[0]
 
@@ -81,17 +109,5 @@ def interpolate(f, Q, method="linear"):
     X = firedrake.interpolate(mesh.coordinates, V).dat.data_ro[:, :2]
 
     q = firedrake.Function(Q)
-
-    if isinstance(f, rasterio.DatasetReader):
-        q.dat.data[:] = _sample(f, X, method)
-    elif isinstance(f, tuple) and all(
-        isinstance(fi, rasterio.DatasetReader) for fi in f
-    ):
-        for i, fi in enumerate(f):
-            q.dat.data[:, i] = _sample(fi, X, method)
-    else:
-        raise ValueError(
-            "Argument must be a rasterio data set or a tuple of data sets!"
-        )
-
+    q.dat.data[:] = _sample(f, X, **kwargs)
     return q

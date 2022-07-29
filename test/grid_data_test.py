@@ -1,4 +1,5 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu> and David
+# Lilien
 #
 # This file is part of icepack.
 #
@@ -10,8 +11,10 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
+import pytest
 import numpy as np
 import rasterio
+import xarray
 import firedrake
 from firedrake import dx
 import icepack
@@ -49,6 +52,22 @@ def make_rio_dataset(array, missing=-9999.0):
     return memfile.open()
 
 
+def make_xarray_dataset(array, missing=-9999.0):
+    ny = array.shape[0]
+    nx = array.shape[1]
+    x = np.linspace(0.0, 1.0, nx)
+    y = np.linspace(0.0, 1.0, ny)
+    return xarray.DataArray(array, coords=[y, x], dims=["y", "x"])
+
+
+def make_dataset(array, missing, package):
+    if package == "rasterio":
+        return make_rio_dataset(np.flipud(array), missing)
+    if package == "xarray":
+        return make_xarray_dataset(array, missing)
+    raise ValueError("Package must be either `rasterio` or `xarray`!")
+
+
 def make_domain(nx, ny, xmin, ymin, width, height):
     mesh = firedrake.UnitSquareMesh(nx, ny, diagonal="crossed")
     x, y = firedrake.SpatialCoordinate(mesh)
@@ -59,13 +78,13 @@ def make_domain(nx, ny, xmin, ymin, width, height):
     return mesh
 
 
-def test_interpolating_scalar_field():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_interpolating_scalar_field(package):
     n = 32
     array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
     array[0, 0] = missing
-    array = np.flipud(array)
-    dataset = make_rio_dataset(array, missing)
+    dataset = make_dataset(array, missing, package)
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
@@ -76,13 +95,13 @@ def test_interpolating_scalar_field():
     assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
 
 
-def test_interpolating_scalar_field_3d():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_interpolating_scalar_field_3d(package):
     n = 32
     array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
     array[0, 0] = missing
-    array = np.flipud(array)
-    dataset = make_rio_dataset(array, missing)
+    dataset = make_dataset(array, missing, package)
 
     mesh2d = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
@@ -95,13 +114,13 @@ def test_interpolating_scalar_field_3d():
     assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
 
 
-def test_nearest_neighbor_interpolation():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_nearest_neighbor_interpolation(package):
     n = 32
     array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
     array[0, 0] = missing
-    array = np.flipud(array)
-    dataset = make_rio_dataset(array, missing)
+    dataset = make_dataset(array, missing, package)
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
@@ -113,19 +132,18 @@ def test_nearest_neighbor_interpolation():
     assert (relative_error > 1e-10) and (relative_error < 1 / n)
 
 
-def test_interpolating_vector_field():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_interpolating_vector_field(package):
     n = 32
     array_vx = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
     array_vx[0, 0] = missing
-    array_vx = np.flipud(array_vx)
 
     array_vy = np.array([[(j - i) / n for j in range(n + 1)] for i in range(n + 1)])
     array_vy[-1, -1] = -9999.0
-    array_vy = np.flipud(array_vy)
 
-    vx = make_rio_dataset(array_vx, missing)
-    vy = make_rio_dataset(array_vy, missing)
+    vx = make_dataset(array_vx, missing, package)
+    vy = make_dataset(array_vy, missing, package)
 
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
@@ -136,19 +154,18 @@ def test_interpolating_vector_field():
     assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10
 
 
-def test_interpolating_vector_field_3d():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_interpolating_vector_field_3d(package):
     n = 32
     array_vx = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
     array_vx[0, 0] = missing
-    array_vx = np.flipud(array_vx)
 
     array_vy = np.array([[(j - i) / n for j in range(n + 1)] for i in range(n + 1)])
     array_vy[-1, -1] = -9999.0
-    array_vy = np.flipud(array_vy)
 
-    vx = make_rio_dataset(array_vx, missing)
-    vy = make_rio_dataset(array_vy, missing)
+    vx = make_dataset(array_vx, missing, package)
+    vy = make_dataset(array_vy, missing, package)
 
     mesh2d = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     mesh = firedrake.ExtrudedMesh(mesh2d, layers=1)
@@ -161,12 +178,12 @@ def test_interpolating_vector_field_3d():
     assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10
 
 
-def test_close_to_edge():
+@pytest.mark.parametrize("package", ("rasterio", "xarray"))
+def test_close_to_edge(package):
     n = 32
     array = np.array([[(i + j) / n for j in range(n + 1)] for i in range(n + 1)])
     missing = -9999.0
-    array = np.flipud(array)
-    dataset = make_rio_dataset(array, missing)
+    dataset = make_dataset(array, missing, package)
 
     xmin, ymin = 1 / (2 * n), 3 / (4 * n)
     mesh = make_domain(48, 48, xmin=xmin, ymin=ymin, width=1 / 2, height=1 / 2)
