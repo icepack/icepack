@@ -366,4 +366,4 @@ def triangle_to_firedrake(mesh, comm=firedrake.COMM_WORLD):
         marker = markers[vertices]
         plex.setLabelValue(dmcommon.FACE_SETS_LABEL, face, marker)
 
-    return firedrake.Mesh(plex)
+    return firedrake.Mesh(plex, reorder=False)
