@@ -15,7 +15,7 @@ from operator import itemgetter
 import sympy
 import firedrake
 from firedrake import inner, outer, sqrt, dx, ds_b, ds_v
-from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
+from icepack.models.friction import bed_friction, side_friction, side_friction_xz, normal_flow_penalty
 from icepack.models.mass_transport import Continuity
 from icepack.constants import (
     ice_density as ρ_I,
@@ -200,6 +200,7 @@ class HybridModel:
         self.viscosity = add_kwarg_wrapper(viscosity)
         self.friction = add_kwarg_wrapper(friction)
         self.side_friction = add_kwarg_wrapper(side_friction)
+        self.side_friction_xz = add_kwarg_wrapper(side_friction_xz)
         self.gravity = add_kwarg_wrapper(gravity)
         self.terminus = add_kwarg_wrapper(terminus)
         self.penalty = add_kwarg_wrapper(normal_flow_penalty)
@@ -222,11 +223,12 @@ class HybridModel:
         gravity = self.gravity(**kwargs) * dx
         friction = self.friction(**kwargs) * ds_b
 
-        side_friction = self.side_friction(**kwargs) * ds_v(side_wall_ids)
         if get_mesh_axes(mesh) == "xyz":
             penalty = self.penalty(**kwargs) * ds_v(side_wall_ids)
+            side_friction = self.side_friction(**kwargs) * ds_v(side_wall_ids)
         else:
             penalty = 0.0
+            side_friction = self.side_friction_xz(**kwargs) * dx
 
         xdegree_u, zdegree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()[0]
