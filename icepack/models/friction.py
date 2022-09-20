@@ -64,6 +64,27 @@ def side_friction(**kwargs):
     return -m / (m + 1) * h * inner(τ, u_t)
 
 
+def side_friction_xz(**kwargs):
+    r"""Return the side wall friction part of the action functional
+
+    The component of the action functional due to friction along the side
+    walls of the domain is
+
+    .. math::
+       E(u) = -\frac{m}{m + 1}\int_\Gamma h\tau(u, C_s)\cdot u\; ds
+
+    where :math:`\tau(u, C_s)` is the side wall shear stress, :math:`ds`
+    is the element of surface area and :math:`\Gamma` are the side walls.
+    Side wall friction is relevant for glaciers that flow through a fjord
+    with rock walls on either side.
+    """
+    u, h = itemgetter("velocity", "thickness")(kwargs)
+    Cs = kwargs.get("side_friction", firedrake.Constant(0.0))
+
+    τ = friction_stress(u, Cs)
+    return -m / (m + 1) * h * inner(τ, u)
+
+
 def normal_flow_penalty(**kwargs):
     r"""Return the penalty for flow normal to the domain boundary
 
