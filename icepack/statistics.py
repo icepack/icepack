@@ -74,9 +74,14 @@ try:
 
         def update(self, x, flag, iteration):
             try:
-                self.val = self.rf(x.dat)
+                super().update(x, flag, iteration)
             except firedrake.ConvergenceError:
-                self.val = np.inf
+                # TODO: Remove this when we fully switch to the new pyadjoint
+                # interface, the `.val` member has changed to `._val`
+                if hasattr(self, "_val"):
+                    self._val = np.inf
+                else:
+                    self.val = np.inf
 
     class _ROLSolverWrapper(pyadjoint.ROLSolver):
         def __init__(self, problem, controls, inner_product="L2"):
