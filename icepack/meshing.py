@@ -351,7 +351,12 @@ def collection_to_triangle(collection, max_volume=None):
 def triangle_to_firedrake(mesh, comm=firedrake.COMM_WORLD):
     r"""Convert a generated Triangle geometry into a Firedrake mesh"""
     elements, points = mesh.elements, mesh.points
-    plex = firedrake.mesh._from_cell_list(2, elements, points, comm)
+    # TODO: Remove this when we fully switch to the new Firedrake meshing
+    # interface, `_from_cell_list` is deprecated
+    if hasattr(firedrake.mesh, "plex_from_cell_list"):
+        plex = firedrake.mesh.plex_from_cell_list(2, elements, points, comm)
+    else:
+        plex = firedrake.mesh._from_cell_list(2, elements, points, comm)
 
     markers = {
         tuple(sorted((v1, v2))): mesh.facet_markers[index]
