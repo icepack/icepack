@@ -10,7 +10,8 @@
 # The full text of the license can be found in the file LICENSE in the
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
-from copy import deepcopy
+import copy
+import collections
 import numpy as np
 import firedrake
 from firedrake import assemble
@@ -39,8 +40,16 @@ class StatisticsProblem:
             Constants
         """
         self._simulation = simulation
-        self._loss_functional = loss_functional
-        self._regularization = regularization
+        if isinstance(loss_functional, collections.abc.Iterable):
+            self._loss_functionals = list(loss_functional)
+        else:
+            self._loss_functionals = [loss_functional]
+
+        if isinstance(regularization, collections.abc.Iterable):
+            self._regularizations = list(regularization)
+        else:
+            self._regularizations = [regularization]
+
         if isinstance(controls, (firedrake.Function, firedrake.Constant)):
             self._controls = controls.copy(deepcopy=True)
         else:
@@ -52,11 +61,11 @@ class StatisticsProblem:
 
     @property
     def loss_functional(self):
-        return self._loss_functional
+        return self._loss_functionals
 
     @property
     def regularization(self):
-        return self._regularization
+        return self._regularizations
 
     @property
     def controls(self):
@@ -139,9 +148,9 @@ class MaximumProbabilityEstimator:
 
         # Form the objective functional
         self._state = self.problem.simulation(self.controls)
-        self._loss_functional = self.problem.loss_functional(self.state)
-        self._regularization = self.problem.regularization(self.controls)
-        J = assemble(self._loss_functional) + assemble(self._regularization)
+        E = sum(assemble(E(self.state)) for E in self.problem.loss_functional)
+        R = sum(assemble(R(self.controls)) for R in self.problem.regularization)
+        J = E + R
 
         if isinstance(self.controls, (firedrake.Function, firedrake.Constant)):
             reduced_objective = ReducedFunctional(J, Control(self.controls))
@@ -159,7 +168,7 @@ class MaximumProbabilityEstimator:
             if "rol_options" in kwargs.keys():
                 options = kwargs["rol_options"]
             else:
-                options = deepcopy(_default_rol_options)
+                options = copy.deepcopy(_default_rol_options)
 
                 # A bunch of glue code to talk to ROL. We want to use our own
                 # keyword argument names in the event that we start using a
