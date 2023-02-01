@@ -15,7 +15,12 @@ from operator import itemgetter
 import sympy
 import firedrake
 from firedrake import inner, outer, sqrt, dx, ds_b, ds_v
-from icepack.models.friction import bed_friction, side_friction, side_friction_xz, normal_flow_penalty
+from icepack.models.friction import (
+    bed_friction,
+    side_friction,
+    side_friction_xz,
+    normal_flow_penalty,
+)
 from icepack.models.mass_transport import Continuity
 from icepack.constants import (
     ice_density as ρ_I,
