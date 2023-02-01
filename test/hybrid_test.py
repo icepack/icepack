@@ -177,3 +177,54 @@ def test_diagnostic_solver(dim):
         error = np.linalg.norm(us[vdegree, :] - us[max_degree, :]) / norm
         print(error, flush=True)
         assert error < 1e-2
+
+
+def test_diagnostic_solver_side_friction():
+    Nx, Nz = 32, 32
+    opts = {"dirichlet_ids": [1], "tol": 1e-12}
+    mesh_x = firedrake.IntervalMesh(Nx, Lx)
+    mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
+    x, ζ = firedrake.SpatialCoordinate(mesh)
+    u_expr = (0.95 + 0.05 * ζ) * exact_u(x)
+
+    Q = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
+
+    h = firedrake.interpolate(h0 - dh * x / Lx, Q)
+    s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+
+    A = Constant(icepack.rate_factor(254.15))
+    C = Constant(0.001)
+
+    model = icepack.models.HybridModel()
+
+    vdegree = 2
+    solver = icepack.solvers.FlowSolver(model, **opts)
+    solver_cs = icepack.solvers.FlowSolver(model, **opts)
+    V = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=vdegree)
+    V0 = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
+
+    u0 = firedrake.interpolate(u_expr, V)
+
+    u = solver.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
+    )
+
+    Cs = Constant(1.0e-7)
+    u_cs = solver_cs.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, fluidity=A, friction=C, side_friction=Cs
+    )
+
+    depth_avg_u = firedrake.project(u, V0)
+    depth_avg_u_cs = firedrake.project(u_cs, V0)
+
+    xs = np.array([(Lx / 2, k / Nz) for k in range(Nz + 1)])
+    us_center = np.array(u.at(xs, tolerance=1e-6))
+    us_cs_center = np.array(u_cs.at(xs, tolerance=1e-6))
+
+    # Faster w/o sidewall drag
+    assert icepack.norm(depth_avg_u, norm_type="Linfty") > icepack.norm(
+        depth_avg_u_cs, norm_type="Linfty"
+    )
+
+    # More internal deformation w/o sidewall drag, not just more sliding
+    assert (us_center[0] - us_center[-1]) > (us_cs_center[0] - us_cs_center[-1])
