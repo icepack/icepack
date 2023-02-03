@@ -23,7 +23,7 @@ setup(
     package_data={"icepack": ["registry-nsidc.txt", "registry-outlines.txt"]},
     install_requires=[
         "numpy",
-        "scipy",
+        "scipy<=1.9.3",
         "matplotlib",
         "rasterio>=1.2.7",
         "netCDF4",

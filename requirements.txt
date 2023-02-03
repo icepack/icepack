@@ -1,5 +1,5 @@
 numpy
-scipy
+scipy<=1.9.3
 matplotlib
 rasterio>=1.2.7
 netCDF4
