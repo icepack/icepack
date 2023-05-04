@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="icepack",
-    version="0.0.3",
+    version="1.0.1",
     license="GPL v3",
     description="ice sheet flow modelling with the finite element method",
     author="Daniel Shapero",
