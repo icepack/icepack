@@ -314,7 +314,9 @@ class ImplicitEuler:
                     )
 
         dt = firedrake.Constant(1.0)
-        dh_dt = self._continuity(dt, **self._fields)
+        sources = self._continuity.sources(**self._fields)
+        flux = self._continuity.flux(**self._fields)
+        dh_dt = sources - flux
         h = self._fields["thickness"]
         h_0 = h.copy(deepcopy=True)
         q = firedrake.TestFunction(h.function_space())
@@ -392,7 +394,9 @@ class LaxWendroff:
         flux_in = div(h_0 * u) * q * inflow * ds
         d2h_dt2 = flux_cells + flux_out + flux_in
 
-        dh_dt = self._continuity(dt, **self._fields)
+        sources = self._continuity.sources(**self._fields)
+        flux = self._continuity.flux(**self._fields)
+        dh_dt = sources - flux
         F = (h - h_0) * q * dx - dt * (dh_dt + 0.5 * dt * d2h_dt2)
 
         problem = firedrake.NonlinearVariationalProblem(F, h)

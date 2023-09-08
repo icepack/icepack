@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 by Daniel Shapero <shapero@uw.edu> and Andrew Hoffman
+# Copyright (C) 2018-2023 by Daniel Shapero <shapero@uw.edu> and Andrew Hoffman
 # <hoffmaao@uw.edu>
 #
 # This file is part of icepack.
@@ -19,23 +19,13 @@ describes the evolution of ice damage (Albrecht and Levermann 2014).
 
 from operator import itemgetter
 import firedrake
-from firedrake import (
-    inner,
-    div,
-    dx,
-    ds,
-    dS,
-    sqrt,
-    det,
-    min_value,
-    max_value,
-    conditional,
-)
+from firedrake import inner, sqrt, det, min_value, conditional
+from .transport import TransportEquation
 from icepack.constants import year
 from icepack.utilities import eigenvalues
 
 
-class DamageTransport:
+class DamageTransport(TransportEquation):
     def __init__(
         self,
         damage_stress=0.07,
@@ -43,29 +33,13 @@ class DamageTransport:
         healing_strain_rate=2e-10 * year,
         healing_rate=0.1,
     ):
+        super(DamageTransport, self).__init__(
+            field_name="damage", source_name=None, conservative=False
+        )
         self.damage_stress = damage_stress
         self.damage_rate = damage_rate
         self.healing_strain_rate = healing_strain_rate
         self.healing_rate = healing_rate
-
-    def flux(self, **kwargs):
-        keys = ("damage", "velocity", "damage_inflow")
-        D, u, D_inflow = itemgetter(*keys)(kwargs)
-
-        Q = D.function_space()
-        φ = firedrake.TestFunction(Q)
-
-        mesh = Q.mesh()
-        n = firedrake.FacetNormal(mesh)
-
-        u_n = max_value(0, inner(u, n))
-        f = D * u_n
-        flux_faces = (f("+") - f("-")) * (φ("+") - φ("-")) * dS
-        flux_cells = -D * div(u * φ) * dx
-        flux_out = D * max_value(0, inner(u, n)) * φ * ds
-        flux_in = D_inflow * min_value(0, inner(u, n)) * φ * ds
-
-        return flux_faces + flux_cells + flux_out + flux_in
 
     def sources(self, **kwargs):
         keys = ("damage", "velocity", "strain_rate", "membrane_stress")
