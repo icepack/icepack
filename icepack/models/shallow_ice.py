@@ -1,4 +1,5 @@
-# Copyright (C) 2020-2021 by Jessica Badgeley <badgeley@uw.edu>
+# Copyright (C) 2020-2023 by Jessica Badgeley <badgeley@uw.edu> and Daniel
+# Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,7 +15,7 @@ from operator import itemgetter
 import firedrake
 from firedrake import inner, grad
 from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law as n
-from icepack.models.mass_transport import Continuity
+from icepack.models.transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
 
 

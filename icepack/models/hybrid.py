@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2023 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -21,7 +21,7 @@ from icepack.models.friction import (
     side_friction_xz,
     normal_flow_penalty,
 )
-from icepack.models.mass_transport import Continuity
+from icepack.models.transport import Continuity
 from icepack.constants import (
     ice_density as ρ_I,
     water_density as ρ_W,

@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2023 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -16,7 +16,7 @@ from firedrake import inner
 from icepack.constants import ice_density as ρ_I, water_density as ρ_W, gravity as g
 from icepack.models.viscosity import viscosity_depth_averaged as viscosity
 from icepack.models.friction import bed_friction, side_friction, normal_flow_penalty
-from icepack.models.mass_transport import Continuity
+from icepack.models.transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
 from icepack.calculus import grad, FacetNormal, get_mesh_axes
 
