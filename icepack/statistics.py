@@ -138,7 +138,7 @@ class MaximumProbabilityEstimator:
     def __init__(self, problem, solver_type="rol", **kwargs):
         r"""Estimates the true value of the controls by computing the maximizer
         of the posterior probability distribution"""
-        from firedrake_adjoint import Control, ReducedFunctional
+        from firedrake.adjoint import Control, ReducedFunctional
 
         self._problem = problem
         if isinstance(problem.controls, (firedrake.Function, firedrake.Constant)):
