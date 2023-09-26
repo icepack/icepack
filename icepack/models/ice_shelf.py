@@ -58,7 +58,7 @@ def terminus(**kwargs):
     """
     u, h = itemgetter("velocity", "thickness")(kwargs)
 
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     ν = firedrake.FacetNormal(mesh)
     ρ = ρ_I * (1 - ρ_I / ρ_W)
     return 0.5 * ρ * g * h**2 * inner(u, ν)
@@ -126,7 +126,7 @@ class IceShelf:
             example, is passed as a keyword argument.
         """
         u = kwargs["velocity"]
-        mesh = u.ufl_domain()
+        mesh = u.function_space().mesh()
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 

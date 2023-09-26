@@ -67,7 +67,7 @@ def terminus(**kwargs):
     τ_I = ρ_I * g * h**2 / 2
     τ_W = ρ_W * g * d**2 / 2
 
-    ν = FacetNormal(u.ufl_domain())
+    ν = FacetNormal(u.function_space().mesh())
     return (τ_I - τ_W) * inner(u, ν)
 
 
@@ -104,7 +104,7 @@ class IceStream:
         r"""Return the action functional that gives the ice stream
         diagnostic model as the Euler-Lagrange equations"""
         u = kwargs["velocity"]
-        mesh = u.ufl_domain()
+        mesh = u.function_space().mesh()
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 

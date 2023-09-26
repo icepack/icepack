@@ -19,6 +19,7 @@ Several flow models all have essentially the same viscous part.
 
 from operator import itemgetter
 import numpy as np
+import ufl
 import firedrake
 from firedrake import sqrt, inner
 from icepack.constants import year, ideal_gas as R, glen_flow_law as n, strain_rate_min
@@ -90,7 +91,8 @@ def membrane_stress(**kwargs):
     ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
     ε_e = _effective_strain_rate(ε, ε_min)
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-    I = Identity(ε.ufl_domain().geometric_dimension())
+    d = ufl.domain.extract_unique_domain(ε).geometric_dimension()
+    I = Identity(d)
     return 2 * μ * (ε + trace(ε) * I)
 
 

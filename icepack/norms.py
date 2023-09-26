@@ -11,6 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import numpy as np
+import ufl
 from firedrake import sqrt, inner, grad, dx, assemble
 from icepack import utilities
 
@@ -44,7 +45,9 @@ def norm(u, norm_type="L2"):
         form, p = inner(grad(u), grad(u)) * dx, 2
 
     if norm_type == "H1":
-        L = utilities.diameter(u.ufl_domain())
+        # TODO: problably need fancier thing here
+        mesh = ufl.domain.extract_unique_domain(u)
+        L = utilities.diameter(mesh)
         form, p = inner(u, u) * dx + L**2 * inner(grad(u), grad(u)) * dx, 2
 
     if norm_type == "L1":

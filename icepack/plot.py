@@ -82,7 +82,7 @@ def triplot(mesh, *args, **kwargs):
 
 
 def _project_to_2d(function):
-    mesh = function.ufl_domain()
+    mesh = function.function_space().mesh()
     return function if mesh.layers is None else icepack.depth_average(function)
 
 
@@ -204,7 +204,7 @@ def streamplot(u, **kwargs):
     axes = kwargs.pop("axes", plt.gca())
     cmap = kwargs.pop("cmap", mpl_cmaps.viridis)
 
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     coordinates = _get_coordinates(mesh)
     precision = kwargs.pop("precision", _mesh_hmin(coordinates))
     density = kwargs.pop("density", 2 * _mesh_hmin(coordinates))

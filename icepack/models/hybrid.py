@@ -13,6 +13,7 @@
 import functools
 from operator import itemgetter
 import sympy
+import ufl
 import firedrake
 from firedrake import inner, outer, sqrt, dx, ds_b, ds_v
 from icepack.models.friction import (
@@ -93,7 +94,7 @@ def terminus(**kwargs):
     """
     u, h, s = itemgetter("velocity", "thickness", "surface")(kwargs)
 
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     zdegree = u.ufl_element().degree()[1]
 
     ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension() - 1]
@@ -118,7 +119,8 @@ def stresses(**kwargs):
     ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
     ε_e = _effective_strain_rate(ε_x, ε_z, ε_min)
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-    I = Identity(ε_x.ufl_domain().geometric_dimension() - 1)
+    d = ufl.domain.extract_unique_domain(ε_x).geometric_dimension() - 1
+    I = Identity(d)
     return 2 * μ * (ε_x + trace(ε_x) * I), 2 * μ * ε_z
 
 
@@ -126,7 +128,7 @@ def horizontal_strain_rate(**kwargs):
     r"""Calculate the horizontal strain rate with corrections for terrain-
     following coordinates"""
     u, h, s = itemgetter("velocity", "surface", "thickness")(kwargs)
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     dim = mesh.geometric_dimension()
     ζ = firedrake.SpatialCoordinate(mesh)[dim - 1]
     b = s - h
@@ -139,7 +141,7 @@ def vertical_strain_rate(**kwargs):
     r"""Calculate the vertical strain rate with corrections for terrain-
     following coordinates"""
     u, h = itemgetter("velocity", "thickness")(kwargs)
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     du_dζ = u.dx(mesh.geometric_dimension() - 1)
     return 0.5 * du_dζ / h
 
@@ -215,7 +217,7 @@ class HybridModel:
         r"""Return the action functional that gives the hybrid model as its
         Euler-Lagrange equations"""
         u, h = itemgetter("velocity", "thickness")(kwargs)
-        mesh = u.ufl_domain()
+        mesh = u.function_space().mesh()
         ice_front_ids = tuple(kwargs.pop("ice_front_ids", ()))
         side_wall_ids = tuple(kwargs.pop("side_wall_ids", ()))
 
@@ -250,7 +252,7 @@ class HybridModel:
         scale to determine when to terminate an optimization algorithm.
         """
         u = kwargs["velocity"]
-        mesh = u.ufl_domain()
+        mesh = u.function_space().mesh()
         metadata = {"quadrature_degree": self.quadrature_degree(**kwargs)}
         dx = firedrake.dx(metadata=metadata)
         ds_b = firedrake.ds_b(domain=mesh, metadata=metadata)

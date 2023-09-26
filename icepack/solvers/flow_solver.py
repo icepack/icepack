@@ -184,7 +184,7 @@ class IcepackSolver:
             bcs = None
 
         # Find the numeric IDs for the ice front
-        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        boundary_ids = u.function_space().mesh().exterior_facets.unique_markers
         ice_front_ids_comp = set(self._dirichlet_ids + self._side_wall_ids)
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 
@@ -252,7 +252,7 @@ class PETScSolver:
             bcs = None
 
         # Find the numeric IDs for the ice front
-        boundary_ids = u.ufl_domain().exterior_facets.unique_markers
+        boundary_ids = u.function_space().mesh().exterior_facets.unique_markers
         ice_front_ids_comp = set(self._dirichlet_ids + self._side_wall_ids)
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 

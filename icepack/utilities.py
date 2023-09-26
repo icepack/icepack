@@ -94,7 +94,7 @@ def depth_average(q_xz, weight=firedrake.Constant(1)):
         raise NotImplementedError("Depth average of tensor fields not yet implemented!")
 
     # Project the weighted 3D field onto vertical DG0
-    mesh_xz = q_xz.ufl_domain()
+    mesh_xz = q_xz.function_space().mesh()
     Q_avg = firedrake.FunctionSpace(mesh_xz, element_avg)
     q_avg = firedrake.project(weight * q_xz, Q_avg)
 

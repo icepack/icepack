@@ -58,7 +58,7 @@ def side_friction(**kwargs):
     u, h = itemgetter("velocity", "thickness")(kwargs)
     Cs = kwargs.get("side_friction", firedrake.Constant(0.0))
 
-    ν = FacetNormal(u.ufl_domain())
+    ν = FacetNormal(u.function_space().mesh())
     u_t = u - inner(u, ν) * ν
     τ = friction_stress(u_t, Cs)
     return -m / (m + 1) * h * inner(τ, u_t)
@@ -96,7 +96,7 @@ def normal_flow_penalty(**kwargs):
     u = kwargs["velocity"]
     scale = kwargs.get("scale", firedrake.Constant(1.0))
 
-    mesh = u.ufl_domain()
+    mesh = u.function_space().mesh()
     ν = FacetNormal(mesh)
     L = diameter(mesh)
     δx = firedrake.FacetArea(mesh)

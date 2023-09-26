@@ -18,6 +18,7 @@ of a field in a way that does what you mean whether the underlying geometry is a
 view, flowband, or 3D model.
 """
 
+import ufl
 import firedrake
 
 
@@ -40,7 +41,7 @@ def get_mesh_axes(mesh):
 
 def grad(q):
     r"""Compute the gradient of a scalar or vector field"""
-    axes = get_mesh_axes(q.ufl_domain())
+    axes = get_mesh_axes(ufl.domain.extract_unique_domain(q))
     if axes == "xy":
         return firedrake.grad(q)
     if axes == "xyz":
@@ -50,7 +51,7 @@ def grad(q):
 
 def sym_grad(u):
     r"""Compute the symmetric gradient of a vector field"""
-    axes = get_mesh_axes(u.ufl_domain())
+    axes = get_mesh_axes(ufl.domain.extract_unique_domain(u))
     if axes == "xy":
         return firedrake.sym(firedrake.grad(u))
     if axes == "xyz":
@@ -60,7 +61,7 @@ def sym_grad(u):
 
 def div(u):
     r"""Compute the horizontal divergence of a velocity field"""
-    axes = get_mesh_axes(u.ufl_domain())
+    axes = get_mesh_axes(ufl.domain.extract_unique_domain(u))
     if axes == "xy":
         return firedrake.div(u)
     if axes == "xyz":
@@ -81,7 +82,7 @@ def FacetNormal(mesh):
 
 def trace(A):
     r"""Compute the trace of a rank-2 tensor"""
-    axes = get_mesh_axes(A.ufl_domain())
+    axes = get_mesh_axes(ufl.domain.extract_unique_domain(A))
     if axes in ["x", "xz"]:
         return A
     return firedrake.tr(A)

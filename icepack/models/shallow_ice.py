@@ -89,7 +89,8 @@ def penalty(**kwargs):
     firedrake.Form
     """
     u, h = itemgetter("velocity", "thickness")(kwargs)
-    l = 2 * firedrake.max_value(firedrake.CellDiameter(u.ufl_domain()), 5 * h)
+    mesh = u.function_space().mesh()
+    l = 2 * firedrake.max_value(firedrake.CellDiameter(mesh), 5 * h)
     return 0.5 * l**2 * inner(grad(u), grad(u))
 
 

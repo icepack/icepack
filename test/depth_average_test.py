@@ -32,7 +32,7 @@ def test_scalar_field():
     x, y = firedrake.SpatialCoordinate(mesh2d)
     q2d = firedrake.interpolate(4 * (x**2 + y**2) / 5, Q2D)
 
-    assert q_avg.ufl_domain() is mesh2d
+    assert q_avg.function_space().mesh() is mesh2d
     assert norm(q_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
     assert norm(p_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
 

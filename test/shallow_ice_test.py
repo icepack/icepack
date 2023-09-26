@@ -77,7 +77,7 @@ def norm(v):
 def penalty_low(**kwargs):
     u = kwargs["velocity"]
     h = kwargs["thickness"]
-    l = 2 * max_value(firedrake.CellDiameter(u.ufl_domain()), h)
+    l = 2 * max_value(firedrake.CellDiameter(u.function_space().mesh()), h)
     return 0.5 * l**2 * inner(grad(u), grad(u))
 
 
