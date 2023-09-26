@@ -39,6 +39,9 @@ setup(
     ],
     extras_require={
         "doc": ["sphinx", "ipykernel", "nbconvert", "nikola"],
-        "opt": ["roltrilinos==0.0.9", "ROL==0.0.16"],
+        "opt": [
+            "roltrilinos @ git+https://github.com/icepack/Trilinos.git",
+            "ROL @ git+https://github.com/icepack/pyrol.git",
+        ],
     },
 )
