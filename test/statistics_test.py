@@ -126,7 +126,7 @@ def test_ice_shelf_inverse(with_noise):
         dirichlet_ids=dirichlet_ids,
         diagnostic_solver_type="petsc",
         diagnostic_solver_parameters={
-            "snes_type": "newtontr",
+            "snes_type": "newtonls",
             "ksp_type": "preonly",
             "pc_type": "lu",
             "pc_factor_mat_solver_type": "mumps",
