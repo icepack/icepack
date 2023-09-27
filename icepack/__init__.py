@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2023 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -18,7 +18,6 @@ import icepack.meshing
 import icepack.datasets
 import icepack.models
 import icepack.solvers
-import icepack.inverse
 import icepack.statistics
 
 __all__ = [
@@ -32,6 +31,5 @@ __all__ = [
     "datasets",
     "models",
     "solvers",
-    "inverse",
     "statistics",
 ]
