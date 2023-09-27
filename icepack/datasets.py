@@ -127,27 +127,9 @@ def fetch_outline(name):
     r"""Fetch the outline of a glacier as a GeoJSON file"""
     names = get_glacier_names()
     if name not in names:
-        if name == "larsen":
-            warnings.warn(
-                "We've added meshes of Larsen after the calving of iceberg "
-                "A-68 in 2017. Please use `larsen-2015`, `larsen-2018`, or "
-                "`larsen-2019` to specify the year. Returning outline for "
-                "2015.",
-                FutureWarning,
-            )
-            name = "larsen-2015"
-        else:
-            raise ValueError("Glacier name '%s' not in %s" % (name, names))
+        raise ValueError("Glacier name '%s' not in %s" % (name, names))
     downloader = pooch.HTTPDownloader(progressbar=True)
     return outlines.fetch(name + ".geojson", downloader=downloader)
-
-
-def fetch_larsen_outline():
-    r"""Fetch an outline of the Larsen C Ice Shelf"""
-    warnings.warn(
-        "This function is deprecated, use `fetch_outline('larsen')`", FutureWarning
-    )
-    return fetch_outline("larsen")
 
 
 def fetch_mosaic_of_antarctica():
