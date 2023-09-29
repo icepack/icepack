@@ -1,0 +1,30 @@
+[project]
+name = "icepack"
+version = "1.1.0"
+description = "glacier flow modeling with the finite element method"
+authors = [
+    {name = "Daniel Shapero", email = "shapero@uw.edu"}
+]
+license = {text = "LICENSE"}
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "rasterio",
+    "xarray",
+    "geojson",
+    "shapely",
+    "pooch",
+    "gmsh",
+    "pygmsh<=6.1.1",
+    "meshio>=3.3.1",
+    "MeshPy",
+    "tqdm",
+    "roltrilinos@git+https://github.com/icepack/Trilinos",
+    "ROL@git+https://github.com/icepack/pyrol",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
