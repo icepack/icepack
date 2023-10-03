@@ -15,6 +15,7 @@ import collections
 import numpy as np
 import firedrake
 from firedrake import assemble
+from firedrake.adjoint import Control, ReducedFunctional
 import pyadjoint
 
 
@@ -138,11 +139,27 @@ class MaximumProbabilityEstimator:
     def __init__(self, problem, solver_type="rol", **kwargs):
         r"""Estimates the true value of the controls by computing the maximizer
         of the posterior probability distribution"""
-        from firedrake.adjoint import Control, ReducedFunctional
 
         self._problem = problem
-        if isinstance(problem.controls, (firedrake.Function, firedrake.Constant)):
-            self._controls = problem.controls.copy(deepcopy=True)
+        self._solver_type = solver_type
+        self._kwargs = copy.deepcopy(kwargs)
+
+    @property
+    def problem(self):
+        return self._problem
+
+    @property
+    def controls(self):
+        return self._controls
+
+    @property
+    def state(self):
+        return self._state
+
+    def solve(self):
+        firedrake.adjoint.continue_annotation()
+        if isinstance(self.problem.controls, (firedrake.Function, firedrake.Constant)):
+            self._controls = self.problem.controls.copy(deepcopy=True)
         else:
             self._controls = [field.copy(deepcopy=True) for field in problem.controls]
 
@@ -159,14 +176,14 @@ class MaximumProbabilityEstimator:
             reduced_objective = ReducedFunctional(J, controls)
 
         # Form the minimization problem and solver
-        if isinstance(solver_type, str) and solver_type.lower() == "rol":
+        if isinstance(self._solver_type, str) and self._solver_type.lower() == "rol":
             if not has_rol:
                 raise ImportError("Cannot import ROL!")
 
             problem_wrapper = pyadjoint.MinimizationProblem(reduced_objective)
 
-            if "rol_options" in kwargs.keys():
-                options = kwargs["rol_options"]
+            if "rol_options" in self._kwargs.keys():
+                options = self._kwargs["rol_options"]
             else:
                 options = copy.deepcopy(_default_rol_options)
 
@@ -175,16 +192,16 @@ class MaximumProbabilityEstimator:
                 # different optimization package like TAO on the backend, so
                 # here we're translating between our names and ROL's.
                 test = options["Status Test"]
-                test["Step Tolerance"] = kwargs.get("step_tolerance", 5e-3)
-                test["Gradient Tolerance"] = kwargs.get("gradient_tolerance", 1e-4)
-                test["Iteration Limit"] = kwargs.get("max_iterations", 50)
+                test["Step Tolerance"] = self._kwargs.get("step_tolerance", 5e-3)
+                test["Gradient Tolerance"] = self._kwargs.get("gradient_tolerance", 1e-4)
+                test["Iteration Limit"] = self._kwargs.get("max_iterations", 50)
 
                 general = options["General"]
-                general["Print Verbosity"] = int(kwargs.get("verbose", False))
+                general["Print Verbosity"] = int(self._kwargs.get("verbose", False))
 
                 # Use the Newton trust region algorithm if we can compute the
                 # second derivative of the objective and BFGS if we can't.
-                algorithm = kwargs.get("algorithm", "trust-region")
+                algorithm = self._kwargs.get("algorithm", "trust-region")
                 if algorithm == "bfgs":
                     options["Step"] = {
                         "Type": "Line Search",
@@ -192,7 +209,7 @@ class MaximumProbabilityEstimator:
                             "Descent Method": {"Type": "Quasi-Newton Step"}
                         },
                     }
-                    memory = kwargs.get("memory", 10)
+                    memory = self._kwargs.get("memory", 10)
                     general["Secant"] = {
                         "Type": "Limited-Memory BFGS",
                         "Maximum Storage": memory,
@@ -202,17 +219,6 @@ class MaximumProbabilityEstimator:
         else:
             raise NotImplementedError("Only ROL solver implemented for now!")
 
-    @property
-    def problem(self):
-        return self._problem
-
-    @property
-    def controls(self):
-        return self._controls
-
-    @property
-    def state(self):
-        return self._state
-
-    def solve(self):
-        return self._solver.solve()
+        result = self._solver.solve()
+        firedrake.adjoint.pause_annotation()
+        return result
