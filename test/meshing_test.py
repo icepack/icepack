@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2023 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,6 +12,7 @@
 
 import firedrake
 import geojson
+import geopandas
 import icepack
 import numpy as np
 from numpy import pi as π
@@ -102,3 +103,27 @@ def test_meshing_real_outlines(tmp_path):
         assert result.returncode == 0
         mesh = firedrake.Mesh(msh_filename)
         assert mesh.num_cells() > 0
+
+
+@pytest.mark.skip(reason="EarthData auth required")
+def test_meshing_rgi_polygon(tmp_path):
+    rgi_filename = icepack.datasets.fetch_randolph_glacier_inventory("alaska")
+    dataframe = geopandas.read_file(rgi_filename)
+    entry = dataframe[dataframe["glac_name"] == "Gulkana Glacier"]
+    outline_lat_lon = entry.geometry
+    utm_crs = outline_lat_lon.estimate_utm_crs()
+    outline_utm = outline_lat_lon.to_crs(utm_crs)
+    outline_json = geojson.loads(outline_utm.to_json())
+    outline = geojson.utils.map_tuples(lambda x: x[:2], outline_json)
+
+    geometry = icepack.meshing.collection_to_geo(outline)
+    geo_filename = f"{tmp_path}/gulkana.geo"
+    with open(geo_filename, "w") as geo_file:
+        geo_file.write(geometry.get_code())
+
+    msh_filename = f"{tmp_path}/gulkana.msh"
+    command = f"gmsh -2 -v 3 -o {msh_filename} {geo_filename}"
+    result = subprocess.run(command.split())
+    assert result.returncode == 0
+    mesh = firedrake.Mesh(msh_filename)
+    assert mesh.num_cells() > 0

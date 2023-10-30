@@ -132,6 +132,17 @@ def fetch_outline(name):
     return outlines.fetch(name + ".geojson", downloader=downloader)
 
 
+def fetch_randolph_glacier_inventory(region):
+    r"""Fetch a regional segment of the Randolph Glacier Inventory"""
+    downloader = _earthdata_downloader
+    filenames = nsidc_data.fetch(
+        f"RGI2000-v7.0-G-01_{region}.zip",
+        downloader=_earthdata_downloader,
+        processor=pooch.Unzip(),
+    )
+    return [f for f in filenames if ".shp" in f][0]
+
+
 def fetch_mosaic_of_antarctica():
     r"""Fetch the MODIS optical image mosaic of Antarctica"""
     return nsidc_data.fetch(

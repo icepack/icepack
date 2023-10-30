@@ -35,8 +35,8 @@ def _flatten(features):
     for feature in features:
         if feature["geometry"]["type"] == "LineString":
             flat_features.append(feature)
-        if feature["geometry"]["type"] == "MultiLineString":
-            properties = feature["properties"]
+        if feature["geometry"]["type"] in ("MultiLineString", "Polygon"):
+            properties = dict(feature["properties"])
             for line_string in feature["geometry"]["coordinates"]:
                 geometry = geojson.LineString(coordinates=line_string)
                 flat_feature = geojson.Feature(geometry=geometry, properties=properties)
