@@ -28,6 +28,7 @@ jobs:
         run: pytest
       - name: Run example notebooks
         run: |
+          jupyter nbconvert --to notebook --execute notebooks/tutorials/02-synthetic-ice-shelf.ipynb
           jupyter nbconvert --to notebook --execute notebooks/how-to/01-performance.ipynb
           jupyter nbconvert --to notebook --execute notebooks/how-to/02-checkpointing.ipynb
           jupyter nbconvert --to notebook --execute notebooks/how-to/03-adaptivity.ipynb
