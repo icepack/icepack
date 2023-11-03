@@ -50,27 +50,6 @@ def test_plot_field():
     assert colors_flat.get_array().shape != colors_gouraud.get_array().shape
 
 
-def test_streamlines():
-    nx, ny = 32, 32
-    mesh = firedrake.UnitSquareMesh(nx, ny)
-    V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
-
-    x, y = firedrake.SpatialCoordinate(mesh)
-    v = interpolate(as_vector((-y, x)), V)
-
-    resolution = 1 / np.sqrt(nx * ny)
-    radius = 0.5
-    x0 = (radius, 0)
-    xs = icepack.plot.streamline(v, x0, resolution)
-
-    num_points, _ = xs.shape
-    assert num_points > 1
-
-    for n in range(num_points):
-        x = xs[n, :]
-        assert abs(sum(x**2) - radius**2) < resolution
-
-
 def test_plot_vector_field():
     nx, ny = 32, 32
     mesh = firedrake.UnitSquareMesh(nx, ny)
@@ -85,7 +64,7 @@ def test_plot_vector_field():
     assert arrows is not None
 
     streamlines = icepack.plot.streamplot(
-        u, density=1 / nx, precision=1 / nx, axes=axes[1]
+        u, resolution=1 / nx, tolerance=1 / nx**2, axes=axes[1]
     )
     assert streamlines is not None
 
