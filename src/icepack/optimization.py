@@ -13,6 +13,9 @@
 import firedrake
 from .utilities import default_solver_parameters
 
+from firedrake.adjoint_utils.blocks.solving import NonlinearVariationalSolveBlock
+import ufl
+
 
 class MinimizationProblem:
     def __init__(self, E, S, u, bcs, form_compiler_parameters):
@@ -134,16 +137,77 @@ class NewtonSolver:
         self.search_direction_solver.solve()
         self.iteration += 1
 
-    def solve(self):
+    def solve(self, *, annotate=None):
         r"""Step the Newton iteration until convergence"""
         self.reinit()
 
-        dE_dv = self.dE_dv
-        S = self.problem.S
-        _assemble = self.problem.assemble
-        while abs(_assemble(dE_dv)) > self.tolerance * _assemble(S):
-            self.step()
-            if self.iteration >= self.max_iterations:
-                raise firedrake.ConvergenceError(
-                    f"Newton search did not converge after {self.max_iterations} iterations!"
-                )
+        class Block(NonlinearVariationalSolveBlock):
+            def __init__(self, solver):
+                super().__init__(
+                    solver.F == 0, solver.problem.u, solver.problem.bcs,
+                    adj_F=firedrake.adjoint(solver.J), dFdm_cache={},
+                    problem_J=solver.J,
+                    solver_params=solver.search_direction_solver.parameters,
+                    solver_kwargs={})
+                for dep in ufl.algorithms.extract_coefficients(solver.problem.S):
+                    self.add_dependency(dep, no_duplicates=True)
+                self._icepack__solver = solver
+
+            def _forward_solve(self, lhs, rhs, func, bcs, **kwargs):
+                # Re-use the NewtonSolver by copying and restoring the values
+                # of dependencies
+                deps = {bv_dep.output: bv_dep.saved_output
+                        for bv_dep in self.get_dependencies()}
+                vals = {}
+                for eq_dep, dep in deps.items():
+                    if isinstance(eq_dep, (firedrake.Function, firedrake.Cofunction)):
+                        vals[eq_dep] = eq_dep.copy(deepcopy=True)
+                        eq_dep.assign(dep)
+                    elif isinstance(eq_dep, firedrake.Constant):
+                        vals[eq_dep] = eq_dep.values()
+                        eq_dep.assign(dep)
+                    elif isinstance(eq_dep, firedrake.DirichletBC):
+                        vals[eq_dep] = eq_dep.function_arg.copy(deepcopy=True)
+                        eq_dep.function_arg = dep.function_arg
+                    elif isinstance(eq_dep, firedrake.mesh.MeshGeometry):
+                        # Assume fixed mesh
+                        pass
+                    else:
+                        raise TypeError(f"Unexpected type: {type(eq_dep)}")
+                try:
+                    self._icepack__solver.solve(**kwargs)
+                    func.assign(self._icepack__solver.problem.u)
+                finally:
+                    for eq_dep, eq_dep_val in vals.items():
+                        if isinstance(eq_dep, (firedrake.Function, firedrake.Cofunction)):
+                            eq_dep.assign(eq_dep_val)
+                        elif isinstance(eq_dep, firedrake.Constant):
+                            eq_dep_val = eq_dep_val.copy()
+                            eq_dep_val.shape = eq_dep.ufl_shape
+                            eq_dep.assign(firedrake.Constant(eq_dep_val))
+                        elif isinstance(eq_dep, firedrake.DirichletBC):
+                            eq_dep.function_arg = eq_dep_val
+                        elif isinstance(eq_dep, firedrake.mesh.MeshGeometry):
+                            pass
+                        else:
+                            raise TypeError(f"Unexpected type: {type(eq_dep)}")
+                return func
+
+        annotate = firedrake.adjoint.annotate_tape({} if annotate is None else {"annotate": annotate})
+        if annotate:
+            block = Block(self)
+            firedrake.adjoint.get_working_tape().add_block(block)
+
+        with firedrake.adjoint.stop_annotating():
+            dE_dv = self.dE_dv
+            S = self.problem.S
+            _assemble = self.problem.assemble
+            while abs(_assemble(dE_dv)) > self.tolerance * _assemble(S):
+                self.step()
+                if self.iteration >= self.max_iterations:
+                    raise firedrake.ConvergenceError(
+                        f"Newton search did not converge after {self.max_iterations} iterations!"
+                    )
+
+        if annotate:
+            block.add_output(self.problem.u.create_block_variable())

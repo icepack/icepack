@@ -81,7 +81,8 @@ def test_poisson_problem():
 
 @pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
 @pytest.mark.parametrize("with_noise", [False, True])
-def test_ice_shelf_inverse(with_noise):
+@pytest.mark.parametrize("diagnostic_solver_type", ["icepack", "petsc"])
+def test_ice_shelf_inverse(with_noise, diagnostic_solver_type):
     Nx, Ny = 32, 32
     Lx, Ly = 20e3, 20e3
 
@@ -123,7 +124,7 @@ def test_ice_shelf_inverse(with_noise):
     flow_solver = icepack.solvers.FlowSolver(
         model,
         dirichlet_ids=dirichlet_ids,
-        diagnostic_solver_type="petsc",
+        diagnostic_solver_type=diagnostic_solver_type,
         diagnostic_solver_parameters={
             "snes_type": "newtonls",
             "ksp_type": "preonly",
@@ -160,6 +161,22 @@ def test_ice_shelf_inverse(with_noise):
         return flow_solver.diagnostic_solve(
             velocity=u_initial, thickness=h, log_fluidity=q
         )
+
+    def forward(q):
+        u = simulation(q)
+        return firedrake.assemble(loss_functional(u) + regularization(q))
+
+    q_test = firedrake.Function(q_initial.function_space()).assign(2.0)
+    firedrake.adjoint.continue_annotation()
+    J = forward(q_test)
+    firedrake.adjoint.pause_annotation()
+
+    q_control = firedrake.adjoint.Control(q_test)
+    min_order = firedrake.adjoint.taylor_test(
+        firedrake.adjoint.ReducedFunctional(J, q_control), q_test,
+        firedrake.Function(q_test.function_space()).assign(0.1))
+    assert min_order > 1.98
+    firedrake.adjoint.get_working_tape().clear_tape()
 
     stats_problem = StatisticsProblem(
         simulation, loss_functional, regularization, q_initial
