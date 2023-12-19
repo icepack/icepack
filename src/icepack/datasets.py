@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2023 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,10 +14,8 @@ r"""Routines for fetching the glaciological data sets used in the demos"""
 
 import os
 from getpass import getpass
-import pkg_resources
 import requests
 import pooch
-import warnings
 
 
 pooch.get_logger().setLevel("WARNING")
@@ -62,10 +60,52 @@ class EarthDataDownloader:
 _earthdata_downloader = EarthDataDownloader()
 
 
-nsidc_data = pooch.create(path=pooch.os_cache("icepack"), base_url="", registry=None)
-
-registry_nsidc = pkg_resources.resource_stream("icepack", "registry-nsidc.txt")
-nsidc_data.load_registry(registry_nsidc)
+_n5eil01u = "https://n5eil01u.ecs.nsidc.org"
+_daacdata = "https://daacdata.apps.nsidc.org/pub/DATASETS"
+_nsidc_links = {
+    "antarctic_ice_vel_phase_map_v01.nc": (
+        "md5:2e1ca76870a6e67ace309a9850739dc9",
+        f"{_n5eil01u}/MEASURES/NSIDC-0754.001/1996.01.01",
+    ),
+    "BedMachineAntarctica_2020-07-15_v02.nc": (
+        "md5:35b36e1527fd846cbf38ce25b0e0c563",
+        f"{_n5eil01u}/MEASURES/NSIDC-0756.002/1970.01.01",
+    ),
+    "BedMachineGreenland-v5.nc": (
+        "md5:7387182a059dd8cad66ce7638eb0d7cd",
+        f"{_n5eil01u}/ICEBRIDGE/IDBMG4.005/1993.01.01",
+    ),
+    "moa750_2009_hp1_v02.0.tif.gz": (
+        "md5:7d386e916cbc072cd3ada4ee3ba145c9",
+        f"{_daacdata}/nsidc0593_moa2009_v02/geotiff",
+    ),
+    "greenland_vel_mosaic200_2015_2016_vx_v02.1.tif": (
+        "md5:48bfa5266b6ecf5d4939c306f665ce47",
+        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+    ),
+    "greenland_vel_mosaic200_2015_2016_vy_v02.1.tif": (
+        "md5:f68a5bbc76bcbb11b3cfe7a979d64651",
+        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+    ),
+    "greenland_vel_mosaic200_2015_2016_ex_v02.1.tif": (
+        "md5:e9e3d01d630533d870d552da023a66ba",
+        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+    ),
+    "greenland_vel_mosaic200_2015_2016_ey_v02.1.tif": (
+        "md5:1d1b5b0efcdf24218e9f7d75b6750a3d",
+        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+    ),
+    "RGI2000-v7.0-G-01_alaska.zip": (
+        "md5:dcde7c544799aff09ad9ea11616fa003",
+        f"{_daacdata}/nsidc0770_rgi_v7/regional_files/RGI2000-v7.0-G",
+    ),
+}
+nsidc_data = pooch.create(
+    path=pooch.os_cache("icepack"),
+    base_url="",
+    registry={name: md5sum for name, (md5sum, url) in _nsidc_links.items()},
+    urls={name: f"{url}/{name}" for name, (md5sum, url) in _nsidc_links.items()},
+)
 
 
 def fetch_measures_antarctica():
@@ -98,20 +138,29 @@ def fetch_bedmachine_greenland():
     r"""Fetch the BedMachine map of Greenland ice thickness, surface elevation,
     and bed elevation"""
     return nsidc_data.fetch(
-        "BedMachineGreenland-2021-04-20.nc", downloader=_earthdata_downloader
+        "BedMachineGreenland-v5.nc", downloader=_earthdata_downloader
     )
 
 
-outlines_url = "https://raw.githubusercontent.com/icepack/glacier-meshes/"
-outlines_commit = "5906b7c21d844a982aa012e934fe29b31ef13d41"
+_outlines_url = "https://raw.githubusercontent.com/icepack/glacier-meshes"
+_outlines_commit = "5906b7c21d844a982aa012e934fe29b31ef13d41"
 outlines = pooch.create(
     path=pooch.os_cache("icepack"),
-    base_url=outlines_url + outlines_commit + "/glaciers/",
-    registry=None,
+    base_url=f"{_outlines_url}/{_outlines_commit}/glaciers/",
+    registry={
+        "amery.geojson": "md5:b9a32abaacc3a36d5b696a26c2bd1b9b",
+        "filchner-ronne.geojson": "md5:7876e9fad2fe74a99f3b1ff92e12dc3c",
+        "getz.geojson": "md5:31dc3f10c0a06c05020683e8cb5a9f59",
+        "helheim.geojson": "md5:21b754c088ceeb5995295a6ce54783e0",
+        "hiawatha.geojson": "md5:3b0aa71d21641792b1bbbda35e185cca",
+        "jakobshavn.geojson": "md5:baf707914993fb052e00024ccdceab92",
+        "larsen-2015.geojson": "md5:317ba73b8a2370ec0832b0bc0bcfc986",
+        "larsen-2018.geojson": "md5:cccb22fd94143d6ccbb4aaa08dee6cad",
+        "larsen-2019.geojson": "md5:3188635279f93e863ae800fecb9d085a",
+        "pine-island.geojson": "md5:2ebfb7a321568dcd481771ab3f0993c6",
+        "ross.geojson": "md5:a4cf6461607c90961280e5afbab1123b",
+    },
 )
-
-registry_outlines = pkg_resources.resource_stream("icepack", "registry-outlines.txt")
-outlines.load_registry(registry_outlines)
 
 
 def get_glacier_names():
