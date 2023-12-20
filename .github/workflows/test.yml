@@ -4,7 +4,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: docker.io/firedrakeproject/firedrake-vanilla:2023-10
+      image: docker.io/firedrakeproject/firedrake-vanilla:2023-12
       options: --user root
     steps:
       - name: Install patchelf
