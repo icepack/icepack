@@ -99,7 +99,12 @@ _nsidc_links = {
         "md5:dcde7c544799aff09ad9ea11616fa003",
         f"{_daacdata}/nsidc0770_rgi_v7/regional_files/RGI2000-v7.0-G",
     ),
+    "mog100_2015_hp1_v02.tif": (
+        "md5:05758adba03f36fc21883c3dba2ee04c",
+        f"{_n5eil01u}/MEASURES/NSIDC-0547.002/2015.03.12",
+    )
 }
+
 nsidc_data = pooch.create(
     path=pooch.os_cache("icepack"),
     base_url="",
@@ -198,4 +203,12 @@ def fetch_mosaic_of_antarctica():
         "moa750_2009_hp1_v02.0.tif.gz",
         downloader=_earthdata_downloader,
         processor=pooch.Decompress(),
+    )
+
+
+def fetch_mosaic_of_greenland():
+    r"""Fetch the MODIS optical image mosaic of Greenland"""
+    return nsidc_data.fetch(
+        "mog100_2015_hp1_v02.tif",
+        downloader=_earthdata_downloader,
     )
