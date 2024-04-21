@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import firedrake
-from firedrake import interpolate, as_vector
+from firedrake import as_vector
 import icepack, icepack.plot
 
 
@@ -31,7 +31,7 @@ def test_plot_field():
     mesh = firedrake.UnitSquareMesh(32, 32)
     Q = firedrake.FunctionSpace(mesh, "CG", 1)
     x, y = firedrake.SpatialCoordinate(mesh)
-    u = interpolate(x * y, Q)
+    u = firedrake.Function(Q).interpolate(x * y)
 
     fig, axes = icepack.plot.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
 
@@ -56,7 +56,8 @@ def test_plot_vector_field():
     V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    u = interpolate(as_vector((x + 0.01, x * y * (1 - y) * (y - 0.5))), V)
+    expr = as_vector((x + 0.01, x * y * (1 - y) * (y - 0.5)))
+    u = firedrake.Function(V).interpolate(expr)
 
     fig, axes = icepack.plot.subplots(nrows=2, sharex=True, sharey=True)
 
@@ -76,11 +77,11 @@ def test_plot_extruded_field():
     x, y, z = firedrake.SpatialCoordinate(mesh3d)
 
     Q = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4)
-    q = interpolate((x**2 - y**2) * (1 - z**4), Q)
+    q = firedrake.Function(Q).interpolate((x**2 - y**2) * (1 - z**4))
     q_contours = icepack.plot.tricontourf(q)
     assert q_contours is not None
 
     V = firedrake.VectorFunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=4, dim=2)
-    u = interpolate(as_vector((1 - z**4, 0)), V)
+    u = firedrake.Function(V).interpolate(as_vector((1 - z**4, 0)))
     u_contours = icepack.plot.tricontourf(u)
     assert u_contours is not None

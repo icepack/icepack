@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu> and David
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu> and David
 # Lilien
 #
 # This file is part of icepack.
@@ -94,7 +94,7 @@ def interpolate(f, Q, **kwargs):
         as the data `f`
     """
     if isinstance(f, (ufl.core.expr.Expr, firedrake.Function)):
-        return firedrake.interpolate(f, Q)
+        return firedrake.Function(Q).interpolate(f)
 
     mesh = Q.mesh()
     element = Q.ufl_element()
@@ -112,7 +112,7 @@ def interpolate(f, Q, **kwargs):
             element = element.sub_elements[0]
 
     V = firedrake.VectorFunctionSpace(mesh, element)
-    X = firedrake.interpolate(mesh.coordinates, V).dat.data_ro[:, :2]
+    X = firedrake.Function(V).interpolate(mesh.coordinates).dat.data_ro[:, :2]
 
     q = firedrake.Function(Q)
     q.dat.data[:] = _sample(f, X, **kwargs)

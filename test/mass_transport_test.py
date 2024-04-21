@@ -13,7 +13,7 @@
 import pytest
 import numpy as np
 import firedrake
-from firedrake import Constant, interpolate, assemble, dx
+from firedrake import Constant, Function, assemble, dx
 import icepack
 
 
@@ -43,9 +43,9 @@ def test_mass_transport_solver_convergence(solver_type):
         Q = firedrake.FunctionSpace(mesh, "CG", degree)
         solver = icepack.solvers.FlowSolver(model, prognostic_solver_type=solver_type)
 
-        h0 = interpolate(h_in - dh * x / Lx, Q)
+        h0 = Function(Q).interpolate(h_in - dh * x / Lx)
         a = firedrake.Function(Q)
-        u = interpolate(firedrake.as_vector((u0, 0)), V)
+        u = Function(V).interpolate(firedrake.as_vector((u0, 0)))
         T = 0.5
         δx = 1.0 / N
         δt = δx / u0
@@ -58,7 +58,8 @@ def test_mass_transport_solver_convergence(solver_type):
             )
 
         z = x - u0 * num_timesteps * δt
-        h_exact = interpolate(h_in - dh / Lx * firedrake.max_value(0, z), Q)
+        h_expr = h_in - dh / Lx * firedrake.max_value(0, z)
+        h_exact = Function(Q).interpolate(h_expr)
         error.append(norm(h - h_exact) / norm(h_exact))
 
     log_delta_x = np.log2(np.array(delta_x))
@@ -110,14 +111,14 @@ def test_ice_shelf_prognostic_solver(solver_type):
         q = (n + 1) * (ρ * g * h0 * u0 / 4) ** n * icepack.rate_factor(T)
         ux = (u0 ** (n + 1) + q * x) ** (1 / (n + 1))
 
-        h = interpolate(h0 * u0 / ux, Q)
+        h = Function(Q).interpolate(h0 * u0 / ux)
         h_initial = h.copy(deepcopy=True)
 
         A = Constant(icepack.rate_factor(T))
         a = Constant(0)
 
         solver = icepack.solvers.FlowSolver(model, **opts)
-        u_guess = interpolate(firedrake.as_vector((ux, 0)), V)
+        u_guess = Function(V).interpolate(firedrake.as_vector((ux, 0)))
         u = solver.diagnostic_solve(
             velocity=u_guess, thickness=h, fluidity=A, strain_rate_min=Constant(0.0)
         )
@@ -163,12 +164,12 @@ def test_shallow_ice_prognostic_solve():
     β = Constant(0.5)
     h_divide = Constant(4e3)
     h_expr = h_divide * firedrake.max_value(0, 1 - (r / (β * R)) ** 2)
-    h_0 = interpolate(h_expr, Q)
+    h_0 = Function(Q).interpolate(h_expr)
     h = h_0.copy(deepcopy=True)
     u = firedrake.Function(V)
 
     b = Constant(0.0)
-    s = interpolate(b + h, Q)
+    s = Function(Q).interpolate(b + h)
     a = Constant(0.0)
 
     model = icepack.models.ShallowIce()
@@ -216,18 +217,18 @@ def test_ice_stream_prognostic_solve():
     Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
     q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
     ux = u0 + Z * q * Lx * (h0 / dh) / (n + 1)
-    u0 = interpolate(firedrake.as_vector((ux, 0)), V)
+    u0 = Function(V).interpolate(firedrake.as_vector((ux, 0)))
 
     thickness = h0 - dh * x / Lx
     β = 1 / 2
     α = β * ρ / ρ_I * dh / Lx
-    h = interpolate(h0 - dh * x / Lx, Q)
+    h = Function(Q).interpolate(h0 - dh * x / Lx)
     h_inflow = h.copy(deepcopy=True)
     ds = (1 + β) * ρ / ρ_I * dh
-    s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-    b = interpolate(s - h, Q)
+    s = Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
+    b = Function(Q).interpolate(s - h)
 
-    C = interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m), Q)
+    C = Function(Q).interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m))
     A = Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0 / 12
@@ -297,18 +298,18 @@ def test_hybrid_prognostic_solve(solver_type):
     Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
     q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
     ux = u_in + Z * q * Lx * (h0 / dh) / (n + 1)
-    u0 = interpolate(firedrake.as_vector((ux, 0)), V)
+    u0 = Function(V).interpolate(firedrake.as_vector((ux, 0)))
 
     thickness = h0 - dh * x / Lx
     β = 1 / 2
     α = β * ρ / ρ_I * dh / Lx
-    h = interpolate(h0 - dh * x / Lx, Q)
+    h = Function(Q).interpolate(h0 - dh * x / Lx)
     h_inflow = h.copy(deepcopy=True)
     ds = (1 + β) * ρ / ρ_I * dh
-    s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-    b = interpolate(s - h, Q)
+    s = Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
+    b = Function(Q).interpolate(s - h)
 
-    C = interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m), Q)
+    C = Function(Q).interpolate(α * (ρ_I * g * thickness) * ux ** (-1 / m))
     A = Constant(icepack.rate_factor(T))
 
     final_time, dt = 1.0, 1.0 / 12

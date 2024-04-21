@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -64,14 +64,14 @@ def test_order_0(dim):
         mesh_x = firedrake.RectangleMesh(Nx, Ny, Lx, Ly)
         x, y = firedrake.SpatialCoordinate(mesh_x)
     Q_x = firedrake.FunctionSpace(mesh_x, "CG", 2)
-    h = firedrake.interpolate(h_expr(x), Q_x)
-    s = firedrake.interpolate(s_expr(x), Q_x)
+    h = firedrake.Function(Q_x).interpolate(h_expr(x))
+    s = firedrake.Function(Q_x).interpolate(s_expr(x))
     if dim == "xz":
-        u0 = firedrake.interpolate(exact_u(x), Q_x)
+        u0 = firedrake.Function(Q_x).interpolate(exact_u(x))
     elif dim == "xyz":
         V_x = firedrake.VectorFunctionSpace(mesh_x, "CG", 2)
         u_expr = firedrake.as_vector((exact_u(x), 0))
-        u0 = firedrake.interpolate(u_expr, V_x)
+        u0 = firedrake.Function(V_x).interpolate(u_expr)
 
     model_x = icepack.models.IceStream()
     solver_x = icepack.solvers.FlowSolver(model_x, **opts)
@@ -88,17 +88,17 @@ def test_order_0(dim):
     if dim == "xz":
         x, ζ = firedrake.SpatialCoordinate(mesh)
         V_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="GL", vdegree=0)
-        u0 = firedrake.interpolate(exact_u(x), V_xz)
+        u0 = firedrake.Function(V_xz).interpolate(exact_u(x))
     elif dim == "xyz":
         x, y, ζ = firedrake.SpatialCoordinate(mesh)
         V_xz = firedrake.VectorFunctionSpace(
             mesh, "CG", 2, vfamily="GL", vdegree=0, dim=2
         )
         u_expr = firedrake.as_vector((exact_u(x), 0))
-        u0 = firedrake.interpolate(u_expr, V_xz)
+        u0 = firedrake.Function(V_xz).interpolate(u_expr)
     Q_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
-    h = firedrake.interpolate(h_expr(x), Q_xz)
-    s = firedrake.interpolate(s_expr(x), Q_xz)
+    h = firedrake.Function(Q_xz).interpolate(h_expr(x))
+    s = firedrake.Function(Q_xz).interpolate(s_expr(x))
 
     model_xz = icepack.models.HybridModel()
     solver_xz = icepack.solvers.FlowSolver(model_xz, **opts)
@@ -135,8 +135,8 @@ def test_diagnostic_solver(dim):
 
     Q = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
 
-    h = firedrake.interpolate(h0 - dh * x / Lx, Q)
-    s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+    h = firedrake.Function(Q).interpolate(h0 - dh * x / Lx)
+    s = firedrake.Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
 
     A = Constant(icepack.rate_factor(254.15))
     C = Constant(0.001)
@@ -158,7 +158,7 @@ def test_diagnostic_solver(dim):
                 mesh, "CG", 2, vfamily="DG", vdegree=0, dim=2
             )
 
-        u0 = firedrake.interpolate(u_expr, V)
+        u0 = firedrake.Function(V).interpolate(u_expr)
         u = solver.diagnostic_solve(
             velocity=u0, thickness=h, surface=s, fluidity=A, friction=C
         )
@@ -189,8 +189,8 @@ def test_diagnostic_solver_side_friction():
 
     Q = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
 
-    h = firedrake.interpolate(h0 - dh * x / Lx, Q)
-    s = firedrake.interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
+    h = firedrake.Function(Q).interpolate(h0 - dh * x / Lx)
+    s = firedrake.Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
 
     A = Constant(icepack.rate_factor(254.15))
     C = Constant(0.001)
@@ -203,7 +203,7 @@ def test_diagnostic_solver_side_friction():
     V = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=vdegree)
     V0 = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="DG", vdegree=0)
 
-    u0 = firedrake.interpolate(u_expr, V)
+    u0 = firedrake.Function(V).interpolate(u_expr)
 
     u = solver.diagnostic_solve(
         velocity=u0, thickness=h, surface=s, fluidity=A, friction=C

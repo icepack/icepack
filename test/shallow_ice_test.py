@@ -1,4 +1,5 @@
-# Copyright (C) 2020 by Jessica Badgeley <badgeley@uw.edu>
+# Copyright (C) 2020-2024 by Jessica Badgeley <badgeley@uw.edu> and Daniel
+# Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -15,7 +16,7 @@ from firedrake import (
     inner,
     grad,
     sqrt,
-    interpolate,
+    Function,
     max_value,
     assemble,
     norm,
@@ -65,7 +66,7 @@ def Bueler_profile(mesh, R):
 
 
 def exact_u(h_expr, Q):
-    h = interpolate(h_expr, Q)
+    h = Function(Q).interpolate(h_expr)
     u_exact = -A0 * h ** (n + 1) * inner(grad(h), grad(h)) * grad(h)
     return u_exact
 
@@ -93,10 +94,10 @@ def test_diagnostic_solver_convergence():
             V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
 
             h_expr = Bueler_profile(mesh, R)
-            u_exact = interpolate(exact_u(h_expr, Q), V)
+            u_exact = Function(V).interpolate(exact_u(h_expr, Q))
 
-            h = interpolate(h_expr, Q)
-            s = interpolate(h_expr, Q)
+            h = Function(Q).interpolate(h_expr)
+            s = Function(Q).interpolate(h_expr)
             u = firedrake.Function(V)
 
             solver = icepack.solvers.FlowSolver(model)

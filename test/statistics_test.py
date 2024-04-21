@@ -1,4 +1,4 @@
-# Copyright (C) 2022 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 import numpy.random as random
 import firedrake
-from firedrake import inner, grad, dx, exp, interpolate, as_vector
+from firedrake import inner, grad, dx, exp, as_vector
 import firedrake.adjoint
 import icepack
 from icepack.statistics import StatisticsProblem, MaximumProbabilityEstimator
@@ -36,7 +36,7 @@ def test_poisson_problem():
     V = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    f = interpolate(firedrake.Constant(1), Q)
+    f = firedrake.Function(Q).assign(firedrake.Constant(1))
 
     def simulation(q):
         # The momentum balance equations in icepack are formulated as a
@@ -59,7 +59,8 @@ def test_poisson_problem():
 
         return u
 
-    q_true = interpolate(-4 * ((x - 0.5) ** 2 + (y - 0.5) ** 2), Q)
+    q_expr = -4 * ((x - 0.5) ** 2 + (y - 0.5) ** 2)
+    q_true = firedrake.Function(Q).interpolate(q_expr)
     u_obs = simulation(q_true)
 
     def loss_functional(u):
@@ -103,9 +104,9 @@ def test_ice_shelf_inverse(with_noise):
     Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    u_initial = interpolate(as_vector((exact_u(x), 0)), V)
-    q_initial = interpolate(firedrake.Constant(0), Q)
-    h = interpolate(h0 - δh * x / Lx, Q)
+    u_initial = firedrake.Function(V).interpolate(as_vector((exact_u(x), 0)))
+    q_initial = firedrake.Function(Q).interpolate(firedrake.Constant(0))
+    h = firedrake.Function(Q).interpolate(h0 - δh * x / Lx)
 
     def viscosity(**kwargs):
         u = kwargs["velocity"]
@@ -134,7 +135,7 @@ def test_ice_shelf_inverse(with_noise):
     r = firedrake.sqrt((x / Lx - 1 / 2) ** 2 + (y / Ly - 1 / 2) ** 2)
     R = 1 / 4
     expr = firedrake.max_value(0, δA * (1 - (r / R) ** 2))
-    q_true = firedrake.interpolate(-n * firedrake.ln(1 + expr / A0), Q)
+    q_true = firedrake.Function(Q).interpolate(-n * firedrake.ln(1 + expr / A0))
     u_true = flow_solver.diagnostic_solve(
         velocity=u_initial, thickness=h, log_fluidity=q_true
     )

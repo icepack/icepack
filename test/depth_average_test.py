@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -22,15 +22,15 @@ def test_scalar_field():
     x, y, z = firedrake.SpatialCoordinate(mesh3d)
 
     Q3D = firedrake.FunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=5)
-    q3d = firedrake.interpolate((x**2 + y**2) * (1 - z**4), Q3D)
+    q3d = firedrake.Function(Q3D).interpolate((x**2 + y**2) * (1 - z**4))
     q_avg = depth_average(q3d)
 
-    p3d = firedrake.interpolate(x**2 + y**2, Q3D)
+    p3d = firedrake.Function(Q3D).interpolate(x**2 + y**2)
     p_avg = depth_average(p3d, weight=1 - z**4)
 
     Q2D = firedrake.FunctionSpace(mesh2d, "CG", 2)
     x, y = firedrake.SpatialCoordinate(mesh2d)
-    q2d = firedrake.interpolate(4 * (x**2 + y**2) / 5, Q2D)
+    q2d = firedrake.Function(Q2D).interpolate(4 * (x**2 + y**2) / 5)
 
     assert q_avg.function_space().mesh() is mesh2d
     assert norm(q_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
@@ -52,7 +52,7 @@ def test_multilayer():
     q3d = firedrake.project(expr, Q3D)
 
     Q2D = firedrake.FunctionSpace(mesh2d, "CG", 2)
-    q2d = firedrake.interpolate(firedrake.Constant(0.5), Q2D)
+    q2d = firedrake.Function(Q2D).assign(firedrake.Constant(0.5))
 
     q_avg = depth_average(q3d)
     assert norm(q_avg - q2d) / norm(q2d) < 1 / (Nx * Ny) ** 2
@@ -69,12 +69,12 @@ def test_vector_field():
     x, y, z = firedrake.SpatialCoordinate(mesh3d)
 
     V3D = firedrake.VectorFunctionSpace(mesh3d, "CG", 2, vfamily="GL", vdegree=5, dim=2)
-    u3d = firedrake.interpolate(firedrake.as_vector((1 - z**4, 0)), V3D)
+    u3d = firedrake.Function(V3D).interpolate(firedrake.as_vector((1 - z**4, 0)))
     u_avg = depth_average(u3d)
 
     V2D = firedrake.VectorFunctionSpace(mesh2d, "CG", 2)
     x, y = firedrake.SpatialCoordinate(mesh2d)
-    u2d = firedrake.interpolate(firedrake.as_vector((4 / 5, 0)), V2D)
+    u2d = firedrake.Function(V2D).interpolate(firedrake.as_vector((4 / 5, 0)))
 
     assert norm(u_avg - u2d) / norm(u2d) < 1 / (Nx * Ny) ** 2
 

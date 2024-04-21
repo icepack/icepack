@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -32,22 +32,22 @@ def test_vertical_velocity_xyz():
     mu = 0.003
     mv = 0.001
 
-    b = firedrake.interpolate(firedrake.Constant(0.0), Q)
-    s = firedrake.interpolate(firedrake.Constant(1000.0), Q)
-    h = firedrake.interpolate(s - b, Q)
-    u = firedrake.interpolate(
-        firedrake.as_vector((mu * x + u_inflow, mv * y + v_inflow)), V
+    b = firedrake.Function(Q).assign(firedrake.Constant(0.0))
+    s = firedrake.Function(Q).assign(firedrake.Constant(1000.0))
+    h = firedrake.Function(Q).assign(s - b)
+    u = firedrake.Function(V).interpolate(
+        firedrake.as_vector((mu * x + u_inflow, mv * y + v_inflow))
     )
 
     m = -0.01
 
     def analytic_vertical_velocity(h, ζ, mu, mv, m, Q3D):
-        return firedrake.interpolate(
-            firedrake.Constant(m) - (firedrake.Constant(mu + mv) * h * ζ), Q3D
+        return firedrake.Function(Q3D).interpolate(
+            firedrake.Constant(m) - (firedrake.Constant(mu + mv) * h * ζ)
         )
 
     expr = icepack.vertical_velocity(velocity=u, thickness=h, basal_mass_balance=m)
-    w = firedrake.interpolate(expr * h, Q3D)
+    w = firedrake.Function(Q3D).interpolate(expr * h)
     w_analytic = analytic_vertical_velocity(h, ζ, mu, mv, m, Q3D)
 
     assert np.mean(np.abs(w.dat.data - w_analytic.dat.data)) < 10e-9
@@ -68,20 +68,20 @@ def test_vertical_velocity_xz():
     u_inflow = 1.0
     mu = 0.003
 
-    b = firedrake.interpolate(firedrake.Constant(0.0), Q)
-    s = firedrake.interpolate(firedrake.Constant(1000.0), Q)
-    h = firedrake.interpolate(s - b, Q)
-    u = firedrake.interpolate(u_inflow + mu * x, V)
+    b = firedrake.Function(Q).assign(firedrake.Constant(0.0))
+    s = firedrake.Function(Q).assign(firedrake.Constant(1000.0))
+    h = firedrake.Function(Q).assign(s - b)
+    u = firedrake.Function(V).interpolate(u_inflow + mu * x)
 
     m = -0.01
 
     def analytic_vertical_velocity(h, ζ, mu, m, Q_xz):
-        return firedrake.interpolate(
-            firedrake.Constant(m) - (firedrake.Constant(mu) * h * ζ), Q_xz
+        return firedrake.Function(Q_xz).interpolate(
+            firedrake.Constant(m) - (firedrake.Constant(mu) * h * ζ)
         )
 
     expr = icepack.vertical_velocity(velocity=u, thickness=h, basal_mass_balance=m)
-    w = firedrake.interpolate(expr * h, Q_xz)
+    w = firedrake.Function(Q_xz).interpolate(expr * h)
     w_analytic = analytic_vertical_velocity(h, ζ, mu, m, Q_xz)
 
     assert np.mean(np.abs(w.dat.data - w_analytic.dat.data)) < 10e-9

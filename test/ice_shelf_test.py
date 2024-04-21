@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -13,7 +13,7 @@
 import pytest
 import numpy as np
 import firedrake
-from firedrake import interpolate, as_vector
+from firedrake import Function, as_vector
 import icepack
 from icepack.constants import (
     ice_density as ρ_I,
@@ -76,11 +76,11 @@ def test_diagnostic_solver_convergence(solver_type):
             V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
             Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
-            u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-            u_guess = interpolate(u_exact + as_vector((perturb_u(x, y), 0)), V)
+            u_exact = Function(V).interpolate(as_vector((exact_u(x), 0)))
+            u_guess = Function(V).interpolate(u_exact + as_vector((perturb_u(x, y), 0)))
 
-            h = interpolate(h0 - dh * x / Lx, Q)
-            A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+            h = Function(Q).interpolate(h0 - dh * x / Lx)
+            A = Function(Q).assign(firedrake.Constant(icepack.rate_factor(T)))
 
             solver = icepack.solvers.FlowSolver(model, **opts)
             u = solver.diagnostic_solve(
@@ -139,10 +139,10 @@ def test_diagnostic_solver_parameterization():
         V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
         Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
-        u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-        u_guess = interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)), V)
-        h = interpolate(h0 - dh * x / Lx, Q)
-        B = interpolate(firedrake.Constant(icepack.rate_factor(T) ** (-1 / n)), Q)
+        u_exact = Function(V).interpolate(as_vector((exact_u(x), 0)))
+        u_guess = Function(V).interpolate(as_vector((exact_u(x) + perturb_u(x, y), 0)))
+        h = Function(Q).interpolate(h0 - dh * x / Lx)
+        B = Function(Q).interpolate(firedrake.Constant(icepack.rate_factor(T) ** (-1 / n)))
 
         solver = icepack.solvers.FlowSolver(model, **opts)
         u = solver.diagnostic_solve(velocity=u_guess, thickness=h, rheology=B)
@@ -170,9 +170,9 @@ def test_diagnostic_solver_side_friction():
     Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    u_initial = interpolate(as_vector((exact_u(x), 0)), V)
-    h = interpolate(h0 - dh * x / Lx, Q)
-    A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+    u_initial = Function(V).interpolate(as_vector((exact_u(x), 0)))
+    h = Function(Q).interpolate(h0 - dh * x / Lx)
+    A = Function(Q).assign(firedrake.Constant(icepack.rate_factor(T)))
 
     # Choose the side wall friction coefficient so that, assuming the ice is
     # sliding at the maximum speed for the solution without friction, the

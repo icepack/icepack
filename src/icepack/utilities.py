@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
 # Andrew Hoffman <hoffmaao@uw.edu>
 # Jessica Badgeley <badgeley@uw.edu>
 # This file is part of icepack.
@@ -71,7 +71,7 @@ def compute_surface(**kwargs):
 
     Q = h.ufl_function_space()
     s_expr = firedrake.max_value(h + b, (1 - ρ_I / ρ_W) * h)
-    return firedrake.interpolate(s_expr, Q)
+    return firedrake.Function(Q).interpolate(s_expr)
 
 
 def depth_average(q_xz, weight=firedrake.Constant(1)):
@@ -215,7 +215,7 @@ def vertical_velocity(**kwargs):
     mesh = Q.mesh()
     xdegree_u, zdegree_u = u.ufl_element().degree()
     W = firedrake.FunctionSpace(mesh, "CG", xdegree_u, vfamily="GL", vdegree=zdegree_u)
-    u_div = firedrake.interpolate(div(u), W)
+    u_div = firedrake.Function(W).interpolate(div(u))
     return m / h - vertically_integrate(u_div, h)
 
 

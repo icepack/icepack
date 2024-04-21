@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -102,7 +102,7 @@ def test_manufactured_solution():
 
 # Now test our numerical solvers against this analytical solution.
 import firedrake
-from firedrake import interpolate, as_vector
+from firedrake import Function, as_vector
 import icepack
 from icepack.constants import (
     ice_density as ρ_I,
@@ -174,13 +174,13 @@ def test_diagnostic_solver_convergence():
             Q = firedrake.FunctionSpace(mesh, "CG", degree)
             V = firedrake.VectorFunctionSpace(mesh, "CG", degree)
 
-            u_exact = interpolate(as_vector((exact_u(x), 0)), V)
-            u_guess = interpolate(u_exact + as_vector((perturb_u(x, y), 0)), V)
+            u_exact = Function(V).interpolate(as_vector((exact_u(x), 0)))
+            u_guess = Function(V).interpolate(u_exact + as_vector((perturb_u(x, y), 0)))
 
-            h = interpolate(h0 - dh * x / Lx, Q)
-            s = interpolate(d + h0 - dh + ds * (1 - x / Lx), Q)
-            C = interpolate(friction(x), Q)
-            A = interpolate(firedrake.Constant(icepack.rate_factor(T)), Q)
+            h = Function(Q).interpolate(h0 - dh * x / Lx)
+            s = Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
+            C = Function(Q).interpolate(friction(x))
+            A = Function(Q).assign(firedrake.Constant(icepack.rate_factor(T)))
 
             solver = icepack.solvers.FlowSolver(model, **opts)
             u = solver.diagnostic_solve(
@@ -209,9 +209,9 @@ def test_computing_surface():
     Q = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    h = interpolate(h0 - dh * x / Lx, Q)
+    h = Function(Q).interpolate(h0 - dh * x / Lx)
     b0 = ρ_I / ρ_W * (dh / 2 - h0)
-    b = interpolate(firedrake.Constant(b0), Q)
+    b = Function(Q).assign(firedrake.Constant(b0))
 
     s = icepack.compute_surface(thickness=h, bed=b)
     x0, y0 = Lx / 2, Ly / 2

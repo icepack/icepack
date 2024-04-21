@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2022 by Daniel Shapero <shapero@uw.edu> and David
+# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu> and David
 # Lilien
 #
 # This file is part of icepack.
@@ -73,7 +73,7 @@ def make_domain(nx, ny, xmin, ymin, width, height):
     x, y = firedrake.SpatialCoordinate(mesh)
     Vc = mesh.coordinates.function_space()
     expr = firedrake.as_vector((width * x + xmin, height * y + ymin))
-    f = firedrake.interpolate(expr, Vc)
+    f = firedrake.Function(Vc).interpolate(expr)
     mesh.coordinates.assign(f)
     return mesh
 
@@ -89,7 +89,7 @@ def test_interpolating_scalar_field(package):
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, "CG", 1)
-    p = firedrake.interpolate(x + y, Q)
+    p = firedrake.Function(Q).interpolate(x + y)
     q = icepack.interpolate(dataset, Q)
 
     assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
@@ -108,7 +108,7 @@ def test_interpolating_scalar_field_3d(package):
 
     x, y, z = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, "CG", 1, vfamily="R", vdegree=0)
-    p = firedrake.interpolate(x + y, Q)
+    p = firedrake.Function(Q).interpolate(x + y)
     q = icepack.interpolate(dataset, Q)
 
     assert firedrake.norm(p - q) / firedrake.norm(p) < 1e-10
@@ -125,7 +125,7 @@ def test_nearest_neighbor_interpolation(package):
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
     Q = firedrake.FunctionSpace(mesh, "CG", 1)
-    p = firedrake.interpolate(x + y, Q)
+    p = firedrake.Function(Q).interpolate(x + y)
     q = icepack.interpolate(dataset, Q, method="nearest")
 
     relative_error = firedrake.norm(p - q) / firedrake.norm(p)
@@ -148,7 +148,7 @@ def test_interpolating_vector_field(package):
     mesh = make_domain(48, 48, xmin=1 / 4, ymin=1 / 4, width=1 / 2, height=1 / 2)
     x, y = firedrake.SpatialCoordinate(mesh)
     V = firedrake.VectorFunctionSpace(mesh, "CG", 1)
-    u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
+    u = firedrake.Function(V).interpolate(firedrake.as_vector((x + y, x - y)))
     v = icepack.interpolate((vx, vy), V)
 
     assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10
@@ -172,7 +172,7 @@ def test_interpolating_vector_field_3d(package):
 
     x, y, z = firedrake.SpatialCoordinate(mesh)
     V = firedrake.VectorFunctionSpace(mesh, "CG", 1, dim=2, vfamily="GL", vdegree=2)
-    u = firedrake.interpolate(firedrake.as_vector((x + y, x - y)), V)
+    u = firedrake.Function(V).interpolate(firedrake.as_vector((x + y, x - y)))
     v = icepack.interpolate((vx, vy), V)
 
     assert firedrake.norm(u - v) / firedrake.norm(u) < 1e-10

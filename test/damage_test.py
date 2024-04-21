@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -11,7 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 import firedrake
-from firedrake import norm, interpolate, Constant, as_vector, sym, grad
+from firedrake import norm, Function, Constant, as_vector, sym, grad
 import icepack
 from icepack.models.viscosity import membrane_stress
 from icepack.constants import (
@@ -29,7 +29,7 @@ def test_eigenvalues():
     x, y = firedrake.SpatialCoordinate(mesh)
 
     V = firedrake.VectorFunctionSpace(mesh, "CG", 2)
-    u = interpolate(as_vector((x, 0)), V)
+    u = Function(V).interpolate(as_vector((x, 0)))
 
     Q = firedrake.FunctionSpace(mesh, "DG", 2)
     ε = sym(grad(u))
@@ -59,8 +59,8 @@ def test_damage_transport():
     q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
     du = Z * q * Lx * (h0 / dh) / (n + 1)
 
-    u = interpolate(as_vector((u0 + du, 0)), V)
-    h = interpolate(h0 - dh * x / Lx, Q)
+    u = Function(V).interpolate(as_vector((u0 + du, 0)))
+    h = Function(Q).interpolate(h0 - dh * x / Lx)
     A = firedrake.Constant(icepack.rate_factor(T))
 
     S = firedrake.TensorFunctionSpace(mesh, "DG", 1)

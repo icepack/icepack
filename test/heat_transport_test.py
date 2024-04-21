@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -34,10 +34,10 @@ x, y, ζ = firedrake.SpatialCoordinate(mesh)
 
 # The test glacier slopes down and thins out toward the terminus
 h0, dh = 500.0, 100.0
-h = firedrake.interpolate(h0 - dh * x / Lx, Q_c)
+h = firedrake.Function(Q_c).interpolate(h0 - dh * x / Lx)
 
 s0, ds = 500.0, 50.0
-s = firedrake.interpolate(s0 - ds * x / Lx, Q_c)
+s = firedrake.Function(Q_c).interpolate(s0 - ds * x / Lx)
 
 
 # The energy density at the surface (MPa / m^3) and heat flux (MPa / m^2 / yr)
@@ -48,8 +48,8 @@ q_bed = 50e-3 * year * 1e-6
 
 @pytest.mark.parametrize("params", [{"ksp_type": "cg", "pc_type": "ilu"}, None])
 def test_diffusion(params):
-    E_true = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
-    E = firedrake.interpolate(Constant(480), Q)
+    E_true = firedrake.Function(Q).interpolate(E_surface + q_bed / α * h * (1 - ζ))
+    E = firedrake.Function(Q).assign(Constant(480))
 
     # Subclass the heat transport model and turn off advection so that we can
     # test diffusion by itself
@@ -85,7 +85,7 @@ def test_diffusion(params):
 
 
 def test_advection():
-    E_initial = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
+    E_initial = firedrake.Function(Q).interpolate(E_surface + q_bed / α * h * (1 - ζ))
     E = E_initial.copy(deepcopy=True)
 
     # Subclass the heat transport model and turn off diffusion so that we can
@@ -107,8 +107,8 @@ def test_advection():
     u0 = 100.0
     du = 100.0
     u_expr = as_vector((u0 + du * x / Lx, 0))
-    u = firedrake.interpolate(u_expr, V)
-    w = firedrake.interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ, W)
+    u = firedrake.Function(V).interpolate(u_expr)
+    w = firedrake.Function(W).interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ)
 
     dt = 10.0
     final_time = Lx / u0
@@ -134,14 +134,14 @@ def test_advection():
 
 
 def test_advection_diffusion():
-    E_initial = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
+    E_initial = firedrake.Function(Q).interpolate(E_surface + q_bed / α * h * (1 - ζ))
     E = E_initial.copy(deepcopy=True)
 
     u0 = 100.0
     du = 100.0
     u_expr = as_vector((u0 + du * x / Lx, 0))
-    u = firedrake.interpolate(u_expr, V)
-    w = firedrake.interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ, W)
+    u = firedrake.Function(V).interpolate(u_expr)
+    w = firedrake.Function(W).interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ)
 
     dt = 10.0
     final_time = Lx / u0
@@ -185,13 +185,14 @@ def test_converting_fields():
 
 
 def test_strain_heating():
-    E_initial = firedrake.interpolate(E_surface + q_bed / α * h * (1 - ζ), Q)
+    E_expr = E_surface + q_bed / α * h * (1 - ζ)
+    E_initial = firedrake.Function(Q).interpolate(E_expr)
 
     u0 = 100.0
     du = 100.0
     u_expr = as_vector((u0 + du * x / Lx, 0))
-    u = firedrake.interpolate(u_expr, V)
-    w = firedrake.interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ, W)
+    u = firedrake.Function(V).interpolate(u_expr)
+    w = firedrake.Function(W).interpolate((-du / Lx + dh / Lx / h * u[0]) * ζ)
 
     E_q = E_initial.copy(deepcopy=True)
     E_0 = E_initial.copy(deepcopy=True)
