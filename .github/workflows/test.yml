@@ -2,9 +2,12 @@ name: 'Build and test icepack'
 on: [push, pull_request]
 jobs:
   test:
+    strategy:
+      matrix:
+        version: [2023-11, 2024-04]
     runs-on: ubuntu-latest
     container:
-      image: docker.io/firedrakeproject/firedrake-vanilla:2024-04
+      image: docker.io/firedrakeproject/firedrake-vanilla:${{ matrix.version }}
       options: --user root
     steps:
       - name: Install patchelf
