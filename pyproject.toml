@@ -13,6 +13,7 @@ dependencies = [
     "matplotlib",
     "rasterio",
     "xarray",
+    "netCDF4",
     "geojson",
     "geopandas",
     "shapely",
