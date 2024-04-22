@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2023 by Jessica Badgeley <badgeley@uw.edu> and Daniel
+# Copyright (C) 2020-2024 by Jessica Badgeley <badgeley@uw.edu> and Daniel
 # Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
@@ -13,10 +13,11 @@
 
 from operator import itemgetter
 import firedrake
-from firedrake import inner, grad
+from firedrake import inner
 from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law as n
 from icepack.models.transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
+from icepack.calculus import grad
 
 
 def mass(**kwargs):
@@ -62,13 +63,8 @@ def gravity(**kwargs):
     """
     keys = ("velocity", "thickness", "surface", "fluidity")
     u, h, s, A = itemgetter(*keys)(kwargs)
-
-    return (
-        (2 * A * (ρ_I * g) ** n / (n + 2))
-        * h ** (n + 1)
-        * grad(s) ** (n - 1)
-        * inner(grad(s), u)
-    )
+    p = ρ_I * g * h
+    return 2 * A * p**n / (n + 2) * h * grad(s) ** (n - 1) * inner(grad(s), u)
 
 
 def penalty(**kwargs):
