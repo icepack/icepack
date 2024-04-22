@@ -12,7 +12,7 @@
 
 import pytest
 import firedrake
-from firedrake import Constant
+from firedrake import inner, grad, Constant
 import icepack
 from icepack.constants import (
     ice_density as ρ_I,
@@ -113,6 +113,70 @@ def test_order_0(dim):
 
     U_x, U_xz = u_x.dat.data_ro, u_xz.dat.data_ro
     assert np.linalg.norm(U_xz - U_x) / np.linalg.norm(U_x) < 1e-2
+
+
+def test_sia_limit():
+    Nx = 32
+    mesh_x = firedrake.IntervalMesh(Nx, Lx)
+    x, = firedrake.SpatialCoordinate(mesh_x)
+
+    Q_x = firedrake.FunctionSpace(mesh_x, "CG", 2)
+    h = firedrake.Function(Q_x).interpolate(h0 - dh * x / Lx)
+    s0 = Constant(h0 / 2)
+    δs = Constant((h0 - dh) / 2)
+    s = firedrake.Function(Q_x).interpolate(s0 - δs * x / Lx)
+
+    # Compute the SIA solution
+    V_x = firedrake.FunctionSpace(mesh_x, "CG", 2)
+    p = ρ_I * g * h
+    A = Constant(icepack.rate_factor(273.0))
+    u_expr = 2 * A / (n + 2) * p**n * h * (δs / Lx)**n
+    u0 = firedrake.Function(V_x).interpolate(u_expr)
+
+    def penalty(**kwargs):
+        u = kwargs["velocity"]
+        h = kwargs["thickness"]
+        λ = Constant(0.0)
+        return 0.5 * λ*2 * inner(grad(u), grad(u))
+
+    sia_model = icepack.models.ShallowIce(penalty=penalty)
+    sia_opts = {"dirichlet_ids": [1]}
+    sia_solver = icepack.solvers.FlowSolver(sia_model, **sia_opts)
+    u_sia = sia_solver.diagnostic_solve(
+        velocity=u0, thickness=h, surface=s, fluidity=A
+    )
+
+    mesh = firedrake.ExtrudedMesh(mesh_x, layers=1)
+    x, ζ = firedrake.SpatialCoordinate(mesh)
+    Q_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="R", vdegree=0)
+    h = firedrake.Function(Q_xz).interpolate(h0 - dh * x / Lx)
+    s = firedrake.Function(Q_xz).interpolate(s0 - δs * x / Lx)
+
+    V_xz = firedrake.FunctionSpace(mesh, "CG", 2, vfamily="GL", vdegree=4)
+    p = ρ_I * g * h
+    u_expr = 2 * A / (n + 2) * p**n * h * (δs / Lx)**n
+    u0 = firedrake.Function(V_xz).interpolate(u_expr)
+
+    # Make the friction coefficient very large and compute the hybrid model
+    # solution
+    f = Constant(100.0)
+    expr = f * (h * A) ** (-1 / n)
+    C = firedrake.Function(Q_xz).interpolate(expr)
+    model = icepack.models.HybridModel()
+    opts = {"dirichlet_ids": [1, 2]}
+    solver = icepack.solvers.FlowSolver(model, **opts)
+    u = solver.diagnostic_solve(
+        velocity=u0,
+        thickness=h,
+        surface=s,
+        fluidity=A,
+        friction=C,
+        strain_rate_min=Constant(0.0),
+    )
+    u_avg = icepack.depth_average(u)
+
+    # Check that the relative error isn't too large
+    assert firedrake.norm(u_sia - u_avg) / firedrake.norm(u_sia) < 0.1
 
 
 @pytest.mark.parametrize("dim", ["xz", "xyz"])
