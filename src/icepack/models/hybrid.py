@@ -109,7 +109,7 @@ def terminus(**kwargs):
 
 
 def _effective_strain_rate(ε_x, ε_z, ε_min):
-    return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + inner(ε_z, ε_z) + ε_min**2) / 2)
+    return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + 2 * inner(ε_z, ε_z)) / 2 + ε_min**2)
 
 
 def stresses(**kwargs):
