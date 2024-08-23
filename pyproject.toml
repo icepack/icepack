@@ -20,7 +20,7 @@ dependencies = [
     "pooch",
     "gmsh",
     "pygmsh<=6.1.1",
-    "meshio>=3.3.1",
+    "meshio@git+https://github.com/icepack/meshio.git@v4.4.7",
     "MeshPy",
     "tqdm",
     "roltrilinos@git+https://github.com/icepack/Trilinos",
