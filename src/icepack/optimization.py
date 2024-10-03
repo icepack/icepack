@@ -145,13 +145,16 @@ class NewtonSolver:
             def __init__(self, solver):
                 super().__init__(
                     solver.F == 0, solver.problem.u, solver.problem.bcs,
-                    adj_F=firedrake.adjoint(solver.J), dFdm_cache={},
+                    adj_F=firedrake.adjoint(solver.J), adj_cache={},
                     problem_J=solver.J,
                     solver_params=solver.search_direction_solver.parameters,
                     solver_kwargs={})
                 for dep in ufl.algorithms.extract_coefficients(solver.problem.S):
                     self.add_dependency(dep, no_duplicates=True)
                 self._icepack__solver = solver
+                self._ad_nlvs = firedrake.NonlinearVariationalSolver(firedrake.NonlinearVariationalProblem(
+                    solver.F, solver.problem.u, solver.problem.bcs,
+                    J=solver.J), solver_parameters=solver.search_direction_solver.parameters)
 
             def _forward_solve(self, lhs, rhs, func, bcs, **kwargs):
                 # Re-use the NewtonSolver by copying and restoring the values
