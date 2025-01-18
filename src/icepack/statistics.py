@@ -1,4 +1,4 @@
-# Copyright (C) 2022 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2022-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -158,10 +158,11 @@ class MaximumProbabilityEstimator:
 
     def solve(self):
         firedrake.adjoint.continue_annotation()
-        if isinstance(self.problem.controls, (firedrake.Function, firedrake.Constant)):
-            self._controls = self.problem.controls.copy(deepcopy=True)
+        controls = self.problem.controls
+        if isinstance(controls, (firedrake.Function, firedrake.Constant)):
+            self._controls = controls.copy(deepcopy=True)
         else:
-            self._controls = [field.copy(deepcopy=True) for field in problem.controls]
+            self._controls = [field.copy(deepcopy=True) for field in controls]
 
         # Form the objective functional
         self._state = self.problem.simulation(self.controls)
