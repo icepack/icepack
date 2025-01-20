@@ -94,11 +94,11 @@ try:
                     self.val = np.inf
 
     class _ROLSolverWrapper(pyadjoint.ROLSolver):
-        def __init__(self, problem, controls, inner_product="L2"):
+        def __init__(self, problem, parameters, inner_product="L2"):
             r"""Wrapper around the ROL solver class that uses the patched Objective
             class"""
             super(_ROLSolverWrapper, self).__init__(
-                problem, controls, inner_product=inner_product
+                problem, parameters, inner_product=inner_product
             )
             self.rolobjective = _ROLObjectiveWrapper(problem.reduced_functional)
 
