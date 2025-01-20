@@ -1,4 +1,4 @@
-# Copyright (C) 2024 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2024-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 import numpy.random as random
 import firedrake
-from firedrake import inner, grad, dx, exp, as_vector
+from firedrake import inner, grad, dx, exp, as_vector, Constant
 import firedrake.adjoint
 import icepack
 from icepack.statistics import StatisticsProblem, MaximumProbabilityEstimator
@@ -36,7 +36,7 @@ def test_poisson_problem():
     V = firedrake.FunctionSpace(mesh, "CG", degree)
 
     x, y = firedrake.SpatialCoordinate(mesh)
-    f = firedrake.Function(Q).assign(firedrake.Constant(1))
+    f = firedrake.Function(Q).assign(Constant(1))
 
     def simulation(q):
         # The momentum balance equations in icepack are formulated as a
@@ -66,7 +66,7 @@ def test_poisson_problem():
     def loss_functional(u):
         return 0.5 * (u - u_obs) ** 2 * dx
 
-    α = firedrake.Constant(1e-4)
+    α = Constant(1e-4)
 
     def regularization(q):
         return 0.5 * α**2 * inner(grad(q), grad(q)) * dx
@@ -77,6 +77,65 @@ def test_poisson_problem():
     q = estimator.solve()
 
     assert firedrake.norm(q - q_true) < 0.25
+
+
+@pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
+def test_multiple_controls():
+    Nx, Ny = 32, 32
+    mesh = firedrake.UnitSquareMesh(Nx, Ny, diagonal="crossed")
+    x = firedrake.SpatialCoordinate(mesh)
+
+    Q = firedrake.FunctionSpace(mesh, "CG", 1)
+    V = firedrake.FunctionSpace(mesh, "CG", 1)
+
+    r_0 = Constant(0.125)
+    x_0 = Constant((2/3, 2/3))
+    δq = Constant(2.0)
+    q_expr = -δq * exp(-inner(x - x_0, x - x_0) / r_0**2)
+    q_exact = firedrake.Function(Q).interpolate(q_expr)
+    k = Constant(1.0)
+
+    r_1 = Constant(0.25)
+    x_1 = Constant((1/3, 1/3))
+    f_0 = Constant(1.0)
+    f_expr = f_0 * exp(-inner(x - x_1, x - x_1) / r_1**2)
+    f_exact = firedrake.Function(Q).interpolate(f_expr)
+
+    bc = firedrake.DirichletBC(V, 0, "on_boundary")
+
+    def simulation(controls):
+        q, f = controls
+        u = firedrake.Function(V)
+        L = (0.5 * k * exp(q) * inner(grad(u), grad(u)) - f * u) * dx
+        F = firedrake.derivative(L, u)
+        firedrake.solve(F == 0, u, bc)
+        return u
+
+    u_exact = simulation([q_exact, f_exact])
+
+    σ = Constant(0.01)
+    def loss_functional(u):
+        return 0.5 * (u - u_exact)**2 / σ**2 * dx
+
+    α = Constant(0.1)
+    β = Constant(0.5)
+    def regularization(controls):
+        q, f = controls
+        return 0.5 * (
+            α**2 * inner(grad(q), grad(q)) + β**2 * inner(grad(f), grad(f))
+        ) * dx
+
+    q_init = firedrake.Function(Q)
+    f_init = firedrake.Function(Q).interpolate(f_0)
+
+    u_init = simulation([q_init, f_init])
+    print(firedrake.assemble(loss_functional(u_init - u_exact)))
+
+    problem = StatisticsProblem(
+        simulation, loss_functional, regularization, [q_init, f_init]
+    )
+    estimator = MaximumProbabilityEstimator(problem)
+    q_opt, f_opt = estimator.solve()
 
 
 @pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
@@ -106,7 +165,7 @@ def test_ice_shelf_inverse(with_noise, diagnostic_solver_type):
 
     x, y = firedrake.SpatialCoordinate(mesh)
     u_initial = firedrake.Function(V).interpolate(as_vector((exact_u(x), 0)))
-    q_initial = firedrake.Function(Q).interpolate(firedrake.Constant(0))
+    q_initial = firedrake.Function(Q).interpolate(Constant(0))
     h = firedrake.Function(Q).interpolate(h0 - δh * x / Lx)
 
     def viscosity(**kwargs):
@@ -142,14 +201,14 @@ def test_ice_shelf_inverse(with_noise, diagnostic_solver_type):
     )
 
     u_obs = u_true.copy(deepcopy=True)
-    area = firedrake.assemble(firedrake.Constant(1) * dx(mesh))
-    σ = firedrake.Constant(1.0)
-    L = firedrake.Constant(1e-4 * Lx)
+    area = firedrake.assemble(Constant(1) * dx(mesh))
+    σ = Constant(1.0)
+    L = Constant(1e-4 * Lx)
     if with_noise:
-        σ = firedrake.Constant(0.001 * firedrake.norm(u_true) / np.sqrt(area))
+        σ = Constant(0.001 * firedrake.norm(u_true) / np.sqrt(area))
         shape = u_obs.dat.data_ro.shape
         u_obs.dat.data[:] += float(σ) * random.standard_normal(shape) / np.sqrt(2)
-        L = firedrake.Constant(0.25 * Lx)
+        L = Constant(0.25 * Lx)
 
     def loss_functional(u):
         return 0.5 * ((u - u_obs) / σ) ** 2 * dx
