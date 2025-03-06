@@ -26,7 +26,7 @@ from icepack.models.transport import Continuity
 from icepack.constants import (
     ice_density as ρ_I,
     water_density as ρ_W,
-    glen_flow_law as n,
+    glen_flow_law,
     gravity as g,
     strain_rate_min,
 )
@@ -108,7 +108,7 @@ def terminus(**kwargs):
     return (p_I - p_W) * inner(u, ν) * h
 
 
-def _effective_strain_rate(ε_x, ε_z, ε_min):
+def _effective_strain_rate(ε_x, ε_z, ε_min, n=3):
     return sqrt((inner(ε_x, ε_x) + trace(ε_x) ** 2 + 2 * inner(ε_z, ε_z)) / 2 + ε_min**2)
 
 
@@ -118,6 +118,8 @@ def stresses(**kwargs):
     ε_x, ε_z, A = itemgetter("strain_rate_x", "strain_rate_z", "fluidity")(kwargs)
     ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
     ε_e = _effective_strain_rate(ε_x, ε_z, ε_min)
+    n = kwargs.get("n", glen_flow_law)
+
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
     d = ufl.domain.extract_unique_domain(ε_x).geometric_dimension() - 1
     I = Identity(d)
@@ -178,6 +180,7 @@ def viscosity(**kwargs):
     """
     u, h, s, A = itemgetter("velocity", "thickness", "surface", "fluidity")(kwargs)
     ε_min = kwargs.get("strain_rate_min", firedrake.Constant(strain_rate_min))
+    n = kwargs.get("n", glen_flow_law)
 
     ε_x = horizontal_strain_rate(velocity=u, surface=s, thickness=h)
     ε_z = vertical_strain_rate(velocity=u, thickness=h)
