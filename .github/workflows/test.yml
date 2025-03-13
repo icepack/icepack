@@ -26,7 +26,7 @@ jobs:
           pip install git+https://github.com/icepack/pyrol.git@3bc1802e436eda8949a286abf54528c7a882f706
           pip install jupyter ipykernel nbconvert
           python -m ipykernel install --user --name=firedrake
-          pip install --editable .
+          pip install --editable ".[pygmsh]"
       - name: Run unit tests
         run: pytest
       - name: Run example notebooks

@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -17,7 +17,6 @@ import icepack
 import numpy as np
 from numpy import pi as π
 import pytest
-import subprocess
 
 
 def needs_snapping():
@@ -65,11 +64,22 @@ def test_normalize(input_data):
     assert result == icepack.meshing.normalize(result)
 
 
+@pytest.mark.skipif(not icepack.meshing._has_pygmsh, reason="No pygmsh")
 @pytest.mark.parametrize("input_data", test_data)
 def test_converting_to_geo(tmpdir, input_data):
     collection = input_data()
     geometry = icepack.meshing.collection_to_geo(collection, lcar=1e-2)
     assert geometry.get_code() is not None
+
+
+@pytest.mark.parametrize("input_data", test_data)
+def test_converting_to_gmsh(tmp_path, input_data):
+    collection = input_data()
+    geometry = icepack.meshing.collection_to_gmsh(collection, lcar=1e-2)
+    filename = tmp_path / f"{input_data.__name__}.msh"
+    geometry.write(filename)
+    mesh = firedrake.Mesh(str(filename))
+    assert mesh.num_cells() > 0
 
 
 @pytest.mark.parametrize("input_data", test_data)
@@ -92,15 +102,8 @@ def test_meshing_real_outlines(tmp_path):
         with open(outline_filename, "r") as outline_file:
             outline = geojson.load(outline_file)
 
-        geometry = icepack.meshing.collection_to_geo(outline)
-        geo_filename = f"{tmp_path}/{glacier_name}.geo"
-        with open(geo_filename, "w") as geo_file:
-            geo_file.write(geometry.get_code())
-
         msh_filename = f"{tmp_path}/{glacier_name}.msh"
-        args = ["gmsh", "-2", "-v", "3", "-o", msh_filename, geo_filename]
-        result = subprocess.run(args)
-        assert result.returncode == 0
+        icepack.meshing.collection_to_gmsh(outline).write(msh_filename)
         mesh = firedrake.Mesh(msh_filename)
         assert mesh.num_cells() > 0
 
@@ -116,14 +119,7 @@ def test_meshing_rgi_polygon(tmp_path):
     outline_json = geojson.loads(outline_utm.to_json())
     outline = geojson.utils.map_tuples(lambda x: x[:2], outline_json)
 
-    geometry = icepack.meshing.collection_to_geo(outline)
-    geo_filename = f"{tmp_path}/gulkana.geo"
-    with open(geo_filename, "w") as geo_file:
-        geo_file.write(geometry.get_code())
-
     msh_filename = f"{tmp_path}/gulkana.msh"
-    command = f"gmsh -2 -v 3 -o {msh_filename} {geo_filename}"
-    result = subprocess.run(command.split())
-    assert result.returncode == 0
+    icepack.meshing.collection_to_msh(outline).write(msh_filename)
     mesh = firedrake.Mesh(msh_filename)
     assert mesh.num_cells() > 0
