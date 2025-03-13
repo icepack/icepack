@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,13 +14,20 @@ r"""Utilities for turning glacier outlines into unstructured meshes"""
 
 import copy
 import itertools
+import warnings
 import numpy as np
 from numpy import linalg
 import shapely.geometry
 import geojson
 import meshpy.triangle as triangle
-import pygmsh
+import gmsh
 import firedrake
+
+try:
+    import pygmsh
+    _has_pygmsh = True
+except ImportError:
+    _has_pygmsh = False
 
 try:
     from firedrake.cython import dmcommon
@@ -222,34 +229,19 @@ def normalize(input_collection):
     return collection
 
 
-def _add_loop_to_geometry(geometry, multi_line_string):
-    line_loop = []
-    for line_index, line_string in enumerate(multi_line_string):
-        arc = []
-        for index in range(len(line_string) - 1):
-            x1 = line_string[index]
-            x2 = line_string[index + 1]
-            arc.append(geometry.add_line(x1, x2))
-
-        num_lines = len(multi_line_string)
-        next_line_string = multi_line_string[(line_index + 1) % num_lines]
-        x1 = line_string[-1]
-        x2 = next_line_string[0]
-        arc.append(geometry.add_line(x1, x2))
-
-        geometry.add_physical(arc)
-        line_loop.extend(arc)
-
-    return geometry.add_line_loop(line_loop)
-
-
 def collection_to_geo(collection, lcar=10e3):
     r"""Convert a GeoJSON FeatureCollection into pygmsh geometry that can then
     be transformed into an unstructured triangular mesh"""
+    warnings.warn(
+        "This function will be removed in a future release, use "
+        "`icepack.meshing.collection_to_gmsh`",
+        FutureWarning
+    )
+
     collection = normalize(collection)
     features = collection["features"]
-
     geometry = pygmsh.built_in.Geometry()
+
     points = [
         [
             [
@@ -261,14 +253,99 @@ def collection_to_geo(collection, lcar=10e3):
         for feature in features
     ]
 
+    def _add_loop_to_geometry(multi_line_string):
+        line_loop = []
+        for line_index, line_string in enumerate(multi_line_string):
+            arc = []
+            for index in range(len(line_string) - 1):
+                x1 = line_string[index]
+                x2 = line_string[index + 1]
+                arc.append(geometry.add_line(x1, x2))
+
+            num_lines = len(multi_line_string)
+            next_line_string = multi_line_string[(line_index + 1) % num_lines]
+            x1 = line_string[-1]
+            x2 = next_line_string[0]
+            arc.append(geometry.add_line(x1, x2))
+
+            geometry.add_physical(arc)
+            line_loop.extend(arc)
+
+        return geometry.add_line_loop(line_loop)
+
     line_loops = [
-        _add_loop_to_geometry(geometry, multi_line_string)
+        _add_loop_to_geometry(multi_line_string)
         for multi_line_string in points
     ]
     plane_surface = geometry.add_plane_surface(line_loops[0], line_loops[1:])
     geometry.add_physical(plane_surface)
 
     return geometry
+
+
+class _MeshGeoJSON:
+    def __init__(self, collection, lcar: float, name: str):
+        self._collection = normalize(collection)
+        self._lcar = lcar
+        self._name = name or "icepack_default_mesh"
+
+    def _add_loop_to_geometry(self, geometry, multi_line_string):
+        line_loop = []
+        for line_index, line_string in enumerate(multi_line_string):
+            arc = []
+            for index in range(len(line_string) - 1):
+                x1 = line_string[index]
+                x2 = line_string[index + 1]
+                arc.append(geometry.add_line(x1, x2))
+
+            num_lines = len(multi_line_string)
+            next_line_string = multi_line_string[(line_index + 1) % num_lines]
+            x1 = line_string[-1]
+            x2 = next_line_string[0]
+            arc.append(geometry.add_line(x1, x2))
+
+            geometry.add_physical_group(1, arc)
+            line_loop.extend(arc)
+
+        return geometry.add_curve_loop(line_loop)
+
+    def _create_geometry(self):
+        features = self._collection["features"]
+        gmsh.model.add(self._name)
+        geometry = gmsh.model.geo
+
+        points = [
+            [
+                [
+                    geometry.add_point(point[0], point[1], 0.0)
+                    for point in line_string[:-1]
+                ]
+                for line_string in feature["geometry"]["coordinates"]
+            ]
+            for feature in features
+        ]
+
+        line_loops = [
+            self._add_loop_to_geometry(geometry, multi_line_string)
+            for multi_line_string in points
+        ]
+        plane_surface = geometry.add_plane_surface(line_loops)
+        geometry.add_physical_group(2, [plane_surface])
+        geometry.synchronize()
+
+    def write(self, filename: str, verbose=False):
+        if not gmsh.is_initialized():
+            gmsh.initialize()
+        self._create_geometry()
+        if not verbose:
+            gmsh.option.setNumber("General.Verbosity", 0)
+        gmsh.model.mesh.generate(2)
+        gmsh.write(str(filename))
+
+
+def collection_to_gmsh(collection, lcar=None, name=""):
+    r"""Convert a GeoJSON FeatureCollection into a gmsh mesh"""
+    return _MeshGeoJSON(collection, lcar, name)
 
 
 def _find_interior_point(points):
