@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2024 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -140,7 +140,10 @@ def test_sia_limit():
         return 0.5 * λ*2 * inner(grad(u), grad(u))
 
     sia_model = icepack.models.ShallowIce(penalty=penalty)
-    sia_opts = {"dirichlet_ids": [1]}
+    sia_opts = {
+        "dirichlet_ids": [1],
+        "diagnostic_solver_parameters": {"snes_rtol": 1e-6},
+    }
     sia_solver = icepack.solvers.FlowSolver(sia_model, **sia_opts)
     u_sia = sia_solver.diagnostic_solve(
         velocity=u0, thickness=h, surface=s, fluidity=A
