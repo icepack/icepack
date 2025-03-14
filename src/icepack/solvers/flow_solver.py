@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2020-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -14,6 +14,7 @@ r"""Solvers for ice physics models"""
 
 import firedrake
 from firedrake import dx, inner, Constant
+import petsc4py
 from icepack.optimization import MinimizationProblem, NewtonSolver
 from ..utilities import default_solver_parameters
 from icepack.calculus import grad, div, FacetNormal
@@ -41,7 +42,7 @@ class FlowSolver:
             should have no normal flow
         diagnostic_solver_type : {'icepack', 'petsc'}, optional
             Use hand-written optimization solver ('icepack') or PETSc SNES
-            ('petsc'), defaults to 'icepack'
+            ('petsc'), defaults to 'petsc'
         diagnostic_solver_parameters : dict, optional
             Options for the diagnostic solver; defaults to a Newton line
             search method with direct factorization of the Hessian using
@@ -83,9 +84,8 @@ class FlowSolver:
         self._fields = {}
 
         # Prepare the diagnostic solver
-        diagnostic_parameters = kwargs.get(
-            "diagnostic_solver_parameters", default_solver_parameters
-        )
+        dparams = kwargs.get("diagnostic_solver_parameters", {})
+        diagnostic_parameters = default_solver_parameters | dparams
 
         if "diagnostic_solver_type" in kwargs.keys():
             solver_type = kwargs["diagnostic_solver_type"]
@@ -93,7 +93,7 @@ class FlowSolver:
                 solvers_dict = {"icepack": IcepackSolver, "petsc": PETScSolver}
                 solver_type = solvers_dict[solver_type]
         else:
-            solver_type = IcepackSolver
+            solver_type = PETScSolver
 
         self._diagnostic_solver = solver_type(
             self.model,
@@ -104,9 +104,8 @@ class FlowSolver:
         )
 
         # Prepare the prognostic solver
-        prognostic_parameters = kwargs.get(
-            "prognostic_solver_parameters", default_solver_parameters
-        )
+        pparams = kwargs.get("prognostic_solver_parameters", {})
+        prognostic_parameters = default_solver_parameters | pparams
 
         if "prognostic_solver_type" in kwargs.keys():
             solver_type = kwargs["prognostic_solver_type"]
@@ -268,6 +267,15 @@ class PETScSolver:
         self._solver = firedrake.NonlinearVariationalSolver(
             problem, solver_parameters=self._solver_parameters
         )
+
+        # Make the PETSc solver use the objective functional for line searches
+        u_tmp = u.copy(deepcopy=True)
+        def objective(snes: petsc4py.PETSc.SNES, x: petsc4py.PETSc.Vec) -> float:
+            with u_tmp.dat.vec_wo as vec:
+                vec.setArray(x.array)
+            return firedrake.assemble(firedrake.replace(action, {u: u_tmp}))
+
+        self._solver.snes.setObjective(objective)
 
     def solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""

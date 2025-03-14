@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2025 by Daniel Shapero <shapero@uw.edu>
 # Andrew Hoffman <hoffmaao@uw.edu>
 # Jessica Badgeley <badgeley@uw.edu>
 # This file is part of icepack.
@@ -25,7 +25,9 @@ from .calculus import div
 
 
 default_solver_parameters = {
-    "ksp_type": "preonly",
+    "snes_type": "newtonls",
+    "snes_linesearch_type": "nleqerr",
+    "ksp_type": "gmres",
     "pc_type": "lu",
     "pc_factor_mat_solver_type": "mumps",
 }
