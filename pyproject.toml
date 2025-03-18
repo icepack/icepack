@@ -21,8 +21,7 @@ dependencies = [
     "gmsh",
     "MeshPy",
     "tqdm",
-    "roltrilinos@git+https://github.com/icepack/Trilinos",
-    "ROL@git+https://github.com/icepack/pyrol",
+    "pyroltrilinos",
 ]
 
 [project.optional-dependencies]
