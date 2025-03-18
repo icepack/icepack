@@ -23,8 +23,6 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
       - name: Install package
         run: |
-          pip install git+https://github.com/icepack/Trilinos.git@190384db6cb1d148cea36f2d8d69033a90b2d991
-          pip install git+https://github.com/icepack/pyrol.git@3bc1802e436eda8949a286abf54528c7a882f706
           pip install jupyter ipykernel nbconvert
           python -m ipykernel install --user --name=firedrake
           pip install --editable ".[pygmsh]"
