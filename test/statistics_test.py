@@ -140,8 +140,7 @@ def test_multiple_controls():
 
 @pytest.mark.skipif(not icepack.statistics.has_rol, reason="Couldn't import ROL")
 @pytest.mark.parametrize("with_noise", [False, True])
-@pytest.mark.parametrize("diagnostic_solver_type", ["icepack", "petsc"])
-def test_ice_shelf_inverse(with_noise, diagnostic_solver_type):
+def test_ice_shelf_inverse(with_noise):
     Nx, Ny = 32, 32
     Lx, Ly = 20e3, 20e3
 
@@ -180,17 +179,7 @@ def test_ice_shelf_inverse(with_noise, diagnostic_solver_type):
 
     model = icepack.models.IceShelf(viscosity=viscosity)
     dirichlet_ids = [1, 3, 4]
-    flow_solver = icepack.solvers.FlowSolver(
-        model,
-        dirichlet_ids=dirichlet_ids,
-        diagnostic_solver_type=diagnostic_solver_type,
-        diagnostic_solver_parameters={
-            "snes_type": "newtonls",
-            "ksp_type": "preonly",
-            "pc_type": "lu",
-            "pc_factor_mat_solver_type": "mumps",
-        },
-    )
+    flow_solver = icepack.solvers.FlowSolver(model, dirichlet_ids=[1, 3, 4])
 
     r = firedrake.sqrt((x / Lx - 1 / 2) ** 2 + (y / Ly - 1 / 2) ** 2)
     R = 1 / 4

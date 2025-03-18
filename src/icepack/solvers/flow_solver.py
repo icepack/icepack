@@ -12,6 +12,7 @@
 
 r"""Solvers for ice physics models"""
 
+import warnings
 import firedrake
 from firedrake import dx, inner, Constant
 import petsc4py
@@ -148,6 +149,11 @@ class IcepackSolver:
     ):
         r"""Diagnostic solver implementation using hand-written Newton line
         search optimization algorithm"""
+        warnings.warn(
+            "IcepackSolver will be removed in a future release, use PETScSolver",
+            FutureWarning,
+        )
+
         self._model = model
         self._fields = fields
         self._solver_parameters = solver_parameters.copy()

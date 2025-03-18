@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -12,10 +12,6 @@
 
 import firedrake
 from .utilities import default_solver_parameters
-
-from firedrake.adjoint_utils.blocks.solving import NonlinearVariationalSolveBlock
-import inspect
-import ufl
 
 
 class MinimizationProblem:
@@ -142,71 +138,6 @@ class NewtonSolver:
         r"""Step the Newton iteration until convergence"""
         self.reinit()
 
-        class Block(NonlinearVariationalSolveBlock):
-            def __init__(self, solver):
-                if "adj_cache" in inspect.signature(NonlinearVariationalSolveBlock).parameters:
-                    kwargs = {"adj_cache": {}}
-                else:
-                    # Backwards compatibility
-                    kwargs = {"dFdm_cache": {}}
-                super().__init__(
-                    solver.F == 0, solver.problem.u, solver.problem.bcs,
-                    adj_F=firedrake.adjoint(solver.J),
-                    problem_J=solver.J,
-                    solver_params=solver.search_direction_solver.parameters,
-                    solver_kwargs={}, **kwargs)
-                for dep in ufl.algorithms.extract_coefficients(solver.problem.S):
-                    self.add_dependency(dep, no_duplicates=True)
-                self._icepack__solver = solver
-                self._ad_nlvs = firedrake.NonlinearVariationalSolver(firedrake.NonlinearVariationalProblem(
-                    solver.F, solver.problem.u, solver.problem.bcs,
-                    J=solver.J), solver_parameters=solver.search_direction_solver.parameters)
-
-            def _forward_solve(self, lhs, rhs, func, bcs, **kwargs):
-                # Re-use the NewtonSolver by copying and restoring the values
-                # of dependencies
-                deps = {bv_dep.output: bv_dep.saved_output
-                        for bv_dep in self.get_dependencies()}
-                vals = {}
-                for eq_dep, dep in deps.items():
-                    if isinstance(eq_dep, (firedrake.Function, firedrake.Cofunction)):
-                        vals[eq_dep] = eq_dep.copy(deepcopy=True)
-                        eq_dep.assign(dep)
-                    elif isinstance(eq_dep, firedrake.Constant):
-                        vals[eq_dep] = eq_dep.values()
-                        eq_dep.assign(dep)
-                    elif isinstance(eq_dep, firedrake.DirichletBC):
-                        vals[eq_dep] = eq_dep.function_arg.copy(deepcopy=True)
-                        eq_dep.function_arg = dep.function_arg
-                    elif isinstance(eq_dep, firedrake.mesh.MeshGeometry):
-                        # Assume fixed mesh
-                        pass
-                    else:
-                        raise TypeError(f"Unexpected type: {type(eq_dep)}")
-                try:
-                    self._icepack__solver.solve(**kwargs)
-                    func.assign(self._icepack__solver.problem.u)
-                finally:
-                    for eq_dep, eq_dep_val in vals.items():
-                        if isinstance(eq_dep, (firedrake.Function, firedrake.Cofunction)):
-                            eq_dep.assign(eq_dep_val)
-                        elif isinstance(eq_dep, firedrake.Constant):
-                            eq_dep_val = eq_dep_val.copy()
-                            eq_dep_val.shape = eq_dep.ufl_shape
-                            eq_dep.assign(firedrake.Constant(eq_dep_val))
-                        elif isinstance(eq_dep, firedrake.DirichletBC):
-                            eq_dep.function_arg = eq_dep_val
-                        elif isinstance(eq_dep, firedrake.mesh.MeshGeometry):
-                            pass
-                        else:
-                            raise TypeError(f"Unexpected type: {type(eq_dep)}")
-                return func
-
-        annotate = firedrake.adjoint.annotate_tape({} if annotate is None else {"annotate": annotate})
-        if annotate:
-            block = Block(self)
-            firedrake.adjoint.get_working_tape().add_block(block)
-
         with firedrake.adjoint.stop_annotating():
             dE_dv = self.dE_dv
             S = self.problem.S
@@ -215,8 +146,6 @@ class NewtonSolver:
                 self.step()
                 if self.iteration >= self.max_iterations:
                     raise firedrake.ConvergenceError(
-                        f"Newton search did not converge after {self.max_iterations} iterations!"
+                        "Newton search did not converge after %d iterations!"
+                        % self.max_iterations
                     )
-
-        if annotate:
-            block.add_output(self.problem.u.create_block_variable())
