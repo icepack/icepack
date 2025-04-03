@@ -14,7 +14,7 @@
 from operator import itemgetter
 import firedrake
 from firedrake import inner
-from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law as n
+from icepack.constants import ice_density as ρ_I, gravity as g, glen_flow_law
 from icepack.models.transport import Continuity
 from icepack.utilities import add_kwarg_wrapper
 from icepack.calculus import grad
@@ -64,6 +64,7 @@ def gravity(**kwargs):
     keys = ("velocity", "thickness", "surface", "fluidity")
     u, h, s, A = itemgetter(*keys)(kwargs)
     p = ρ_I * g * h
+    n = kwargs.get("flow_law_exponent", glen_flow_law)
     return 2 * A * p**n / (n + 2) * h * grad(s) ** (n - 1) * inner(grad(s), u)
 
 
@@ -148,6 +149,7 @@ class ShallowIce:
         r"""Return the quadrature degree necessary to integrate the action
         functional accurately"""
         u, h = itemgetter("velocity", "thickness")(kwargs)
+        n = kwargs.get("flow_law_exponent", glen_flow_law)
         degree_u = u.ufl_element().degree()
         degree_h = h.ufl_element().degree()
         return int((2 * n + 1) * degree_h + degree_u)

@@ -118,7 +118,7 @@ def stresses(**kwargs):
     ε_x, ε_z, A = itemgetter("strain_rate_x", "strain_rate_z", "fluidity")(kwargs)
     ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
     ε_e = _effective_strain_rate(ε_x, ε_z, ε_min)
-    n = kwargs.get("n", glen_flow_law)
+    n = kwargs.get("flow_law_exponent", glen_flow_law)
 
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
     d = ufl.domain.extract_unique_domain(ε_x).geometric_dimension() - 1
@@ -180,7 +180,7 @@ def viscosity(**kwargs):
     """
     u, h, s, A = itemgetter("velocity", "thickness", "surface", "fluidity")(kwargs)
     ε_min = kwargs.get("strain_rate_min", firedrake.Constant(strain_rate_min))
-    n = kwargs.get("n", glen_flow_law)
+    n = kwargs.get("flow_law_exponent", glen_flow_law)
 
     ε_x = horizontal_strain_rate(velocity=u, surface=s, thickness=h)
     ε_z = vertical_strain_rate(velocity=u, thickness=h)
