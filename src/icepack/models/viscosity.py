@@ -22,7 +22,7 @@ import numpy as np
 import ufl
 import firedrake
 from firedrake import sqrt, inner
-from icepack.constants import year, ideal_gas as R, glen_flow_law as n, strain_rate_min
+from icepack.constants import year, ideal_gas as R, glen_flow_law, strain_rate_min
 from icepack.calculus import sym_grad, trace, Identity
 
 transition_temperature = 263.15  # K
@@ -89,6 +89,7 @@ def membrane_stress(**kwargs):
     fluidity"""
     ε, A = itemgetter("strain_rate", "fluidity")(kwargs)
     ε_min = firedrake.Constant(kwargs.get("strain_rate_min", strain_rate_min))
+    n = kwargs.get("flow_law_exponent", glen_flow_law)
     ε_e = _effective_strain_rate(ε, ε_min)
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
     d = ufl.domain.extract_unique_domain(ε).geometric_dimension()
@@ -134,7 +135,7 @@ def viscosity_depth_averaged(**kwargs):
     """
     u, h, A = itemgetter("velocity", "thickness", "fluidity")(kwargs)
     ε_min = kwargs.get("strain_rate_min", firedrake.Constant(strain_rate_min))
-
+    n = kwargs.get("flow_law_exponent", glen_flow_law)
     ε = sym_grad(u)
     ε_e = _effective_strain_rate(ε, ε_min)
     return 2 * n / (n + 1) * h * A ** (-1 / n) * ε_e ** (1 / n + 1)
