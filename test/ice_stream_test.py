@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -20,11 +20,11 @@ def test_manufactured_solution():
     from icepack import constants
 
     L, ρ_I, ρ_W = symbols("L rho_I rho_W", real=True, positive=True)
-    B, g = symbols("B g", real=True, positive=True)
+    A, g = symbols("A g", real=True, positive=True)
     n, m = symbols("n m", integer=True, positive=True)
 
-    def membrane_stress(x, u, B):
-        return simplify(2 * B * diff(u, x) ** (1 / n))
+    def membrane_stress(x, u, A):
+        return simplify(2 * A ** (-1 / n) * diff(u, x) ** (1 / n))
 
     def friction(x, u, C):
         return simplify(-C * u ** (1 / m))
@@ -32,15 +32,15 @@ def test_manufactured_solution():
     def driving_stress(x, h, s):
         return simplify(-ρ_I * g * h * diff(s, x))
 
-    def shelfy_stream_eqns(x, u, h, s, B, C):
+    def shelfy_stream_eqns(x, u, h, s, A, C):
         return simplify(
-            diff(h * membrane_stress(x, u, B), x)
+            diff(h * membrane_stress(x, u, A), x)
             + friction(x, u, C)
             + driving_stress(x, h, s)
         )
 
-    def boundary_condition(x, u, h, s, B):
-        M = membrane_stress(x, u, B)
+    def boundary_condition(x, u, h, s, A):
+        M = membrane_stress(x, u, A)
         d = (s - h).subs(x, L)
         τ = (ρ_I * g * h**2 - ρ_W * g * d**2) / 2
         return simplify((h * M - τ).subs(x, L))
@@ -50,36 +50,33 @@ def test_manufactured_solution():
     h0, dh = symbols("h0 dh", real=True, positive=True)
     h = h0 - dh * x / L
 
-    hf = symbols("hf", real=True, positive=True)
-    d = -ρ_I / ρ_W * h.subs(x, L) + hf
-    ρ = (ρ_I - ρ_W * d**2 / h**2).subs(x, L)
+    s0, ds = symbols("s0 ds", real=True, positive=True)
+    s = s0 - ds * x / L
+
+    h_L = h0 - dh
+    s_L = s0 - ds
+    β = dh / ds * (ρ_I * h_L ** 2 - ρ_W * (s_L - h_L) ** 2) / (ρ_I * h_L**2)
+
+    ρ = β * ρ_I * ds / dh
+    P = ρ * g * h / 4
+    dP = ρ * g * dh / 4
+    P0 = ρ * g * h0 / 4
 
     u0 = symbols("u0", real=True, positive=True)
-    du = (
-        (ρ * g * h0 / (4 * B)) ** n
-        * (1 - (1 - dh / h0 * x / L) ** (n + 1))
-        * L
-        * (h0 / dh)
-        / (n + 1)
-    )
+    du = L * A * (P0 ** (n + 1) - P ** (n + 1)) / ((n + 1) * dP)
     u = u0 + du
 
-    β = 1 / 2
-    α = β * ρ / ρ_I * dh / L
-    C = α * (ρ_I * g * h) * u ** (-1 / m)
-
-    ds = (1 + β) * ρ / ρ_I * dh
-    s = d + h.subs(x, L) + ds * (1 - x / L)
+    C = (1 - β) * (ρ_I * g * h) * ds / L * u ** (-1 / m)
 
     T = 254.15
-    rheology = icepack.rate_factor(T) ** (-1 / constants.glen_flow_law)
     values = {
         u0: 100,
-        dh: 100,
         h0: 500,
+        dh: 100,
+        s0: 150,
+        ds: 90,
         L: 20e3,
-        hf: 10,
-        B: rheology,
+        A: icepack.rate_factor(T),
         ρ_I: constants.ice_density,
         ρ_W: constants.water_density,
         n: constants.glen_flow_law,
@@ -89,12 +86,12 @@ def test_manufactured_solution():
 
     τ_b = lambdify(x, friction(x, u, C).subs(values), "numpy")
     τ_d = lambdify(x, driving_stress(x, h, s).subs(values), "numpy")
-    M = membrane_stress(x, u, B)
+    M = membrane_stress(x, u, A)
     τ_m = lambdify(x, simplify(diff(h * M, x)).subs(values), "numpy")
     xs = np.linspace(0, values[L], 21)
 
     tolerance = 1e-8
-    assert abs(boundary_condition(x, u, h, s, B).subs(values)) < tolerance
+    assert abs(boundary_condition(x, u, h, s, A).subs(values)) < tolerance
     assert np.max(np.abs(τ_m(xs) + τ_b(xs) + τ_d(xs))) < tolerance * np.max(
         np.abs(τ_d(xs))
     )
@@ -114,25 +111,27 @@ from icepack.constants import (
 
 Lx, Ly = 20e3, 20e3
 h0, dh = 500.0, 100.0
+s0, ds = 150.0, 90.0
 T = 254.15
 u_inflow = 100.0
 
-# Pick a height above flotation at the ice terminus. In order to have an
-# exact ice velocity of the same form as the exact solution for an ice
-# shelf, we have to pick the pseudo-density to be a certain value for the
-# velocity to satisfy the boundary condition at the terminus.
-height_above_flotation = 10.0
-d = -ρ_I / ρ_W * (h0 - dh) + height_above_flotation
-ρ = ρ_I - ρ_W * d**2 / (h0 - dh) ** 2
+# Pick the fraction of the gravitational driving that membrane stress
+# divergence will take up.
+h_L = h0 - dh
+s_L = s0 - ds
+β = dh / ds * (ρ_I * h_L**2 - ρ_W * (s_L - h_L)**2) / (ρ_I * h_L**2)
 
-
-# We'll arbitrarily pick this to be the velocity, then we'll find a
-# friction coefficient and surface elevation that makes this velocity
-# an exact solution of the shelfy stream equations.
+# We'll arbitrarily pick this to be the velocity, then we'll find a friction
+# coefficient that makes this velocity an exact solution of the momentum
+# balance equations.
 def exact_u(x):
-    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
-    q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
-    du = Z * q * Lx * (h0 / dh) / (n + 1)
+    A = icepack.rate_factor(T)
+    ρ = β * ρ_I * ds / dh
+    h = h0 - dh * x / Lx
+    P = ρ * g * h / 4
+    dP = ρ * g * dh / 4
+    P0 = ρ * g * h0 / 4
+    du = Lx * A * (P0 ** (n + 1) - P ** (n + 1)) / ((n + 1) * dP)
     return u_inflow + du
 
 
@@ -142,19 +141,9 @@ def perturb_u(x, y):
     return 60 * q * (px - 0.5)
 
 
-# With this choice of friction coefficient, we can take the surface
-# elevation to be a linear function of the horizontal coordinate and the
-# velocity will be an exact solution of the shelfy stream equations.
-β = 1 / 2
-α = β * ρ / ρ_I * dh / Lx
-
-
 def friction(x):
-    return α * (ρ_I * g * (h0 - dh * x / Lx)) * exact_u(x) ** (-1 / m)
-
-
-# Total change of the surface elevation
-ds = (1 + β) * ρ / ρ_I * dh
+    h = h0 - dh * x / Lx
+    return (1 - β) * (ρ_I * g * h) * ds / Lx * exact_u(x) ** (-1 / m)
 
 
 def norm(v):
@@ -178,7 +167,7 @@ def test_diagnostic_solver_convergence():
             u_guess = Function(V).interpolate(u_exact + as_vector((perturb_u(x, y), 0)))
 
             h = Function(Q).interpolate(h0 - dh * x / Lx)
-            s = Function(Q).interpolate(d + h0 - dh + ds * (1 - x / Lx))
+            s = Function(Q).interpolate(s0 - ds * x / Lx)
             C = Function(Q).interpolate(friction(x))
             A = Function(Q).assign(firedrake.Constant(icepack.rate_factor(T)))
 

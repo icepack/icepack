@@ -34,4 +34,3 @@ jobs:
           jupyter nbconvert --to notebook --execute notebooks/how-to/01-performance.ipynb
           jupyter nbconvert --to notebook --execute notebooks/how-to/02-checkpointing.ipynb
           jupyter nbconvert --to notebook --execute notebooks/how-to/03-adaptivity.ipynb
-          jupyter nbconvert --to notebook --execute notebooks/how-to/05-time-dependent-inverse.ipynb
