@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2017-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -37,9 +37,12 @@ T = 254.15
 # Blatter for the derivation.
 def exact_u(x):
     ρ = ρ_I * (1 - ρ_I / ρ_W)
-    Z = icepack.rate_factor(T) * (ρ * g * h0 / 4) ** n
-    q = 1 - (1 - (dh / h0) * (x / Lx)) ** (n + 1)
-    du = Z * q * Lx * (h0 / dh) / (n + 1)
+    h = h0 - dh * x / Lx
+    P = ρ * g * h / 4
+    P0 = ρ * g * h0 / 4
+    dP = ρ * g * dh / 4
+    A = icepack.rate_factor(T)
+    du = Lx * A * (P0 ** (n + 1) - P ** (n + 1)) / ((n + 1) * dP)
     return u0 + du
 
 
