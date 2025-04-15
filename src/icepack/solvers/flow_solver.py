@@ -54,6 +54,8 @@ class FlowSolver:
         prognostic_solver_parameters : dict, optional
             Options for prognostic solve routine; defaults to direct
             factorization of the flux matrix using MUMPS
+        set_objective : bool, optional
+            Experimental feature -- use the action functional for line searches
 
         Examples
         --------
@@ -102,6 +104,7 @@ class FlowSolver:
             diagnostic_parameters,
             dirichlet_ids=kwargs.pop("dirichlet_ids", []),
             side_wall_ids=kwargs.pop("side_wall_ids", []),
+            **kwargs,
         )
 
         # Prepare the prognostic solver
@@ -145,7 +148,13 @@ class FlowSolver:
 
 class IcepackSolver:
     def __init__(
-        self, model, fields, solver_parameters, dirichlet_ids=[], side_wall_ids=[]
+        self,
+        model,
+        fields,
+        solver_parameters,
+        dirichlet_ids=[],
+        side_wall_ids=[],
+        **kwargs,
     ):
         r"""Diagnostic solver implementation using hand-written Newton line
         search optimization algorithm"""
@@ -194,7 +203,9 @@ class IcepackSolver:
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 
         # Create the action and scale functionals
-        _kwargs = {"side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids}
+        _kwargs = {
+            "side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids
+        }
         action = self._model.action(**self._fields, **_kwargs)
         scale = self._model.scale(**self._fields, **_kwargs)
 
@@ -225,7 +236,13 @@ class IcepackSolver:
 
 class PETScSolver:
     def __init__(
-        self, model, fields, solver_parameters, dirichlet_ids=[], side_wall_ids=[]
+        self,
+        model,
+        fields,
+        solver_parameters,
+        dirichlet_ids=[],
+        side_wall_ids=[],
+        **kwargs,
     ):
         r"""Diagnostic solver implementation using PETSc SNES"""
         self._model = model
@@ -262,7 +279,9 @@ class PETScSolver:
         ice_front_ids = list(set(boundary_ids) - ice_front_ids_comp)
 
         # Create the action and scale functionals
-        _kwargs = {"side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids}
+        _kwargs = {
+            "side_wall_ids": self._side_wall_ids, "ice_front_ids": ice_front_ids
+        }
         action = self._model.action(**self._fields, **_kwargs)
         F = firedrake.derivative(action, u)
 
@@ -274,14 +293,16 @@ class PETScSolver:
             problem, solver_parameters=self._solver_parameters
         )
 
-        # Make the PETSc solver use the objective functional for line searches
-        u_tmp = u.copy(deepcopy=True)
-        def objective(snes: petsc4py.PETSc.SNES, x: petsc4py.PETSc.Vec) -> float:
-            with u_tmp.dat.vec_wo as vec:
-                vec.setArray(x.array)
-            return firedrake.assemble(firedrake.replace(action, {u: u_tmp}))
+        # Experimental feature: Make the PETSc solver use the objective
+        # for line searches
+        if kwargs.get("set_objective", False):
+            u_tmp = u.copy(deepcopy=True)
+            def objective(snes: petsc4py.PETSc.SNES, x: petsc4py.PETSc.Vec) -> float:
+                with u_tmp.dat.vec_wo as vec:
+                    vec.setArray(x.array)
+                return firedrake.assemble(firedrake.replace(action, {u: u_tmp}))
 
-        self._solver.snes.setObjective(objective)
+            self._solver.snes.setObjective(objective)
 
     def solve(self, **kwargs):
         r"""Solve the diagnostic model physics for the ice velocity"""
