@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2023 by Daniel Shapero <shapero@uw.edu>
+# Copyright (C) 2019-2025 by Daniel Shapero <shapero@uw.edu>
 #
 # This file is part of icepack.
 #
@@ -59,21 +59,20 @@ class EarthDataDownloader:
 
 _earthdata_downloader = EarthDataDownloader()
 
-
-_n5eil01u = "https://n5eil01u.ecs.nsidc.org"
+_nsidc_url = "https://data.nsidc.earthdatacloud.nasa.gov/nsidc-cumulus-prod-protected"
 _daacdata = "https://daacdata.apps.nsidc.org/pub/DATASETS"
 _nsidc_links = {
     "antarctic_ice_vel_phase_map_v01.nc": (
         "md5:2e1ca76870a6e67ace309a9850739dc9",
-        f"{_n5eil01u}/MEASURES/NSIDC-0754.001/1996.01.01",
+        f"{_nsidc_url}/MEASURES/NSIDC-0754/1/1996/01/01",
     ),
-    "BedMachineAntarctica_2020-07-15_v02.nc": (
-        "md5:35b36e1527fd846cbf38ce25b0e0c563",
-        f"{_n5eil01u}/MEASURES/NSIDC-0756.002/1970.01.01",
+    "BedMachineAntarctica-v3.nc": (
+        "md5:9d6e2e5fdd56a0baf534e1eae0f49070",
+        f"{_nsidc_url}/MEASURES/NSIDC-0756/3/1970/01/01",
     ),
     "BedMachineGreenland-v5.nc": (
         "md5:7387182a059dd8cad66ce7638eb0d7cd",
-        f"{_n5eil01u}/ICEBRIDGE/IDBMG4.005/1993.01.01",
+        f"{_nsidc_url}/ICEBRIDGE/IDBMG4/5/1993/01/01",
     ),
     "moa750_2009_hp1_v02.0.tif.gz": (
         "md5:7d386e916cbc072cd3ada4ee3ba145c9",
@@ -81,19 +80,19 @@ _nsidc_links = {
     ),
     "greenland_vel_mosaic200_2015_2016_vx_v02.1.tif": (
         "md5:48bfa5266b6ecf5d4939c306f665ce47",
-        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+        f"{_nsidc_url}/MEASURES/NSIDC-0478/2/2015/09/01",
     ),
     "greenland_vel_mosaic200_2015_2016_vy_v02.1.tif": (
         "md5:f68a5bbc76bcbb11b3cfe7a979d64651",
-        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+        f"{_nsidc_url}/MEASURES/NSIDC-0478/2/2015/09/01",
     ),
     "greenland_vel_mosaic200_2015_2016_ex_v02.1.tif": (
         "md5:e9e3d01d630533d870d552da023a66ba",
-        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+        f"{_nsidc_url}/MEASURES/NSIDC-0478/2/2015/09/01",
     ),
     "greenland_vel_mosaic200_2015_2016_ey_v02.1.tif": (
         "md5:1d1b5b0efcdf24218e9f7d75b6750a3d",
-        f"{_n5eil01u}/MEASURES/NSIDC-0478.002/2015.09.01",
+        f"{_nsidc_url}/MEASURES/NSIDC-0478/2/2015/09/01",
     ),
     "RGI2000-v7.0-G-01_alaska.zip": (
         "md5:dcde7c544799aff09ad9ea11616fa003",
@@ -101,7 +100,7 @@ _nsidc_links = {
     ),
     "mog100_2015_hp1_v02.tif": (
         "md5:05758adba03f36fc21883c3dba2ee04c",
-        f"{_n5eil01u}/MEASURES/NSIDC-0547.002/2015.03.12",
+        f"{_nsidc_url}/MEASURES/NSIDC-0547/2/2015/03/12",
     )
 }
 
@@ -135,7 +134,7 @@ def fetch_bedmachine_antarctica():
     r"""Fetch the BedMachine map of Antarctic ice thickness, surface elevation,
     and bed elevation"""
     return nsidc_data.fetch(
-        "BedMachineAntarctica_2020-07-15_v02.nc", downloader=_earthdata_downloader
+        "BedMachineAntarctica-v3.nc", downloader=_earthdata_downloader
     )
 
 
