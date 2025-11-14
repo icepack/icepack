@@ -14,7 +14,6 @@
 r"""Miscellaneous utilities for depth-averaging 3D fields, computing
 horizontal gradients of 3D fields, lifting 2D fields into 3D, etc."""
 
-import finat.ufl
 from operator import itemgetter
 import inspect
 import sympy
@@ -91,7 +90,7 @@ def depth_average(q_xz, weight=firedrake.Constant(1)):
         try:
             element_x = element_xz.sub_elements()[0]
         except TypeError:
-            if type(element_xz) is finat.ufl.TensorProductElement:
+            if hasattr(element_xz, "factor_elements"):
                 element_x = element_xz.factor_elements[0]
             else:
                 element_x = element_xz.sub_elements[0]
@@ -102,11 +101,11 @@ def depth_average(q_xz, weight=firedrake.Constant(1)):
         except TypeError:
             # This has become more complicated since we may have multiple types of elements
             # And at each stage these elements use different names for sub elements
-            if type(element_xz) is finat.ufl.TensorProductElement:
+            if hasattr(element_xz, "factor_elements"):
                 element_hor = element_xz.factor_elements[0]
             else:
                 element_hor = element_xz.sub_elements[0]
-            if type(element_hor) is finat.ufl.TensorProductElement:
+            if hasattr(element_hor, "factor_elements"):
                 element_xy = element_hor.factor_elements[0]
             else:
                 element_xy = element_hor.sub_elements[0]
