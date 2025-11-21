@@ -1,7 +1,7 @@
 name: 'Build and test icepack'
 on: [push, pull_request]
 jobs:
-  test:
+  test-legacy:
     strategy:
       matrix:
         version: [2024-04, 2024-07, 2024-10, 2025-01]
@@ -26,6 +26,33 @@ jobs:
           pip install jupyter ipykernel nbconvert
           python -m ipykernel install --user --name=firedrake
           pip install --editable ".[pygmsh]"
+      - name: Run unit tests
+        run: pytest
+      - name: Run example notebooks
+        run: |
+          jupyter nbconvert --to notebook --execute notebooks/tutorials/02-synthetic-ice-shelf.ipynb
+          jupyter nbconvert --to notebook --execute notebooks/how-to/01-performance.ipynb
+          jupyter nbconvert --to notebook --execute notebooks/how-to/02-checkpointing.ipynb
+          jupyter nbconvert --to notebook --execute notebooks/how-to/03-adaptivity.ipynb
+
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/firedrakeproject/firedrake-vanilla-default:2025.10.2
+      options: --user root
+    steps:
+      - name: Install dependences
+        run: |
+          apt update
+          apt install -yq libglu1-mesa-dev libxft2-dev
+          python3 -m pip install jupyter ipykernel nbconvert
+          python3 -m pip install git+https://github.com/dolfin-adjoint/pyadjoint@2025.10.1
+      - name: Check out git repository
+        uses: actions/checkout@v5
+      - name: Install package
+        run: |
+          python3 -m ipykernel install --user --name=firedrake
+          python3 -m pip install --editable ".[pygmsh]"
       - name: Run unit tests
         run: pytest
       - name: Run example notebooks
