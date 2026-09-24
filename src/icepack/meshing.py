@@ -22,17 +22,13 @@ import geojson
 import meshpy.triangle as triangle
 import gmsh
 import firedrake
+from firedrake.cython import dmcommon
 
 try:
     import pygmsh
     _has_pygmsh = True
 except ImportError:
     _has_pygmsh = False
-
-try:
-    from firedrake.cython import dmcommon
-except ImportError:
-    from firedrake.cython import dmplex as dmcommon
 
 
 def _flatten(features):
@@ -428,12 +424,7 @@ def collection_to_triangle(collection, max_volume=None):
 def triangle_to_firedrake(mesh, comm=firedrake.COMM_WORLD):
     r"""Convert a generated Triangle geometry into a Firedrake mesh"""
     elements, points = mesh.elements, mesh.points
-    # TODO: Remove this when we fully switch to the new Firedrake meshing
-    # interface, `_from_cell_list` is deprecated
-    if hasattr(firedrake.mesh, "plex_from_cell_list"):
-        plex = firedrake.mesh.plex_from_cell_list(2, elements, points, comm)
-    else:
-        plex = firedrake.mesh._from_cell_list(2, elements, points, comm)
+    plex = firedrake.mesh.plex_from_cell_list(2, elements, points, comm)
 
     markers = {
         tuple(sorted((v1, v2))): mesh.facet_markers[index]

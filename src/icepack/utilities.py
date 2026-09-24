@@ -31,15 +31,6 @@ default_solver_parameters = {
 }
 
 
-def geometric_dimension(mesh):
-    r"""Compatibility function for old versions of Firedrake where
-    `.geometric_dimension` is a method and new versions where it's a property"""
-    try:
-        return mesh.geometric_dimension()
-    except:
-        return mesh.geometric_dimension
-
-
 def eigenvalues(a):
     r"""Return a pair of symbolic expressions for the largest and smallest
     eigenvalues of a 2D rank-2 tensor"""

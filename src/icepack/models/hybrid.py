@@ -30,7 +30,7 @@ from icepack.constants import (
     gravity as g,
     strain_rate_min,
 )
-from icepack.utilities import add_kwarg_wrapper, geometric_dimension
+from icepack.utilities import add_kwarg_wrapper
 from icepack.calculus import (
     grad, sym_grad, trace, Identity, FacetNormal, legendre, get_mesh_axes
 )
@@ -99,7 +99,7 @@ def terminus(**kwargs):
     mesh = u.function_space().mesh()
     zdegree = u.ufl_element().degree()[1]
 
-    ζ = firedrake.SpatialCoordinate(mesh)[geometric_dimension(mesh) - 1]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension - 1]
 
     b = s - h
     ζ_sl = firedrake.max_value(-b, 0) / h
@@ -123,7 +123,7 @@ def stresses(**kwargs):
     n = kwargs.get("flow_law_exponent", glen_flow_law)
 
     μ = 0.5 * A ** (-1 / n) * ε_e ** (1 / n - 1)
-    d = geometric_dimension(ufl.domain.extract_unique_domain(ε_x)) - 1
+    d = ufl.domain.extract_unique_domain(ε_x).geometric_dimension - 1
     I = Identity(d)
     return 2 * μ * (ε_x + trace(ε_x) * I), 2 * μ * ε_z
 
@@ -133,7 +133,7 @@ def horizontal_strain_rate(**kwargs):
     following coordinates"""
     u, h, s = itemgetter("velocity", "surface", "thickness")(kwargs)
     mesh = u.function_space().mesh()
-    dim = geometric_dimension(mesh)
+    dim = mesh.geometric_dimension
     ζ = firedrake.SpatialCoordinate(mesh)[dim - 1]
     b = s - h
     v = -((1 - ζ) * grad(b) + ζ * grad(s)) / h
@@ -146,7 +146,7 @@ def vertical_strain_rate(**kwargs):
     following coordinates"""
     u, h = itemgetter("velocity", "thickness")(kwargs)
     mesh = u.function_space().mesh()
-    du_dζ = u.dx(geometric_dimension(mesh) - 1)
+    du_dζ = u.dx(mesh.geometric_dimension - 1)
     return 0.5 * du_dζ / h
 
 

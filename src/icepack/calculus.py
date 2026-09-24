@@ -22,13 +22,12 @@ from operator import itemgetter
 import sympy
 import ufl
 import firedrake
-from .utilities import geometric_dimension
 
 
 def get_mesh_axes(mesh):
     r"""Get a string representing the axes present in the mesh -- 'x', 'xy', 'xz', or
     'xyz'"""
-    mesh_dim = geometric_dimension(mesh)
+    mesh_dim = mesh.geometric_dimension
     extruded = mesh.layers is not None
     if mesh_dim == 1:
         return "x"
@@ -103,34 +102,14 @@ def depth_average(q_xz, weight=firedrake.Constant(1)):
     element_xz = q_xz.ufl_element()
 
     # Create the element `E x DG0` where `E` is the horizontal element for the
-    # input field. NOTE: UFL changed getting sub-elements from a function to a
-    # property so we have some try/except hackery to make this work for old and
-    # new versions.
+    # input field.
     element_z = firedrake.FiniteElement(family="R", cell="interval", degree=0)
     shape = q_xz.ufl_shape
     if len(shape) == 0:
-        try:
-            element_x = element_xz.sub_elements()[0]
-        except TypeError:
-            if hasattr(element_xz, "factor_elements"):
-                element_x = element_xz.factor_elements[0]
-            else:
-                element_x = element_xz.sub_elements[0]
+        element_x = element_xz.factor_elements[0]
         element_avg = firedrake.TensorProductElement(element_x, element_z)
     elif len(shape) == 1:
-        try:
-            element_xy = element_xz.sub_elements()[0].sub_elements()[0]
-        except TypeError:
-            # This has become more complicated since we may have multiple types of elements
-            # And at each stage these elements use different names for sub elements
-            if hasattr(element_xz, "factor_elements"):
-                element_hor = element_xz.factor_elements[0]
-            else:
-                element_hor = element_xz.sub_elements[0]
-            if hasattr(element_hor, "factor_elements"):
-                element_xy = element_hor.factor_elements[0]
-            else:
-                element_xy = element_hor.sub_elements[0]
+        element_xy = element_xz.sub_elements[0].factor_elements[0]
         element_u = firedrake.TensorProductElement(element_xy, element_z)
         element_avg = firedrake.VectorElement(element_u, dim=shape[0])
         element_x = firedrake.VectorElement(element_xy, dim=shape[0])
@@ -217,7 +196,7 @@ def vertically_integrate(q, h):
 
     Q = h.function_space()
     mesh = Q.mesh()
-    ζ = firedrake.SpatialCoordinate(mesh)[geometric_dimension(mesh) - 1]
+    ζ = firedrake.SpatialCoordinate(mesh)[mesh.geometric_dimension - 1]
     xdegree_q, zdegree_q = q.ufl_element().degree()
 
     ζsym = sympy.symbols("ζsym", real=True, positive=True)

@@ -14,7 +14,7 @@ r"""Solvers for ice physics models"""
 
 import warnings
 import firedrake
-from firedrake import dx, inner, Constant
+from firedrake import dx, inner
 import petsc4py
 from ..utilities import default_solver_parameters
 from icepack.calculus import grad, div, FacetNormal
@@ -325,11 +325,7 @@ class IcepackSolver:
         # Create homogeneous BCs for the Dirichlet part of the boundary
         u = self._fields["velocity"]
         V = u.function_space()
-        # NOTE: This will have to change when we do Stokes!
-        if hasattr(V._ufl_element, "_sub_element"):
-            bcs = firedrake.DirichletBC(V, Constant((0, 0)), self._dirichlet_ids)
-        else:
-            bcs = firedrake.DirichletBC(V, Constant(0), self._dirichlet_ids)
+        bcs = firedrake.DirichletBC(V, 0, self._dirichlet_ids)
         if not self._dirichlet_ids:
             bcs = None
 

@@ -6,7 +6,7 @@ authors = [
     {name = "Daniel Shapero", email = "shapero@uw.edu"}
 ]
 license = {text = "LICENSE"}
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "scipy",
@@ -18,7 +18,7 @@ dependencies = [
     "geopandas",
     "shapely",
     "pooch",
-    "earthaccess",
+    "earthaccess>=0.19",
     "gmsh",
     "MeshPy",
     "tqdm",
