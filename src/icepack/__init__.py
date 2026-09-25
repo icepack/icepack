@@ -11,7 +11,7 @@
 # icepack source directory or at <http://www.gnu.org/licenses/>.
 
 from icepack.norms import norm
-from icepack.interpolate import interpolate
+from icepack.interpolate import interpolate, fit
 from icepack.utilities import compute_surface
 from icepack.calculus import vertical_velocity, depth_average, lift3d
 from icepack.models.viscosity import rate_factor
@@ -24,6 +24,7 @@ import icepack.statistics
 __all__ = [
     "norm",
     "interpolate",
+    "fit",
     "depth_average",
     "lift3d",
     "compute_surface",

@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2024 by Daniel Shapero <shapero@uw.edu> and David
+# Copyright (C) 2017-2026 by Daniel Shapero <shapero@uw.edu> and David
 # Lilien
 #
 # This file is part of icepack.
@@ -18,10 +18,14 @@ from functools import singledispatch
 from collections.abc import Sequence
 import numpy as np
 import ufl
-import firedrake
 import rasterio
 import xarray
 from scipy.interpolate import RegularGridInterpolator
+import firedrake
+from firedrake import (
+    Constant, inner, dot, grad, dx, ds, dS, avg, jump, action, adjoint, derivative
+)
+from petsc4py import PETSc
 
 
 @singledispatch
@@ -117,3 +121,99 @@ def interpolate(f, Q, **kwargs):
     q = firedrake.Function(Q)
     q.dat.data[:] = _sample(f, X, **kwargs)
     return q
+
+
+def fit(data, stddev, smoothing_length, Q, **kwargs):
+    r"""Fit a data set to a function defined on some mesh. The data do not
+    have to be dense. The fit will not (in general) be exact.
+
+    Parameters
+    ----------
+    data : firedrake.Function
+        The observational data, defined on a VertexOnlyMesh
+    stddev : firedrake.Function or firedrake.Constant
+        The standard deviation of the measurement errors, defined on the same
+        point cloud as the observational data.
+        Should have the same physical units as the data themselves.
+    smoothing_length : float
+        A length scale determining how far to smooth the fitted field
+    Q : firedrake.FunctionSpace
+        The function space where the resulting field should live. Must be
+        defined on a triangular mesh with Lagrange elements.
+
+    Returns
+    -------
+    firedrake.Function
+        A finite element function defined on `Q`
+
+    Notes
+    -----
+    This is an experimental feature which only just barely works with some
+    low-level hackery. It will be overhauled pending some changes to Firedrake.
+    Use at your own risk.
+    """
+    mesh = Q.mesh()
+    if str(cell := mesh.ufl_cell()) != "triangle":
+        raise NotImplementedError(
+            f"Can't do fitting on {cell} meshes, only triangle!"
+        )
+
+    element = Q.ufl_element()
+    if (family := element.family()) != "Lagrange":
+        raise NotImplementedError(
+            f"Can't do fitting into {cell} elements, only Lagrange!"
+        )
+
+    hhj = firedrake.FiniteElement("HHJ", "triangle", element.degree() - 1)
+    S = firedrake.FunctionSpace(mesh, hhj)
+    Z = S * Q
+    z = firedrake.Function(Z)
+    s, p = firedrake.split(z)
+
+    # TODO: Check the boundary conditions here. In the limit of large smoothing
+    # length, we should get back the least-squares fit of a plane.
+    α = Constant(smoothing_length)
+    area = firedrake.assemble(Constant(1.0) * dx(domain=mesh))
+    Ω = Constant(area)
+    n = firedrake.FacetNormal(mesh)
+    L_cells = (inner(s, grad(grad(p))) - 0.5 * inner(s, s)) * dx
+    L_facets = avg(inner(n, dot(s, n))) * jump(grad(p), n) * dS
+    L_boundary = inner(n, dot(s, n)) * inner(grad(p), n) * ds
+    L = α**4 / Ω * (L_cells - L_facets - L_boundary)
+    A = derivative(derivative(L, z), z)
+
+    # Make the map that interpolates functions on the mesh into the point cloud
+    D = data.function_space()
+    _, q = firedrake.TrialFunctions(Z)
+    I = firedrake.interpolate(q, D)
+
+    # The (inverse) covariance matrix, on the point cloud. Weights each
+    # observation by the reciprocal of the variance. The sum is normalized
+    # by the total rms variance, which makes the misfit a weighted mean.
+    total_precision = firedrake.assemble(1 / stddev**2 * dx(domain=D.mesh()))
+    Π = Constant(1 / np.sqrt(total_precision))
+    q, r = firedrake.TestFunction(D), firedrake.TrialFunction(D)
+    Σ = Π * q * r / stddev**2 * dx
+
+    # The "gain matrix" K does a round trip from the mesh to the point cloud
+    # and back. TODO: Patch Firedrake so we don't need this awful hackery
+    try:
+        kw = {"allocation_integral_types": ("cell",)}
+        K = firedrake.assemble(action(adjoint(I), action(Σ, I)), **kw)
+    except PETSc.Error:
+        raise NotImplementedError(
+            "This feature only works for Firedrake versions 2026.4.2 and up."
+        )
+
+    H = firedrake.assemble(A + K)
+    F = firedrake.assemble(action(adjoint(I), action(Σ, data)))
+
+    default_sparams = {
+        "snes_type": "ksponly",
+        "ksp_type": "preonly",
+        "pc_type": "lu",
+        "pc_factor_mat_solver_type": "mumps",
+    }
+    sparams = kwargs.get("solver_parameters", default_sparams)
+    firedrake.solve(H, z, F, solver_parameters=sparams)
+    return z.subfunctions[1]
