@@ -170,16 +170,13 @@ def fit(data, stddev, smoothing_length, Q, **kwargs):
     z = firedrake.Function(Z)
     s, p = firedrake.split(z)
 
-    # TODO: Check the boundary conditions here. In the limit of large smoothing
-    # length, we should get back the least-squares fit of a plane.
     α = Constant(smoothing_length)
     area = firedrake.assemble(Constant(1.0) * dx(domain=mesh))
     Ω = Constant(area)
     n = firedrake.FacetNormal(mesh)
     L_cells = (inner(s, grad(grad(p))) - 0.5 * inner(s, s)) * dx
     L_facets = avg(inner(n, dot(s, n))) * jump(grad(p), n) * dS
-    L_boundary = inner(n, dot(s, n)) * inner(grad(p), n) * ds
-    L = α**4 / Ω * (L_cells - L_facets - L_boundary)
+    L = α**4 / Ω * (L_cells - L_facets)
     A = derivative(derivative(L, z), z)
 
     # Make the map that interpolates functions on the mesh into the point cloud
@@ -205,8 +202,11 @@ def fit(data, stddev, smoothing_length, Q, **kwargs):
             "This feature only works for Firedrake versions 2026.4.2 and up."
         )
 
-    H = firedrake.assemble(A + K)
-    F = firedrake.assemble(action(adjoint(I), action(Σ, data)))
+    # We have to bake the boundary conditions in `A`. TODO: revisit BC choice
+    bc = firedrake.DirichletBC(Z.sub(0), 0, "on_boundary")
+    A_ = firedrake.assemble(A, bcs=bc)
+    H = firedrake.assemble(A_ + K)
+    F = firedrake.assemble(action(adjoint(I), action(Σ, data)), bcs=bc)
 
     default_sparams = {
         "snes_type": "ksponly",
