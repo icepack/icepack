@@ -18,7 +18,7 @@ dependencies = [
     "geopandas",
     "shapely",
     "pooch",
-    "earthaccess",
+    "earthaccess>=0.19",
     "gmsh",
     "MeshPy",
     "tqdm",
