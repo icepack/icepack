@@ -42,7 +42,7 @@ def _fetch_nsidc(search={}, **kwargs):
         extra = kwargs["extra"]
         filename = kwargs["filename"]
         results = earthaccess.search_datasets(**search)
-        urls = [results[0].summary()["get-data"][0] + extra + filename]
+        urls = [results[0].summary["get-data"][0] + extra + filename]
     except KeyError:
         results = earthaccess.search_data(**search)
         urls = results[0].data_links()
